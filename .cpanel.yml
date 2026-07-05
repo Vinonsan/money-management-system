@@ -1,0 +1,9 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/riversid/masterbrain.site/
+    - /bin/cp -r config $DEPLOYPATH
+    - /bin/cp -r public $DEPLOYPATH
+    - /bin/cp -r src $DEPLOYPATH
+    - /bin/cp -r deploy $DEPLOYPATH
+    - /bin/cp .htaccess $DEPLOYPATH

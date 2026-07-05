@@ -1,5 +1,27 @@
+# ─── Logs ────────────────────────────────────────────────────────────────
 sms_log.txt
-debug_recalls.php
-update_schema.php
-check_recalls.php
-update_db.php
+*.log
+
+# ─── Deployment ───────────────────────────────────────────────────────────
+deploy/token.txt
+
+# ─── Environment / Config Overrides ──────────────────────────────────────
+.env
+.env.local
+
+# ─── OS Artifacts ─────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+elevate-dir.cmd
+
+# ─── IDE ──────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ─── Temp / Cache ────────────────────────────────────────────────────────
+tmp/
+cache/
+
