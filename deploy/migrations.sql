@@ -1,14 +1,8 @@
 -- ======================================================================
--- Database Schema — Full Install
--- Used by setup.php for initial local installation.
--- For production deployments, use deploy/migrations.sql instead.
+-- Database Schema Migrations
+-- Applied automatically by deploy/migrate.php on cPanel deployment.
+-- All statements use IF NOT EXISTS / IF EXISTS for idempotent execution.
 -- ======================================================================
-
-CREATE DATABASE IF NOT EXISTS my_app
-    DEFAULT CHARACTER SET utf8mb4
-    COLLATE utf8mb4_unicode_ci;
-
-USE my_app;
 
 -- ─── Schema Migration Tracker ───────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS _schema_migrations (
