@@ -1,8 +1,30 @@
 <?php
 namespace Services;
 
-class SMSService {
-    public static function sendSMS($recipient, $message) {
-        return ['success' => true, 'response' => ['status' => 'placeholder']];
+/**
+ * SMS gateway stub. Replace send() body with real SMS API later.
+ * Until then, OTP is always OTP_DEV_CODE (111111).
+ */
+class SMSService
+{
+    public function sendOtp(string $phone, string $otp): bool
+    {
+        // TODO: integrate SMS API here.
+        // For now log locally and succeed so login works with OTP_DEV_CODE.
+        $line = sprintf(
+            "[%s] OTP to %s: %s%s",
+            date('Y-m-d H:i:s'),
+            $phone,
+            $otp,
+            PHP_EOL
+        );
+        @file_put_contents(__DIR__ . '/../../sms_log.txt', $line, FILE_APPEND);
+
+        return true;
+    }
+
+    public function generateOtp(): string
+    {
+        return OTP_DEV_CODE;
     }
 }

@@ -9,7 +9,7 @@ class Database
     private function __construct()
     {
         $host = defined('DB_HOST') ? DB_HOST : 'localhost';
-        $name = defined('DB_NAME') ? DB_NAME : 'my_app';
+        $name = defined('DB_NAME') ? DB_NAME : 'masjidpay';
         $user = defined('DB_USER') ? DB_USER : 'root';
         $pass = defined('DB_PASS') ? DB_PASS : '';
 
