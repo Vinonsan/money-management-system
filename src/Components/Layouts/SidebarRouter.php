@@ -1,0 +1,118 @@
+<?php
+namespace Components\Layouts;
+
+/**
+ * Admin sidebar route map — parent items with optional children.
+ *
+ * Tabs:
+ *   1. Dashboard (leaf)
+ *   2. Location Management → Location, Ward
+ *   3. Users → All Users, Add User
+ *   4. Profile (leaf)
+ *
+ * activeNav: "dashboard" | "locations.location" | "users.list"
+ */
+final class SidebarRouter
+{
+    /**
+     * @return array<string, array{
+     *   label: string,
+     *   href?: string|null,
+     *   icon: string,
+     *   children?: array<string, array{label: string, href: string}>
+     * }>
+     */
+    public static function routes(): array
+    {
+        return [
+            'dashboard' => [
+                'label' => 'Dashboard',
+                'href'  => BASE_URL . '/admin',
+                'icon'  => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1h-2z"/>',
+            ],
+            'locations' => [
+                'label' => 'Location Management',
+                'href'  => null,
+                'icon'  => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>',
+                'children' => [
+                    'location' => ['label' => 'Location', 'href' => BASE_URL . '/admin/locations'],
+                    'ward'     => ['label' => 'Ward',     'href' => BASE_URL . '/admin/wards'],
+                ],
+            ],
+            'users' => [
+                'label' => 'Users',
+                'href'  => null,
+                'icon'  => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>',
+                'children' => [
+                    'list' => ['label' => 'All Users', 'href' => BASE_URL . '/admin/users'],
+                ],
+            ],
+            'profile' => [
+                'label' => 'Profile',
+                'href'  => BASE_URL . '/admin/profile',
+                'icon'  => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>',
+            ],
+        ];
+    }
+
+    public static function hasChildren(array $item): bool
+    {
+        return !empty($item['children']) && is_array($item['children']);
+    }
+
+    public static function href(string $key): string
+    {
+        $routes = self::routes();
+
+        if (str_contains($key, '.')) {
+            [$parent, $child] = explode('.', $key, 2);
+            return $routes[$parent]['children'][$child]['href'] ?? BASE_URL . '/admin';
+        }
+
+        $item = $routes[$key] ?? null;
+        if (!$item) {
+            return BASE_URL . '/admin';
+        }
+
+        if (self::hasChildren($item)) {
+            $first = reset($item['children']);
+            return $first['href'] ?? BASE_URL . '/admin';
+        }
+
+        return $item['href'] ?? BASE_URL . '/admin';
+    }
+
+    public static function parentKey(string $activeNav): ?string
+    {
+        if ($activeNav === '') {
+            return null;
+        }
+        if (str_contains($activeNav, '.')) {
+            return explode('.', $activeNav, 2)[0];
+        }
+        $routes = self::routes();
+        if (isset($routes[$activeNav]) && self::hasChildren($routes[$activeNav])) {
+            return $activeNav;
+        }
+        return null;
+    }
+
+    public static function isParentActive(string $parentKey, string $activeNav): bool
+    {
+        if ($activeNav === $parentKey) {
+            return true;
+        }
+        return str_starts_with($activeNav, $parentKey . '.');
+    }
+
+    public static function isChildActive(string $parentKey, string $childKey, string $activeNav): bool
+    {
+        return $activeNav === $parentKey . '.' . $childKey;
+    }
+
+    public static function initiallyOpenParents(string $activeNav): array
+    {
+        $parent = self::parentKey($activeNav);
+        return $parent ? [$parent => true] : [];
+    }
+}

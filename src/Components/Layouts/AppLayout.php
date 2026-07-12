@@ -1,75 +1,82 @@
 <?php
 namespace Components\Layouts;
 
+/**
+ * Admin shell: Sidebar + Navbar + page content.
+ */
 final class AppLayout
 {
-    public static function render(string $title, string $content, string $activeNav = ''): void
+    public static function render(string $title, string $contentView, array $data = [], string $activeNav = ''): void
     {
-        $userName = $_SESSION['user_name'] ?? 'User';
+        extract($data);
+        $isLoggedIn = !empty($_SESSION['user_id']);
+        $openParents = SidebarRouter::initiallyOpenParents($activeNav);
+        $openParentsJson = $openParents === []
+            ? '{}'
+            : json_encode($openParents, JSON_UNESCAPED_SLASHES);
         ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="h-full">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= htmlspecialchars($title) ?> | <?= \APP_NAME ?></title>
+    <title><?= e($title) ?> | <?= APP_NAME ?></title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>[x-cloak] { display: none !important; }</style>
 </head>
-<body class="bg-gray-50 text-gray-800 antialiased" x-data="{ sidebarOpen: true, open: '', drawer: '' }">
+<body class="h-full bg-white text-slate-800 antialiased">
 
-<div class="flex h-screen overflow-hidden">
-    <!-- Sidebar -->
-    <aside class="hidden lg:flex lg:flex-col w-64 bg-white border-r border-gray-200 overflow-y-auto"
-           :class="sidebarOpen ? 'lg:flex' : 'lg:hidden'">
-        <div class="flex items-center gap-2 px-6 py-5 border-b border-gray-100">
-            <span class="text-lg font-bold text-gray-900"><?= \APP_NAME ?></span>
-        </div>
-        <nav class="flex-1 px-4 py-4 space-y-1">
-            <?= self::navItem('Dashboard', '/admin', 'layout-dashboard', $activeNav === 'dashboard') ?>
-            <?= self::navItem('Users', '/admin/users', 'users', $activeNav === 'users') ?>
-        </nav>
-        <div class="border-t border-gray-100 p-4">
-            <a href="/logout" class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 transition">
-                Logout
-            </a>
-        </div>
-    </aside>
+<?php if ($isLoggedIn): ?>
+<div
+    class="flex h-full min-h-screen"
+    x-data="{
+        collapsed: localStorage.getItem('mp_sidebar') === '1',
+        mobileOpen: false,
+        userMenu: false,
+        openParents: JSON.parse('<?= e($openParentsJson) ?>'),
+        drawer: '',
+        drawerMode: 'add',
+        drawerData: {},
+        modal: '',
+        modalData: {},
+        toggle() {
+            this.collapsed = !this.collapsed;
+            localStorage.setItem('mp_sidebar', this.collapsed ? '1' : '0');
+        },
+        isOpen(key) { return !!this.openParents[key]; },
+        toggleOpen(key) {
+            // Toggle only the clicked parent, others stay as they are
+            this.openParents[key] = !this.openParents[key];
+        }
+    }"
+    @keydown.escape.window="userMenu = false; mobileOpen = false"
+>
+    <?= Sidebar::render($activeNav) ?>
 
-    <!-- Main -->
-    <div class="flex-1 flex flex-col overflow-hidden">
-        <!-- Top Nav -->
-        <header class="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between shadow-sm">
-            <div class="flex items-center gap-4">
-                <button @click="sidebarOpen = !sidebarOpen" class="text-gray-500 hover:text-gray-700 lg:hidden">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
-                </button>
-                <h2 class="text-lg font-bold text-gray-800"><?= htmlspecialchars($title) ?></h2>
-            </div>
-            <div class="flex items-center gap-3 text-sm text-gray-600">
-                <span><?= htmlspecialchars($userName) ?></span>
-            </div>
-        </header>
-
-        <!-- Page Content -->
-        <main class="flex-1 overflow-y-auto p-6">
-            <?= $content ?>
+    <div class="flex min-w-0 flex-1 flex-col">
+        <?= Navbar::render($title) ?>
+        <main class="flex-1 overflow-y-auto p-4 sm:p-6">
+            <?php require $contentView; ?>
         </main>
     </div>
 </div>
+<?php else: ?>
+<div class="min-h-screen">
+    <header class="border-b border-slate-200 bg-white">
+        <div class="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
+            <a href="<?= BASE_URL ?>/" class="text-xl font-bold text-emerald-800"><?= APP_NAME ?></a>
+            <a href="<?= BASE_URL ?>/login" class="text-sm font-semibold text-slate-600 hover:text-emerald-800">Login</a>
+        </div>
+    </header>
+    <main>
+        <?php require $contentView; ?>
+    </main>
+</div>
+<?php endif; ?>
 
-<script src="https://unpkg.com/lucide@latest"></script>
-<script>lucide.createIcons();</script>
 </body>
 </html>
 <?php
-    }
-
-    private static function navItem(string $label, string $href, string $icon, bool $active): string
-    {
-        $activeClass = $active ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100';
-        return '<a href="' . $href . '" class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition ' . $activeClass . '">'
-             . '<span>' . $label . '</span></a>';
     }
 }

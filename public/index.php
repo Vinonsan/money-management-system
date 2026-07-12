@@ -14,8 +14,23 @@ $routes = [
     'login/verify-otp'   => ['Controller' => 'AuthController', 'Action' => 'verifyOtp'],
     'logout'             => ['Controller' => 'AuthController', 'Action' => 'logout'],
 
-    // Admin (Protected) — roles: admin, collector (super_admin later)
-    'admin' => ['Controller' => 'AdminController', 'Action' => 'index', 'Middleware' => 'StaffAuth'],
+    // Admin (Protected)
+    'admin'         => ['Controller' => 'AdminController', 'Action' => 'index', 'Middleware' => 'StaffAuth'],
+    'admin/profile' => ['Controller' => 'AdminController', 'Action' => 'profile', 'Middleware' => 'StaffAuth'],
+
+    // Location Management
+    'admin/locations'          => ['Controller' => 'AdminController', 'Action' => 'locations', 'Middleware' => 'StaffAuth'],
+    'admin/locations/create'   => ['Controller' => 'AdminController', 'Action' => 'createLocation', 'Middleware' => 'StaffAuth'],
+    'admin/locations/update'   => ['Controller' => 'AdminController', 'Action' => 'updateLocation', 'Middleware' => 'StaffAuth'],
+    'admin/locations/delete'   => ['Controller' => 'AdminController', 'Action' => 'deleteLocation', 'Middleware' => 'StaffAuth'],
+    'admin/wards'          => ['Controller' => 'AdminController', 'Action' => 'wards', 'Middleware' => 'StaffAuth'],
+    'admin/wards/create'   => ['Controller' => 'AdminController', 'Action' => 'createWard', 'Middleware' => 'StaffAuth'],
+    'admin/wards/update'   => ['Controller' => 'AdminController', 'Action' => 'updateWard', 'Middleware' => 'StaffAuth'],
+    'admin/wards/delete'   => ['Controller' => 'AdminController', 'Action' => 'deleteWard', 'Middleware' => 'StaffAuth'],
+
+    // Users
+    'admin/users'     => ['Controller' => 'AdminController', 'Action' => 'usersList', 'Middleware' => 'StaffAuth'],
+    'admin/users/create' => ['Controller' => 'AdminController', 'Action' => 'createUser', 'Middleware' => 'StaffAuth'],
 ];
 
 if (array_key_exists($route, $routes)) {

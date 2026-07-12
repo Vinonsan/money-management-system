@@ -7,7 +7,10 @@ date_default_timezone_set('Asia/Colombo');
 $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
 $host     = $_SERVER['HTTP_HOST'] ?? 'localhost';
 $isLocal  = in_array($host, ['localhost', '127.0.0.1', '::1'], true);
-$subfolder = $isLocal ? '/masjidpay' : '';
+
+// PHP built-in server serves from /public — no subfolder needed
+$isBuiltInServer = PHP_SAPI === 'cli-server';
+$subfolder = ($isLocal && !$isBuiltInServer) ? '/masjidpay' : '';
 
 define('BASE_URL', rtrim($protocol . $host . $subfolder, '/'));
 

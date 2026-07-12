@@ -13,7 +13,7 @@ function renderAuthLayout(string $title, string $contentView, array $data = []):
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
-<body class="bg-gradient-to-br from-emerald-50 via-white to-slate-50 text-gray-800 antialiased">
+<body class="bg-white text-gray-800 antialiased">
     <div class="min-h-screen flex items-center justify-center px-4 py-12">
         <div class="w-full max-w-md">
             <div class="text-center mb-8">
