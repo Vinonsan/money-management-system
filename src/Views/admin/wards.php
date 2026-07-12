@@ -61,7 +61,7 @@ $iconTrash = '<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 
             <div class="group relative rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:border-emerald-200/80 hover:-translate-y-0.5">
                 <div class="flex items-start justify-between gap-3">
                     <div class="min-w-0 flex-1">
-                        <h3 class="text-base font-semibold text-slate-900 truncate">Ward #<?= (int) ($ward['ward_number'] ?? 0) ?></h3>
+                        <h3 class="text-base font-semibold text-slate-900 truncate">Ward - <?= (int) ($ward['ward_number'] ?? 0) ?></h3>
                         <?php if ($locationNames !== ''): ?>
                             <p class="mt-0.5 text-xs text-slate-400 truncate"><?= $locationNames ?></p>
                         <?php endif; ?>
@@ -139,25 +139,37 @@ $drawerBody = <<<HTML
     <input type="hidden" name="id" x-model="drawerData.id">
 
     <div class="space-y-5 py-2">
+        <!-- 1. Ward Number -->
+        <div x-show="drawerMode !== 'view'">
+            <label class="block mb-1.5 text-sm font-semibold text-slate-700">Ward Number <span class="text-rose-500">*</span></label>
+            <input type="number" name="ward_number" x-model="drawerData.ward_number" required
+                placeholder="e.g. 1" min="1" step="1"
+                onkeypress="return (event.charCode >= 48 && event.charCode <= 57)"
+                :class="'w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 transition focus:outline-none focus:ring-2 ' + (wardError ? 'border-red-300 focus:border-red-500 focus:ring-red-500/30' : 'border-slate-300 focus:border-emerald-600 focus:ring-emerald-600/30')">
+            <p x-show="wardError" x-text="wardError" class="mt-1 text-xs font-medium text-red-600"></p>
+        </div>
+        <div x-show="drawerMode === 'view'">
+HTML
+. Input::render('ward_number_view', [
+    'label' => 'Ward Number',
+    'value' => '',
+    'disabled' => true,
+    'attrs' => ['x-model' => 'drawerData.ward_number'],
+]) .
+<<<HTML
+        </div>
+
+        <!-- 2. Location -->
         <div x-show="drawerMode !== 'view'">
 HTML
-. '<div>
-    <label class="block text-sm font-semibold text-slate-700 mb-1.5">Locations <span class="text-rose-500">*</span></label>
-    <div class="max-h-48 overflow-y-auto rounded-lg border border-slate-300 bg-white p-2 space-y-1.5">
-        ' . implode('', array_map(function ($id, $name) {
-            $idEnc = (int) $id;
-            $nameEnc = htmlspecialchars($name, ENT_QUOTES);
-            return <<<OPT
-<label class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-slate-700 cursor-pointer hover:bg-slate-50 transition-colors">
-    <input type="checkbox" value="{$idEnc}" x-model="drawerData.location_ids"
-        class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" style="accent-color: #059669;">
-    <span>{$nameEnc}</span>
-</label>
-OPT;
-        }, array_keys($locOptions), $locOptions)) . '
-    </div>
-    <p class="mt-1 text-xs text-slate-400">Choose one or more locations for this ward.</p>
-</div>' .
+. MultiSelect::render('location_ids', [
+    'label' => 'Locations',
+    'required' => true,
+    'options' => $locOptions,
+    'model' => 'drawerData.location_ids',
+    'placeholder' => 'Select locations...',
+    'help' => 'Choose one or more locations.',
+]) .
 <<<HTML
         </div>
         <div x-show="drawerMode === 'view'">
@@ -171,28 +183,7 @@ HTML
 <<<HTML
         </div>
 
-        <div x-show="drawerMode !== 'view'">
-HTML
-. Input::render('ward_number', [
-    'label' => 'Ward Number',
-    'type' => 'number',
-    'required' => true,
-    'placeholder' => 'e.g. 1',
-    'attrs' => ['x-model' => 'drawerData.ward_number', 'min' => '1', 'step' => '1'],
-]) .
-<<<HTML
-        </div>
-        <div x-show="drawerMode === 'view'">
-HTML
-. Input::render('ward_number_view', [
-    'label' => 'Ward Number',
-    'value' => '',
-    'disabled' => true,
-    'attrs' => ['x-model' => 'drawerData.ward_number'],
-]) .
-<<<HTML
-        </div>
-
+        <!-- 3. Status -->
         <div x-show="drawerMode !== 'view'">
 HTML
 . Select::render('is_active', [
@@ -287,24 +278,29 @@ function openDeleteModal(id, name) {
 
 function submitWard() {
     const data = Alpine.$data(document.querySelector('[x-data]'));
+    data.wardError = '';
+
+    const wardNum = Number(data.drawerData.ward_number);
+    if (!Number.isInteger(wardNum) || wardNum < 1) {
+        data.wardError = 'Ward number must be a positive number.';
+        return;
+    }
+
+    const locIds = data.drawerData.location_ids || [];
+    if (!locIds.length) {
+        data.wardError = 'Please select at least one location.';
+        return;
+    }
+
     const formData = {
         id: data.drawerData.id || null,
-        location_ids: data.drawerData.location_ids || [],
-        ward_number: data.drawerData.ward_number,
+        location_ids: locIds,
+        ward_number: wardNum,
         is_active: data.drawerData.is_active !== undefined
             ? (Number(data.drawerData.is_active) === 1 ? 1 : 0)
             : 1,
         _csrf: '<?= e($_SESSION['csrf_token'] ?? '') ?>',
     };
-
-    if (!formData.location_ids.length) {
-        alert('Please select at least one location.');
-        return;
-    }
-    if (!Number.isInteger(Number(formData.ward_number)) || Number(formData.ward_number) < 1) {
-        alert('Ward number must be a positive number.');
-        return;
-    }
 
     const isEdit = !!formData.id;
     const url = isEdit ? '/admin/wards/update' : '/admin/wards/create';
@@ -319,10 +315,45 @@ function submitWard() {
         if (r.success) {
             window.location.reload();
         } else {
-            alert(r.error || 'Something went wrong.');
+            const err = (r.error || '').toLowerCase();
+            if (err.includes('ward number') || err.includes('already exists')) {
+                data.wardError = r.error;
+            } else {
+                alert(r.error || 'Something went wrong.');
+            }
         }
     })
     .catch(() => alert('Network error.'));
+}
+
+function multiSelect(id, placeholderText) {
+    return {
+        open: false,
+        placeholder: placeholderText,
+        toggle() { this.open = !this.open; },
+        get selectedText() {
+            const root = document.querySelector('[x-data]');
+            if (!root) return this.placeholder;
+            try {
+                const data = Alpine.$data(root);
+                const ids = data.drawerData?.location_ids;
+                if (!Array.isArray(ids) || ids.length === 0) return this.placeholder;
+                // Get checkbox labels from the dropdown
+                const panel = document.getElementById(id)?.closest('.multi-select-component');
+                if (panel) {
+                    const labels = [];
+                    panel.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
+                        const span = cb.closest('label')?.querySelector('span');
+                        labels.push(span?.textContent?.trim() || cb.value);
+                    });
+                    if (labels.length > 0) return labels.join(', ');
+                }
+                return ids.length + ' selected';
+            } catch (e) {
+                return this.placeholder;
+            }
+        }
+    };
 }
 
 function deleteWard() {

@@ -43,6 +43,21 @@ class Ward
         );
     }
 
+    public static function allActive(): array
+    {
+        return Database::connect()->fetchAll(
+            'SELECT w.*, 
+                    GROUP_CONCAT(DISTINCT l.name ORDER BY l.name SEPARATOR ", ") AS location_names,
+                    GROUP_CONCAT(DISTINCT wl.location_id ORDER BY wl.location_id) AS location_ids
+             FROM wards w
+             LEFT JOIN ward_locations wl ON wl.ward_id = w.id
+             LEFT JOIN locations l ON l.id = wl.location_id
+             WHERE w.is_active = 1
+             GROUP BY w.id
+             ORDER BY w.ward_number ASC'
+        );
+    }
+
     public static function getByLocation(int $locationId): array
     {
         return Database::connect()->fetchAll(
@@ -71,7 +86,7 @@ class Ward
         return Database::connect()->insert(
             'INSERT INTO wards (ward_number, is_active) VALUES (?, ?)',
             [
-                $data['ward_number'],
+                (int) $data['ward_number'],
                 !empty($data['is_active']) ? 1 : 0,
             ]
         );
@@ -82,7 +97,7 @@ class Ward
         return Database::connect()->execute(
             'UPDATE wards SET ward_number = ?, is_active = ? WHERE id = ?',
             [
-                $data['ward_number'],
+                (int) $data['ward_number'],
                 !empty($data['is_active']) ? 1 : 0,
                 $id,
             ]

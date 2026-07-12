@@ -40,6 +40,9 @@ final class AppLayout
         drawerData: {},
         modal: '',
         modalData: {},
+        nameError: '',
+        wardError: '',
+        userErrors: {},
         toggle() {
             this.collapsed = !this.collapsed;
             localStorage.setItem('mp_sidebar', this.collapsed ? '1' : '0');

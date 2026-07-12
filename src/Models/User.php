@@ -13,9 +13,9 @@ class User
         $params = [];
 
         if ($search !== '') {
-            $conditions[] = '(u.name LIKE ? OR u.phone LIKE ?)';
+            $conditions[] = '(u.name LIKE ? OR u.phone LIKE ? OR u.card_number LIKE ?)';
             $like = '%' . $search . '%';
-            $params = array_merge($params, [$like, $like]);
+            $params = array_merge($params, [$like, $like, $like]);
         }
         if ($locationId > 0) {
             $conditions[] = 'u.location_id = ?';
@@ -29,7 +29,7 @@ class User
         $where = $conditions ? 'WHERE ' . implode(' AND ', $conditions) : '';
 
         return Database::connect()->fetchAll(
-            "SELECT u.id, u.name, u.phone, u.monthly_amount, u.is_active, u.created_at,
+            "SELECT u.id, u.name, u.phone, u.card_number, u.monthly_amount, u.is_active, u.created_at,
                     l.name AS location_name, w.ward_number
              FROM users u
              LEFT JOIN locations l ON l.id = u.location_id
@@ -46,9 +46,9 @@ class User
         $conditions = [];
         $params = [];
         if ($search !== '') {
-            $conditions[] = '(u.name LIKE ? OR u.phone LIKE ?)';
+            $conditions[] = '(u.name LIKE ? OR u.phone LIKE ? OR u.card_number LIKE ?)';
             $like = '%' . $search . '%';
-            $params = array_merge($params, [$like, $like]);
+            $params = array_merge($params, [$like, $like, $like]);
         }
         if ($locationId > 0) {
             $conditions[] = 'u.location_id = ?';
@@ -68,10 +68,12 @@ class User
     public static function create(array $data): string
     {
         return Database::connect()->insert(
-            'INSERT INTO users (name, phone, location_id, ward_id, monthly_amount, role, is_active) VALUES (?, ?, ?, ?, ?, ?, 1)',
+            'INSERT INTO users (name, email, phone, card_number, location_id, ward_id, monthly_amount, role, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)',
             [
                 $data['name'],
+                $data['email'] ?? null,
                 $data['phone'],
+                !empty($data['card_number']) ? (int) $data['card_number'] : null,
                 $data['location_id'] ?? null,
                 $data['ward_id'] ?? null,
                 $data['monthly_amount'] ?? 0,
@@ -91,6 +93,35 @@ class User
     public static function phoneExists(string $phone): bool
     {
         return Database::connect()->fetch('SELECT id FROM users WHERE phone = ? LIMIT 1', [$phone]) !== null;
+    }
+
+    public static function phoneExistsExclude(string $phone, int $excludeId): bool
+    {
+        return Database::connect()->fetch(
+            'SELECT id FROM users WHERE phone = ? AND id != ? LIMIT 1',
+            [$phone, $excludeId]
+        ) !== null;
+    }
+
+    public static function update(int $id, array $data): int
+    {
+        return Database::connect()->execute(
+            'UPDATE users SET name = ?, phone = ?, card_number = ?, location_id = ?, ward_id = ?, monthly_amount = ? WHERE id = ?',
+            [
+                $data['name'],
+                $data['phone'],
+                !empty($data['card_number']) ? (int) $data['card_number'] : null,
+                $data['location_id'] ?? null,
+                $data['ward_id'] ?? null,
+                $data['monthly_amount'] ?? 0,
+                $id,
+            ]
+        );
+    }
+
+    public static function delete(int $id): int
+    {
+        return Database::connect()->execute('DELETE FROM users WHERE id = ?', [$id]);
     }
 
     public static function findById(int $id): ?array

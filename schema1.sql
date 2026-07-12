@@ -20,8 +20,9 @@ CREATE TABLE IF NOT EXISTS _schema_migrations (
 CREATE TABLE IF NOT EXISTS users (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
-    email VARCHAR(255) NOT NULL UNIQUE,
+    email VARCHAR(255) DEFAULT NULL,
     phone VARCHAR(20) NOT NULL UNIQUE,
+    card_number INT UNSIGNED DEFAULT NULL,
     road_number VARCHAR(100) DEFAULT NULL,
     street VARCHAR(255) DEFAULT NULL,
     location_id INT UNSIGNED DEFAULT NULL,
@@ -88,6 +89,31 @@ CREATE TABLE IF NOT EXISTS ward_locations (
     CONSTRAINT fk_ward_locations_ward FOREIGN KEY (ward_id) REFERENCES wards(id) ON DELETE CASCADE,
     CONSTRAINT fk_ward_locations_location FOREIGN KEY (location_id) REFERENCES locations(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─── Payments ───────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS payments (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    months_covered INT UNSIGNED NOT NULL DEFAULT 0,
+    extra_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    from_month DATE DEFAULT NULL,
+    to_month DATE DEFAULT NULL,
+    notes TEXT DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_payment_user (user_id),
+    INDEX idx_payment_date (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─── System Settings (key-value store) ────────────────────────────────────
+CREATE TABLE IF NOT EXISTS settings (
+    key_name VARCHAR(100) NOT NULL PRIMARY KEY,
+    value TEXT DEFAULT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO settings (key_name, value) VALUES ('collection_start_date', '2026-01-01')
+ON DUPLICATE KEY UPDATE value = VALUES(value);
 
 -- ─── Seed data ──────────────────────────────────────────────────────────
 INSERT INTO users (name, email, phone, role, is_active)

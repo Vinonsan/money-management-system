@@ -60,6 +60,19 @@ class Location
         return Database::connect()->fetch('SELECT * FROM locations WHERE id = ?', [$id]);
     }
 
+    public static function nameExists(string $name, ?int $excludeId = null): bool
+    {
+        $sql = 'SELECT id FROM locations WHERE name = ?';
+        $params = [$name];
+
+        if ($excludeId !== null) {
+            $sql .= ' AND id != ?';
+            $params[] = $excludeId;
+        }
+
+        return Database::connect()->fetch($sql, $params) !== null;
+    }
+
     public static function create(array $data): string
     {
         return Database::connect()->insert(

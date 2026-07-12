@@ -141,14 +141,12 @@ $drawerBody = <<<HTML
 
     <div class="space-y-5 py-2">
         <div x-show="drawerMode !== 'view'">
-HTML
-. Input::render('name', [
-    'label' => 'Location Name',
-    'required' => true,
-    'placeholder' => 'e.g. Main Masjid',
-    'attrs' => ['x-model' => 'drawerData.name', ':disabled' => "drawerMode === 'view'"],
-]) .
-<<<HTML
+            <label class="block mb-1.5 text-sm font-semibold text-slate-700">Location Name <span class="text-rose-500">*</span></label>
+            <input type="text" name="name" x-model="drawerData.name" required
+                placeholder="e.g. Main Masjid"
+                :disabled="drawerMode === 'view'"
+                :class="'w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 transition focus:outline-none focus:ring-2 ' + (nameError ? 'border-red-300 focus:border-red-500 focus:ring-red-500/30' : 'border-slate-300 focus:border-emerald-600 focus:ring-emerald-600/30')">
+            <p x-show="nameError" x-text="nameError" class="mt-1 text-xs font-medium text-red-600"></p>
         </div>
         <div x-show="drawerMode === 'view'">
 HTML
@@ -254,17 +252,22 @@ function openDeleteModal(id, name) {
 
 function submitLocation() {
     const data = Alpine.$data(document.querySelector('[x-data]'));
-    const formData = {
-        id: data.drawerData.id || null,
-        name: data.drawerData.name,
-        is_active: data.drawerData.is_active !== undefined ? (data.drawerData.is_active ? 1 : 0) : 1,
-        _csrf: '<?= e($_SESSION['csrf_token'] ?? '') ?>',
-    };
-
-    if (!formData.name || !formData.name.trim()) {
-        alert('Location name is required.');
+    
+    // Clear previous errors
+    data.nameError = '';
+    
+    const name = (data.drawerData.name || '').trim();
+    if (!name) {
+        data.nameError = 'Location name is required.';
         return;
     }
+
+    const formData = {
+        id: data.drawerData.id || null,
+        name: name,
+        is_active: data.drawerData.is_active !== undefined ? (Number(data.drawerData.is_active) ? 1 : 0) : 1,
+        _csrf: '<?= e($_SESSION['csrf_token'] ?? '') ?>',
+    };
 
     const isEdit = !!formData.id;
     const url = isEdit ? '/admin/locations/update' : '/admin/locations/create';
@@ -279,7 +282,13 @@ function submitLocation() {
         if (r.success) {
             window.location.reload();
         } else {
-            alert(r.error || 'Something went wrong.');
+            // Show server error on the field
+            const err = (r.error || '').toLowerCase();
+            if (err.includes('name')) {
+                data.nameError = r.error;
+            } else {
+                alert(r.error || 'Something went wrong.');
+            }
         }
     })
     .catch(() => alert('Network error.'));

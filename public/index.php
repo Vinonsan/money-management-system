@@ -29,8 +29,23 @@ $routes = [
     'admin/wards/delete'   => ['Controller' => 'AdminController', 'Action' => 'deleteWard', 'Middleware' => 'StaffAuth'],
 
     // Users
-    'admin/users'     => ['Controller' => 'AdminController', 'Action' => 'usersList', 'Middleware' => 'StaffAuth'],
-    'admin/users/create' => ['Controller' => 'AdminController', 'Action' => 'createUser', 'Middleware' => 'StaffAuth'],
+    'admin/users'          => ['Controller' => 'AdminController', 'Action' => 'usersList', 'Middleware' => 'StaffAuth'],
+    'admin/users/create'   => ['Controller' => 'AdminController', 'Action' => 'createUser', 'Middleware' => 'StaffAuth'],
+    'admin/users/update'   => ['Controller' => 'AdminController', 'Action' => 'updateUser', 'Middleware' => 'StaffAuth'],
+    'admin/users/delete'         => ['Controller' => 'AdminController', 'Action' => 'deleteUser', 'Middleware' => 'StaffAuth'],
+
+    // Payments
+    'admin/payments/update'              => ['Controller' => 'AdminController', 'Action' => 'paymentUpdate', 'Middleware' => 'StaffAuth'],
+    'admin/payments/members'             => ['Controller' => 'AdminController', 'Action' => 'paymentMembers', 'Middleware' => 'StaffAuth'],
+    'admin/payments/schedule-message'    => ['Controller' => 'AdminController', 'Action' => 'scheduleMessage', 'Middleware' => 'StaffAuth'],
+    'admin/payments/search-user'         => ['Controller' => 'AdminController', 'Action' => 'searchUser', 'Middleware' => 'StaffAuth'],
+    'admin/payments/user-info'           => ['Controller' => 'AdminController', 'Action' => 'getUserPaymentInfo', 'Middleware' => 'StaffAuth'],
+    'admin/payments/calculate'           => ['Controller' => 'AdminController', 'Action' => 'calculatePayment', 'Middleware' => 'StaffAuth'],
+    'admin/payments/create'              => ['Controller' => 'AdminController', 'Action' => 'createPayment', 'Middleware' => 'StaffAuth'],
+
+    // System Config
+    'admin/system-config'        => ['Controller' => 'AdminController', 'Action' => 'systemConfig', 'Middleware' => 'StaffAuth'],
+    'admin/system-config/save'   => ['Controller' => 'AdminController', 'Action' => 'saveSystemConfig', 'Middleware' => 'StaffAuth'],
 ];
 
 if (array_key_exists($route, $routes)) {

@@ -1,8 +1,10 @@
 <?php
+use Components\Base\Badge;
 use Components\Base\DataTable;
 use Components\Base\Input;
 use Components\Base\Select;
 use Components\Drawer\Drawer;
+use Components\Modal\Modal;
 
 $pageTitle = 'Users';
 $searchVal = htmlspecialchars($search, ENT_QUOTES, 'UTF-8');
@@ -32,9 +34,40 @@ foreach ($wardOpts as $id => $label) {
     $wardFilterOpts .= '<option value="' . $id . '"' . $sel . '>' . $label . '</option>';
 }
 
+// ─── Ward → Location mapping for auto-select ──────────────────────────
+$wardLocMap = [];
+foreach ($wards as $w) {
+    $wid = (int) ($w['id'] ?? 0);
+    $ids = $w['location_ids'] ?? '';
+    $wardLocMap[$wid] = $ids !== '' ? array_map('intval', explode(',', $ids)) : [];
+}
+$wardLocJson = json_encode($wardLocMap, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+$locNamesJson = json_encode($locOptions, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+// ─── Pre-build ward options HTML for heredoc ──────────────────────────
+$wardOptsHtml = '';
+foreach ($wardOpts as $id => $label) {
+    $wardOptsHtml .= '<option value="' . $id . '">' . $label . '</option>';
+}
+// ─── Pre-build location options HTML for heredoc ──────────────────────
+$locOptsHtml = '';
+foreach ($locOptions as $id => $name) {
+    $locOptsHtml .= '<option value="' . $id . '" x-show="wardLocMap[drawerData.ward_id]?.includes(' . $id . ')">' . $name . '</option>';
+}
+
+// ─── Shared Icon SVGs ─────────────────────────────────────────────────
+$iconEye   = '<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>';
+$iconEdit  = '<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>';
+$iconTrash = '<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>';
+
 $columns = [
     ['label' => 'Name', 'field' => 'name', 'sortable' => true],
     ['label' => 'Phone', 'field' => 'phone', 'sortable' => true],
+    [
+        'label' => 'Card',
+        'field' => 'card_number',
+        'format' => fn ($v) => $v ? '<span class="font-mono font-semibold text-slate-700">' . (int) $v . '</span>' : '<span class="text-slate-300 italic">\u2014</span>',
+    ],
     [
         'label' => 'Street',
         'field' => 'location_name',
@@ -58,6 +91,23 @@ $columns = [
         'format' => static fn ($v): string => (int) $v === 1
             ? '<span class="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">Active</span>'
             : '<span class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">Inactive</span>',
+    ],
+    [
+        'label' => 'Action',
+        'field' => null,
+        'width' => '160px',
+        'align' => 'center',
+        'format' => function ($row) use ($iconEye, $iconEdit, $iconTrash) {
+            $id = (int) ($row['id'] ?? 0);
+            $name = htmlspecialchars($row['name'] ?? '', ENT_QUOTES);
+            $rowJsonEsc = htmlspecialchars(json_encode($row), ENT_COMPAT, 'UTF-8');
+
+            $viewBtn = '<button type="button" onclick="event.stopPropagation(); openDrawer(\'view\', ' . $rowJsonEsc . ')" class="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors" title="View">' . $iconEye . '</button>';
+            $editBtn = '<button type="button" onclick="event.stopPropagation(); openDrawer(\'edit\', ' . $rowJsonEsc . ')" class="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="Edit">' . $iconEdit . '</button>';
+            $deleteBtn = '<button type="button" onclick="event.stopPropagation(); openDeleteModal(' . $id . ', \'' . htmlspecialchars($name, ENT_COMPAT, 'UTF-8') . '\')" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors" title="Delete">' . $iconTrash . '</button>';
+
+            return '<div class="inline-flex items-center justify-center gap-1 bg-slate-50 p-1 rounded-xl border border-slate-100">' . $viewBtn . $editBtn . $deleteBtn . '</div>';
+        },
     ],
 ];
 ?>
@@ -134,6 +184,26 @@ $columns = [
 </div>
 
 <script>
+const wardLocMap = <?= $wardLocJson ?>;
+const locNames = <?= $locNamesJson ?>;
+
+function getAlpine() {
+    return Alpine.$data(document.querySelector('[x-data]'));
+}
+function openDrawer(mode, data) {
+    const app = getAlpine();
+    // Clear errors
+    app.userErrors = {};
+    app.drawerData = data;
+    app.drawerMode = mode;
+    app.drawer = 'user-drawer';
+}
+function openDeleteModal(id, name) {
+    const app = getAlpine();
+    app.modalData = { id: id, name: name };
+    app.modal = 'delete-user';
+}
+
 function userFilters(initialSearch, initialLoc, initialWard) {
     return {
         search: initialSearch,
@@ -154,21 +224,45 @@ function userFilters(initialSearch, initialLoc, initialWard) {
 
 function submitUser() {
     const data = Alpine.$data(document.querySelector('[x-data]'));
+    data.userErrors = {};
+
+    const name = (data.drawerData.name || '').trim();
+    const phone = (data.drawerData.phone || '').trim();
+    let hasError = false;
+
+    if (!name) {
+        data.userErrors['name'] = 'Name is required.';
+        hasError = true;
+    }
+    if (!phone) {
+        data.userErrors['phone'] = 'Phone number is required.';
+        hasError = true;
+    } else if (!/^[+0-9][+0-9()\- ]{6,19}$/.test(phone)) {
+        data.userErrors['phone'] = 'Enter a valid phone number.';
+        hasError = true;
+    }
+    if (!data.drawerData.ward_id) {
+        data.userErrors['ward_id'] = 'Please select a ward.';
+        hasError = true;
+    }
+
+    if (hasError) return;
+
     const formData = {
-        name: (data.drawerData.name || '').trim(),
-        phone: (data.drawerData.phone || '').trim(),
+        id: data.drawerData.id || null,
+        name: name,
+        phone: phone,
+        card_number: parseInt(data.drawerData.card_number) || null,
         location_id: data.drawerData.location_id || null,
         ward_id: data.drawerData.ward_id || null,
         monthly_amount: parseFloat(data.drawerData.monthly_amount) || 0,
         _csrf: '<?= e($_SESSION['csrf_token'] ?? '') ?>',
     };
 
-    if (!formData.name || !formData.phone) {
-        alert('Name and phone number are required.');
-        return;
-    }
+    const isEdit = !!formData.id;
+    const url = isEdit ? '/admin/users/update' : '/admin/users/create';
 
-    fetch('/admin/users/create', {
+    fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
         body: JSON.stringify(formData),
@@ -178,54 +272,221 @@ function submitUser() {
         if (response.success) {
             window.location.reload();
         } else {
-            alert(response.error || 'Unable to add user.');
+            const err = (response.error || '').toLowerCase();
+            if (err.includes('name')) data.userErrors['name'] = response.error;
+            else if (err.includes('phone')) data.userErrors['phone'] = response.error;
+            else alert(response.error || 'Unable to save user.');
         }
     })
     .catch(() => alert('Network error. Please try again.'));
 }
+
+function onWardChange() {
+    const data = Alpine.$data(document.querySelector('[x-data]'));
+    const wardId = data.drawerData.ward_id;
+    const map = wardLocMap;
+    if (wardId && map[wardId] && map[wardId].length > 0) {
+        data.drawerData.location_id = map[wardId][0]; // auto-select first location
+    } else {
+        data.drawerData.location_id = null;
+    }
+}
+
+function deleteUser() {
+    const data = Alpine.$data(document.querySelector('[x-data]'));
+    const id = data.modalData?.id;
+    if (!id) return;
+
+    fetch('/admin/users/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        body: JSON.stringify({ id, _csrf: '<?= e($_SESSION['csrf_token'] ?? '') ?>' }),
+    })
+    .then(r => r.json())
+    .then(r => {
+        if (r.success) {
+            window.location.reload();
+        } else {
+            alert(r.error || 'Something went wrong.');
+        }
+    })
+    .catch(() => alert('Network error.'));
+}
 </script>
 
 <?php
+echo Modal::confirm('delete-user', 'Delete User', [
+    'body' => <<<HTML
+    <div class="flex items-start gap-4 p-2">
+        <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600 border border-rose-100">
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+            </svg>
+        </div>
+        <div>
+            <h4 class="font-semibold text-slate-900">Confirm Deletion</h4>
+            <p class="mt-1 text-sm text-slate-500 leading-relaxed">
+                Are you sure you want to delete <strong class="text-slate-800 font-semibold" x-text="modalData.name"></strong>? This record will be permanently removed.
+            </p>
+        </div>
+    </div>
+    HTML,
+    'confirmText' => 'Yes, Delete',
+    'confirmVariant' => 'danger',
+    'confirmAction' => 'deleteUser()',
+    'size' => 'sm',
+]);
+
 $drawerBody = <<<HTML
 <form id="user-form" @submit.prevent="submitUser()">
     <input type="hidden" name="id" x-model="drawerData.id">
     <div class="space-y-5 py-2">
+        <!-- 1. Name -->
+        <div x-show="drawerMode !== 'view'">
+            <label class="block mb-1.5 text-sm font-semibold text-slate-700">Full Name <span class="text-rose-500">*</span></label>
+            <input type="text" x-model="drawerData.name" :disabled="drawerMode === 'view'" required
+                placeholder="Enter full name"
+                :class="'w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 transition focus:outline-none focus:ring-2 ' + (userErrors?.name ? 'border-red-300 focus:border-red-500 focus:ring-red-500/30' : 'border-slate-300 focus:border-emerald-600 focus:ring-emerald-600/30')">
+            <p x-show="userErrors?.name" x-text="userErrors.name" class="mt-1 text-xs font-medium text-red-600"></p>
+        </div>
+        <div x-show="drawerMode === 'view'">
 HTML
-. Input::render('name', [
+. Input::render('name_view', [
     'label' => 'Full Name',
-    'required' => true,
-    'placeholder' => 'Enter full name',
+    'value' => '',
+    'disabled' => true,
     'attrs' => ['x-model' => 'drawerData.name'],
 ]) .
-Input::render('phone', [
-    'label' => 'Phone Number',
-    'type' => 'tel',
-    'required' => true,
-    'placeholder' => 'e.g. 0771234567',
-    'attrs' => ['x-model' => 'drawerData.phone'],
-]) .
-Select::render('location_id', [
-    'label' => 'Street / Location',
-    'required' => false,
-    'options' => $locOptions,
-    'placeholder' => 'Select street...',
-    'attrs' => ['x-model' => 'drawerData.location_id'],
-]) .
-Select::render('ward_id', [
-    'label' => 'Ward',
-    'required' => false,
-    'options' => $wardOpts,
-    'placeholder' => 'Select ward...',
-    'attrs' => ['x-model' => 'drawerData.ward_id'],
-]) .
-Input::render('monthly_amount', [
+<<<HTML
+        </div>
+
+        <!-- 2. Monthly Amount -->
+        <div x-show="drawerMode !== 'view'">
+            <label class="block mb-1.5 text-sm font-semibold text-slate-700">Monthly Amount (Rs)</label>
+            <input type="number" x-model="drawerData.monthly_amount" :disabled="drawerMode === 'view'"
+                placeholder="e.g. 500.00" min="0" step="0.01"
+                :class="'w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 transition focus:outline-none focus:ring-2 border-slate-300 focus:border-emerald-600 focus:ring-emerald-600/30'">
+        </div>
+        <div x-show="drawerMode === 'view'">
+HTML
+. Input::render('monthly_view', [
     'label' => 'Monthly Amount (Rs)',
-    'type' => 'number',
-    'required' => false,
-    'placeholder' => 'e.g. 500.00',
-    'attrs' => ['x-model' => 'drawerData.monthly_amount', 'min' => '0', 'step' => '0.01'],
+    'value' => '',
+    'disabled' => true,
+    'attrs' => ['x-model' => "\"Rs. \" + (parseFloat(drawerData.monthly_amount || 0).toFixed(2))"],
 ]) .
 <<<HTML
+        </div>
+
+        <!-- 3. Phone -->
+        <div x-show="drawerMode !== 'view'">
+            <label class="block mb-1.5 text-sm font-semibold text-slate-700">Phone Number <span class="text-rose-500">*</span></label>
+            <input type="tel" x-model="drawerData.phone" :disabled="drawerMode === 'view'" required
+                placeholder="e.g. 0771234567"
+                :class="'w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 transition focus:outline-none focus:ring-2 ' + (userErrors?.phone ? 'border-red-300 focus:border-red-500 focus:ring-red-500/30' : 'border-slate-300 focus:border-emerald-600 focus:ring-emerald-600/30')">
+            <p x-show="userErrors?.phone" x-text="userErrors.phone" class="mt-1 text-xs font-medium text-red-600"></p>
+        </div>
+        <div x-show="drawerMode === 'view'">
+HTML
+. Input::render('phone_view', [
+    'label' => 'Phone Number',
+    'value' => '',
+    'disabled' => true,
+    'attrs' => ['x-model' => 'drawerData.phone'],
+]) .
+<<<HTML
+        </div>
+
+        <!-- 4. Card Number -->
+        <div x-show="drawerMode !== 'view'">
+HTML
+. Input::render('card_number', [
+    'label' => 'Card Number',
+    'required' => false,
+    'placeholder' => 'e.g. 1001',
+    'attrs' => ['x-model' => 'drawerData.card_number', ':disabled' => "drawerMode === 'view'"],
+]) .
+<<<HTML
+        </div>
+        <div x-show="drawerMode === 'view'">
+HTML
+. Input::render('card_number_view', [
+    'label' => 'Card Number',
+    'value' => '',
+    'disabled' => true,
+    'attrs' => ['x-model' => 'drawerData.card_number'],
+]) .
+<<<HTML
+        </div>
+
+        <!-- 5. Ward -->
+        <div x-show="drawerMode !== 'view'">
+            <label class="block mb-1.5 text-sm font-semibold text-slate-700">Ward <span class="text-rose-500">*</span></label>
+            <select x-model="drawerData.ward_id" @change="onWardChange()" :disabled="drawerMode === 'view'" required
+                :class="'w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-slate-800 transition focus:outline-none focus:ring-2 appearance-none ' + (userErrors?.ward_id ? 'border-red-300 focus:border-red-500 focus:ring-red-500/30' : 'border-slate-300 focus:border-emerald-600 focus:ring-emerald-600/30')">
+                <option value="">Select ward...</option>
+                <?= $wardOptsHtml ?>
+            </select>
+            <p x-show="userErrors?.ward_id" x-text="userErrors.ward_id" class="mt-1 text-xs font-medium text-red-600"></p>
+        </div>
+        <div x-show="drawerMode === 'view'">
+HTML
+. Input::render('ward_view', [
+    'label' => 'Ward',
+    'value' => '',
+    'disabled' => true,
+    'attrs' => ['x-model' => "'Ward #' + (drawerData.ward_number || '')"],
+]) .
+<<<HTML
+        </div>
+
+        <!-- 6. Street / Location -->
+        <div x-show="drawerMode !== 'view'">
+            <label class="block mb-1.5 text-sm font-semibold text-slate-700">Street / Location</label>
+            <select x-model="drawerData.location_id" :disabled="drawerMode === 'view'"
+                :class="'w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-slate-800 transition focus:outline-none focus:ring-2 appearance-none border-slate-300 focus:border-emerald-600 focus:ring-emerald-600/30'">
+                <option value="">Select location...</option>
+                <?= $locOptsHtml ?>
+            </select>
+        </div>
+        <div x-show="drawerMode === 'view'">
+HTML
+. Input::render('location_view', [
+    'label' => 'Street / Location',
+    'value' => '',
+    'disabled' => true,
+    'attrs' => ['x-model' => 'drawerData.location_name'],
+]) .
+<<<HTML
+        </div>
+
+        <!-- 7. Status -->
+        <div x-show="drawerMode !== 'view'">
+HTML
+. Select::render('is_active', [
+    'label' => 'Status',
+    'options' => [1 => 'Active', 0 => 'Inactive'],
+    'attrs' => ['x-model' => 'drawerData.is_active', ':disabled' => "drawerMode === 'view'"],
+]) .
+<<<HTML
+        </div>
+        <div x-show="drawerMode === 'view'">
+HTML
+. Select::render('is_active_view', [
+    'label' => 'Status',
+    'options' => [1 => 'Active', 0 => 'Inactive'],
+    'disabled' => true,
+    'attrs' => ['x-model' => 'drawerData.is_active'],
+]) .
+<<<HTML
+        </div>
+
+        <template x-if="drawerMode === 'view' && drawerData.created_at">
+            <div class="rounded-xl bg-slate-50 border border-slate-200/80 p-4 text-xs text-slate-500 space-y-2">
+                <div class="flex justify-between"><span class="font-semibold text-slate-600">Created:</span> <span x-text="drawerData.created_at"></span></div>
+                <div class="flex justify-between"><span class="font-semibold text-slate-600">Updated:</span> <span x-text="drawerData.updated_at"></span></div>
+            </div>
+        </template>
     </div>
 </form>
 HTML;
@@ -233,7 +494,9 @@ HTML;
 $drawerFooter = <<<HTML
 <div class="flex items-center justify-end gap-3 border-t border-slate-100 bg-white px-6 py-4">
     <button type="button" @click="drawer = ''" class="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50">Cancel</button>
-    <button type="button" @click="submitUser()" class="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-600/20 transition hover:bg-emerald-700">Save User</button>
+    <button type="button" x-show="drawerMode !== 'view'" @click="submitUser()" class="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-600/20 transition hover:bg-emerald-700">
+        <span x-text="drawerMode === 'edit' ? 'Update User' : 'Save User'"></span>
+    </button>
 </div>
 HTML;
 
