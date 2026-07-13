@@ -23,7 +23,15 @@ final class AppLayout
     <title><?= e($title) ?> | <?= APP_NAME ?></title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <style>[x-cloak] { display: none !important; }</style>
+    <style>[x-cloak] { display: none !important; }
+        .toast-enter { animation: toastIn 0.3s ease-out; }
+        .toast-exit { animation: toastOut 0.3s ease-in forwards; }
+        @keyframes toastIn { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes toastOut { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-20px); opacity: 0; } }
+        /* Hide scrollbar globally */
+        ::-webkit-scrollbar { display: none; }
+        * { scrollbar-width: none; -ms-overflow-style: none; }
+    </style>
 </head>
 <body class="h-full bg-white text-slate-800 antialiased">
 
@@ -77,6 +85,35 @@ final class AppLayout
     </main>
 </div>
 <?php endif; ?>
+
+<!-- Toast Container -->
+<div id="toast-container" class="fixed top-4 right-4 z-[99999] flex flex-col gap-2 pointer-events-none"></div>
+
+<script>
+function showToast(message, type) {
+    type = type || 'success';
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    const colors = {
+        success: { bg: 'bg-emerald-600', icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>' },
+        error:   { bg: 'bg-red-600',   icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>' },
+        warning: { bg: 'bg-amber-500',  icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/>' },
+    };
+    const cfg = colors[type] || colors.success;
+
+    const toast = document.createElement('div');
+    toast.className = cfg.bg + ' text-white px-5 py-3 rounded-xl shadow-xl flex items-center gap-3 pointer-events-auto toast-enter min-w-[280px] max-w-sm';
+    toast.innerHTML = '<svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">' + cfg.icon + '</svg><span class="text-sm font-medium">' + message + '</span>';
+
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        toast.className = toast.className.replace('toast-enter', 'toast-exit');
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+</script>
 
 </body>
 </html>

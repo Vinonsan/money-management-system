@@ -102,17 +102,6 @@ $tabQs = $qsSearch . $qsLoc . $qsWard;
     <?php
     echo DataTable::render([
         'columns' => [
-            [
-                'label' => '#',
-                'field' => null,
-                'width' => '50px',
-                'align' => 'center',
-                'format' => function ($row) {
-                    return '<input type="checkbox" value="' . (int) ($row['id'] ?? 0) . '"
-                        class="member-checkbox rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                        style="accent-color: #059669;">';
-                },
-            ],
             ['label' => 'Name', 'field' => 'name', 'sortable' => true],
             ['label' => 'Card', 'field' => 'card_number'],
             ['label' => 'Phone', 'field' => 'phone'],
@@ -176,6 +165,77 @@ $tabQs = $qsSearch . $qsLoc . $qsWard;
         'emptyMessage' => 'No members found. Try adjusting your filters.',
     ]);
     ?>
+
+    <!-- Schedule Message Drawer -->
+    <div id="schedule-drawer"
+         x-show="scheduleDrawer"
+         x-cloak
+         class="fixed inset-0 z-[9999]">
+        <!-- Backdrop -->
+        <div class="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] transition-opacity"
+             @click="scheduleDrawer = false"
+             x-show="scheduleDrawer"
+             x-transition:enter="transition-opacity duration-300"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             x-transition:leave="transition-opacity duration-200"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0">
+        </div>
+
+        <!-- Panel -->
+        <div class="fixed inset-y-0 right-0 z-10 flex"
+             x-show="scheduleDrawer"
+             x-transition:enter="transition-transform duration-300 ease-out"
+             x-transition:enter-start="translate-x-full"
+             x-transition:enter-end="translate-x-0"
+             x-transition:leave="transition-transform duration-200 ease-in"
+             x-transition:leave-start="translate-x-0"
+             x-transition:leave-end="translate-x-full">
+            <div class="flex h-full w-full max-w-lg flex-col bg-white shadow-2xl">
+                <!-- Header -->
+                <div class="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-8 py-5">
+                    <h3 class="text-lg font-bold text-slate-900">
+                        <span class="text-emerald-700">Schedule Message</span>
+                    </h3>
+                    <button type="button" @click="scheduleDrawer = false"
+                        class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Body -->
+                <div class="flex-1 overflow-y-auto bg-white px-8 py-6">
+                    <!-- Date Picker -->
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-2">Schedule Date</label>
+                        <input type="date"
+                               x-model="scheduleDate"
+                               :min="scheduleDateMin"
+                               class="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/10">
+                        <p class="mt-2 text-xs text-slate-400">Messages will be sent to all unpaid members on this date.</p>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="flex shrink-0 items-center justify-end gap-3 border-t border-slate-200 bg-slate-50 px-8 py-4">
+                    <button type="button" @click="scheduleDrawer = false"
+                        class="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50">
+                        Cancel
+                    </button>
+                    <button type="button" @click="confirmSchedule()"
+                        class="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-600/20 transition hover:bg-emerald-700">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                        Schedule
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -184,6 +244,20 @@ function memberManager() {
         search: '<?= htmlspecialchars($search, ENT_QUOTES) ?>',
         locationId: <?= $locationId ?>,
         wardId: <?= $wardId ?>,
+        scheduleDrawer: false,
+        scheduleDate: '',
+        scheduleDateMin: '',
+        init() {
+            const today = new Date();
+            const y = today.getFullYear();
+            const m = String(today.getMonth() + 1).padStart(2, '0');
+            const d = String(today.getDate()).padStart(2, '0');
+            this.scheduleDateMin = y + '-' + m + '-' + d;
+            // Default to 20th of current month
+            const defMonth = String(today.getMonth() + 1).padStart(2, '0');
+            const defDay = '20';
+            this.scheduleDate = y + '-' + defMonth + '-' + defDay;
+        },
         apply() {
             const p = new URLSearchParams();
             p.set('status', '<?= $status ?>');
@@ -196,29 +270,35 @@ function memberManager() {
             window.location.href = '/admin/payments/members';
         },
         scheduleMessage() {
-            const checked = document.querySelectorAll('.member-checkbox:checked');
-            const ids = Array.from(checked).map(cb => parseInt(cb.value)).filter(id => id > 0);
-            if (ids.length === 0) {
-                alert('Please select at least one member.');
+            this.scheduleDrawer = true;
+        },
+        confirmSchedule() {
+            if (!this.scheduleDate) {
+                showToast('Please select a schedule date.', 'warning');
                 return;
             }
-            if (!confirm('Send SMS to ' + ids.length + ' selected member(s)?')) return;
-
             fetch('/admin/payments/schedule-message', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    user_ids: ids,
-                    type: '<?= $status === 'paid' ? "reminder" : "due" ?>',
+                    status: '<?= $status ?>',
+                    search: this.search || '',
+                    location_id: this.locationId,
+                    ward_id: this.wardId,
+                    schedule_date: this.scheduleDate,
                     _csrf: '<?= e($_SESSION['csrf_token'] ?? '') ?>',
                 }),
             })
             .then(r => r.json())
             .then(r => {
-                if (r.success) alert(r.message);
-                else alert(r.error || 'Failed.');
+                if (r.success) {
+                    showToast(r.message);
+                    this.scheduleDrawer = false;
+                } else {
+                    showToast(r.error || 'Failed.', 'error');
+                }
             })
-            .catch(() => alert('Network error.'));
+            .catch(() => showToast('Network error.', 'error'));
         }
     };
 }

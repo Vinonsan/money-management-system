@@ -11,7 +11,60 @@ class AdminController
 {
     public function index(): void
     {
-        $this->view('Dashboard', 'dashboard.php', [], 'dashboard');
+        $db = \Models\Database::connect();
+        $today = date('Y-m-d');
+        $firstOfMonth = date('Y-m-01');
+
+        // Total members (active, with monthly_amount > 0)
+        $totalMembers = $db->fetch('SELECT COUNT(*) AS cnt FROM users WHERE is_active = 1 AND monthly_amount > 0')['cnt'] ?? 0;
+
+        // Monthly target = total members * average monthly amount (or sum of all monthly amounts)
+        $monthlyTarget = $db->fetch('SELECT COALESCE(SUM(monthly_amount), 0) AS total FROM users WHERE is_active = 1 AND monthly_amount > 0')['total'] ?? 0;
+
+        // This month collection
+        $thisMonth = $db->fetch(
+            "SELECT COALESCE(SUM(amount), 0) AS total FROM payments WHERE created_at >= ? AND created_at < ?",
+            [$firstOfMonth, date('Y-m-01', strtotime('+1 month'))]
+        )['total'] ?? 0;
+
+        // Yearly collection
+        $firstOfYear = date('Y-01-01');
+        $thisYear = $db->fetch(
+            "SELECT COALESCE(SUM(amount), 0) AS total FROM payments WHERE created_at >= ? AND created_at < ?",
+            [$firstOfYear, date('Y-01-01', strtotime('+1 year'))]
+        )['total'] ?? 0;
+
+        // Yearly target = monthly target * 12
+        $yearlyTarget = $monthlyTarget * 12;
+
+        // Total collection overall
+        $totalCollected = $db->fetch('SELECT COALESCE(SUM(amount), 0) AS total FROM payments')['total'] ?? 0;
+
+        // Unpaid members count
+        $unpaidCount = $db->fetch(
+            "SELECT COUNT(*) AS cnt FROM users u WHERE u.is_active = 1 AND u.monthly_amount > 0
+             AND ((SELECT COALESCE(MAX(p.to_month), '0000-00-00') FROM payments p WHERE p.user_id = u.id) < ?
+                  OR (SELECT COUNT(*) FROM payments p WHERE p.user_id = u.id) = 0)",
+            [$today]
+        )['cnt'] ?? 0;
+
+        // SMS balance
+        $smsBalance = (float) (\Models\Setting::get('sms_balance', '0'));
+        $smsCost = (float) (\Models\Setting::get('sms_cost_per_message', '0.62'));
+        $remainingSms = $smsCost > 0 ? floor($smsBalance / $smsCost) : 0;
+
+        $this->view('Dashboard', 'dashboard.php', [
+            'totalMembers'   => (int) $totalMembers,
+            'monthlyTarget'  => (float) $monthlyTarget,
+            'yearlyTarget'   => (float) $yearlyTarget,
+            'thisMonth'      => (float) $thisMonth,
+            'thisYear'       => (float) $thisYear,
+            'totalCollected' => (float) $totalCollected,
+            'unpaidCount'    => (int) $unpaidCount,
+            'smsBalance'     => $smsBalance,
+            'smsCost'        => $smsCost,
+            'remainingSms'   => (int) $remainingSms,
+        ], 'dashboard');
     }
 
     public function profile(): void
@@ -377,6 +430,9 @@ class AdminController
 
     public function paymentMembers(): void
     {
+        // Auto-process any due scheduled messages
+        $this->processDueMessages();
+
         $search = trim((string) ($_GET['search'] ?? ''));
         $locationId = max(0, (int) ($_GET['location_id'] ?? 0));
         $wardId = max(0, (int) ($_GET['ward_id'] ?? 0));
@@ -403,41 +459,154 @@ class AdminController
         ], 'payments.members');
     }
 
+    private function processDueMessages(): void
+    {
+        try {
+            $db = \Models\Database::connect();
+            $dueMessages = $db->fetchAll(
+                "SELECT sm.id, sm.user_id, sm.message, u.phone
+                 FROM scheduled_messages sm
+                 JOIN users u ON u.id = sm.user_id
+                 WHERE sm.status = 'pending' AND sm.scheduled_date <= CURDATE()"
+            );
+
+            foreach ($dueMessages as $m) {
+                $phone = preg_replace('/[^0-9]/', '', $m['phone'] ?? '');
+                if ($phone === '') {
+                    $db->execute("UPDATE scheduled_messages SET status = 'failed' WHERE id = ?", [(int) $m['id']]);
+                    continue;
+                }
+
+                try {
+                    $sms = new \Services\SMSService();
+                    $sms->send($phone, $m['message']);
+                    $db->execute(
+                        "UPDATE scheduled_messages SET status = 'sent', sent_at = NOW() WHERE id = ?",
+                        [(int) $m['id']]
+                    );
+                } catch (\Exception $e) {
+                    $db->execute("UPDATE scheduled_messages SET status = 'failed' WHERE id = ?", [(int) $m['id']]);
+                }
+            }
+        } catch (\Exception $e) {
+            // Silently handle - don't block page load
+        }
+    }
+
     public function scheduleMessage(): void
     {
         $this->requireJson();
         $data = $this->jsonBody();
-        $type = trim((string) ($data['type'] ?? 'pending'));
-        $userIds = $data['user_ids'] ?? [];
+        $type = trim((string) ($data['type'] ?? 'due'));
+        $scheduleDate = trim((string) ($data['schedule_date'] ?? date('Y-m-d')));
+        $status = trim((string) ($data['status'] ?? 'unpaid'));
+        $search = trim((string) ($data['search'] ?? ''));
+        $locationId = max(0, (int) ($data['location_id'] ?? 0));
+        $wardId = max(0, (int) ($data['ward_id'] ?? 0));
 
-        if (empty($userIds) || !is_array($userIds)) {
-            $this->jsonError('No members selected.');
+        // Build query to get all matching unpaid members
+        $db = \Models\Database::connect();
+        $today = date('Y-m-d');
+        $startDate = \Models\Setting::get('collection_start_date', $today);
+
+        $conditions = ['(u.monthly_amount > 0)'];
+        $params = [];
+
+        if ($search !== '') {
+            $conditions[] = '(u.name LIKE ? OR u.card_number LIKE ?)';
+            $params[] = "%{$search}%";
+            $params[] = "%{$search}%";
+        }
+        if ($locationId > 0) {
+            $conditions[] = 'u.location_id = ?';
+            $params[] = $locationId;
+        }
+        if ($wardId > 0) {
+            $conditions[] = 'u.ward_id = ?';
+            $params[] = $wardId;
+        }
+
+        $where = implode(' AND ', $conditions);
+
+        // Unpaid = last_paid_to < today OR never paid
+        $users = $db->fetchAll(
+            "SELECT u.id, u.name, u.phone, u.monthly_amount
+             FROM users u
+             LEFT JOIN locations l ON l.id = u.location_id
+             LEFT JOIN wards w ON w.id = u.ward_id
+             WHERE {$where}
+               AND (
+                   (SELECT COALESCE(MAX(p.to_month), '0000-00-00') FROM payments p WHERE p.user_id = u.id) < ?
+                   OR (SELECT COUNT(*) FROM payments p WHERE p.user_id = u.id) = 0
+               )
+             ORDER BY u.name",
+            array_merge($params, [$today])
+        );
+
+        if (empty($users)) {
+            $this->jsonError('No unpaid members found matching the current filters.');
             return;
         }
 
-        $users = \Models\Database::connect()->fetchAll(
-            'SELECT id, name, phone, monthly_amount FROM users WHERE id IN (' . implode(',', array_map('intval', $userIds)) . ')'
-        );
+        $scheduled = 0;
+        $template = Setting::get('msg_due', 'Dear [Name], your payment of Rs.[Amount] is due. Please pay before [Date].');
 
-        $sent = 0;
         foreach ($users as $u) {
             $phone = preg_replace('/[^0-9]/', '', $u['phone'] ?? '');
             if ($phone === '') continue;
 
-            $msg = $type === 'due'
-                ? 'Dear ' . $u['name'] . ', your masjid payment of Rs. ' . number_format((float) ($u['monthly_amount'] ?? 0), 2) . ' is due. Please pay at your earliest convenience. - MasjidPay'
-                : 'Dear ' . $u['name'] . ', this is a reminder for your pending masjid payment. Monthly amount: Rs. ' . number_format((float) ($u['monthly_amount'] ?? 0), 2) . '. - MasjidPay';
+            $msg = str_replace(
+                ['[Name]', '[Amount]', '[Date]'],
+                [$u['name'], number_format((float) ($u['monthly_amount'] ?? 0), 2), $scheduleDate],
+                $template
+            );
+
+            $db->execute(
+                'INSERT INTO scheduled_messages (user_id, scheduled_date, message, type, status) VALUES (?, ?, ?, ?, ?)',
+                [(int) $u['id'], $scheduleDate, $msg, 'due', 'pending']
+            );
+            $scheduled++;
+        }
+
+        $this->jsonSuccess("Message scheduled for {$scheduled} member(s) on {$scheduleDate}.");
+    }
+
+    public function processScheduledMessages(): void
+    {
+        $this->requireJson();
+        $db = \Models\Database::connect();
+        $dueMessages = $db->fetchAll(
+            "SELECT sm.id, sm.user_id, sm.message, u.phone
+             FROM scheduled_messages sm
+             JOIN users u ON u.id = sm.user_id
+             WHERE sm.status = 'pending' AND sm.scheduled_date <= CURDATE()"
+        );
+
+        $sent = 0;
+        $failed = 0;
+        foreach ($dueMessages as $m) {
+            $phone = preg_replace('/[^0-9]/', '', $m['phone'] ?? '');
+            if ($phone === '') {
+                $db->execute("UPDATE scheduled_messages SET status = 'failed' WHERE id = ?", [(int) $m['id']]);
+                $failed++;
+                continue;
+            }
 
             try {
                 $sms = new \Services\SMSService();
-                $sms->send($phone, $msg);
+                $sms->send($phone, $m['message']);
+                $db->execute(
+                    "UPDATE scheduled_messages SET status = 'sent', sent_at = NOW() WHERE id = ?",
+                    [(int) $m['id']]
+                );
                 $sent++;
             } catch (\Exception $e) {
-                // Log error but continue
+                $db->execute("UPDATE scheduled_messages SET status = 'failed' WHERE id = ?", [(int) $m['id']]);
+                $failed++;
             }
         }
 
-        $this->jsonSuccess("Message sent to {$sent} member(s).");
+        $this->jsonSuccess("Processed: {$sent} sent, {$failed} failed.");
     }
 
     public function searchUser(): void
@@ -535,7 +704,32 @@ class AdminController
                 'to_month'       => $calc['to'],
                 'notes'          => trim((string) ($data['notes'] ?? '')),
             ]);
-            $this->jsonSuccess('Payment recorded.');
+
+            // Send confirmation SMS
+            $user = \Models\Database::connect()->fetch(
+                'SELECT name, phone FROM users WHERE id = ?',
+                [$userId]
+            );
+            if ($user && !empty($user['phone'])) {
+                $phone = preg_replace('/[^0-9]/', '', $user['phone']);
+                if ($phone !== '') {
+                    $template = Setting::get('msg_confirmation', 'Dear [Name], Rs.[Amount] paid. Thank you!');
+                    $msg = str_replace(
+                        ['[Name]', '[Amount]'],
+                        [$user['name'], number_format($amount, 2)],
+                        $template
+                    );
+                    try {
+                        $sms = new \Services\SMSService();
+                        $sms->send($phone, $msg);
+                        $smsSent = true;
+                    } catch (\Exception $e) {
+                        $smsSent = false;
+                    }
+                }
+            }
+
+            $this->jsonSuccessWithSms('Payment recorded.', $smsSent ?? false);
         } catch (\Exception $e) {
             $this->jsonError('Failed to record payment: ' . $e->getMessage());
         }
@@ -568,6 +762,52 @@ class AdminController
         try {
             Setting::set('collection_start_date', $startDate);
             $this->jsonSuccess('Configuration saved.');
+        } catch (\Exception $e) {
+            $this->jsonError('Failed to save: ' . $e->getMessage());
+        }
+    }
+
+    // ──────────────────────────────────────────────
+    //  Message Configuration
+    // ──────────────────────────────────────────────
+
+    public function systemMessages(): void
+    {
+        $msgConfirm = Setting::get('msg_confirmation', 'Dear [Name], Rs.[Amount] paid. Thank you!');
+        $msgDue = Setting::get('msg_due', 'Dear [Name], Rs.[Amount] due. Pay before [Date].');
+
+        $this->view('Message Config', 'messages.php', [
+            'msgConfirm' => $msgConfirm,
+            'msgDue' => $msgDue,
+        ], 'system_config.messages');
+    }
+
+    public function saveSystemMessages(): void
+    {
+        $this->requireJson();
+        $data = $this->jsonBody();
+
+        $msgConfirm = trim((string) ($data['msg_confirmation'] ?? ''));
+        $msgDue = trim((string) ($data['msg_due'] ?? ''));
+
+        if ($msgConfirm === '' || $msgDue === '') {
+            $this->jsonError('Both message templates are required.');
+            return;
+        }
+
+        if (mb_strlen($msgConfirm) > 50) {
+            $this->jsonError('Confirmation message must be 50 characters or less.');
+            return;
+        }
+        if (mb_strlen($msgDue) > 50) {
+            $this->jsonError('Due reminder message must be 50 characters or less.');
+            return;
+        }
+
+        try {
+            Setting::set('msg_confirmation', $msgConfirm);
+            Setting::set('msg_due', $msgDue);
+            $this->jsonSuccess('Message templates saved.');
         } catch (\Exception $e) {
             $this->jsonError('Failed to save: ' . $e->getMessage());
         }
@@ -611,6 +851,13 @@ class AdminController
     {
         header('Content-Type: application/json');
         echo json_encode(['success' => true, 'message' => $message]);
+        exit;
+    }
+
+    private function jsonSuccessWithSms(string $message, bool $smsSent = false): void
+    {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => true, 'message' => $message, 'sms_sent' => $smsSent]);
         exit;
     }
 

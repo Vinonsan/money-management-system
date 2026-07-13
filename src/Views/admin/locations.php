@@ -287,11 +287,11 @@ function submitLocation() {
             if (err.includes('name')) {
                 data.nameError = r.error;
             } else {
-                alert(r.error || 'Something went wrong.');
+                showToast(r.error || 'Something went wrong.', 'error');
             }
         }
     })
-    .catch(() => alert('Network error.'));
+    .catch(() => showToast('Network error.', 'error'));
 }
 
 function deleteLocation() {
@@ -309,9 +309,9 @@ function deleteLocation() {
         if (r.success) {
             window.location.reload();
         } else {
-            alert(r.error || 'Something went wrong.');
+            showToast(r.error || 'Something went wrong.', 'error');
         }
     })
-    .catch(() => alert('Network error.'));
+    .catch(() => showToast('Network error.', 'error'));
 }
 </script>

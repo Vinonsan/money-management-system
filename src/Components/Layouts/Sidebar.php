@@ -37,8 +37,8 @@ final class Sidebar
             ]"
         >
             <div class="relative flex h-16 items-center gap-3 border-b border-slate-200 bg-white px-4">
-                <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-700 text-sm font-bold text-white">
-                    M
+                <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-700 overflow-hidden">
+                    <img src="/assets/img/3f7f4c32-5f86-409b-a9e6-d6ceee81daa4.png" alt="MasjidPay" class="h-full w-full object-cover">
                 </div>
                 <div class="min-w-0 overflow-hidden transition-all duration-200"
                      :class="collapsed ? 'lg:opacity-0 lg:w-0' : 'opacity-100'">

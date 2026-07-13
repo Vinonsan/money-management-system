@@ -38,14 +38,17 @@ $routes = [
     'admin/payments/update'              => ['Controller' => 'AdminController', 'Action' => 'paymentUpdate', 'Middleware' => 'StaffAuth'],
     'admin/payments/members'             => ['Controller' => 'AdminController', 'Action' => 'paymentMembers', 'Middleware' => 'StaffAuth'],
     'admin/payments/schedule-message'    => ['Controller' => 'AdminController', 'Action' => 'scheduleMessage', 'Middleware' => 'StaffAuth'],
+    'admin/payments/process-scheduled'   => ['Controller' => 'AdminController', 'Action' => 'processScheduledMessages', 'Middleware' => 'StaffAuth'],
     'admin/payments/search-user'         => ['Controller' => 'AdminController', 'Action' => 'searchUser', 'Middleware' => 'StaffAuth'],
     'admin/payments/user-info'           => ['Controller' => 'AdminController', 'Action' => 'getUserPaymentInfo', 'Middleware' => 'StaffAuth'],
     'admin/payments/calculate'           => ['Controller' => 'AdminController', 'Action' => 'calculatePayment', 'Middleware' => 'StaffAuth'],
     'admin/payments/create'              => ['Controller' => 'AdminController', 'Action' => 'createPayment', 'Middleware' => 'StaffAuth'],
 
     // System Config
-    'admin/system-config'        => ['Controller' => 'AdminController', 'Action' => 'systemConfig', 'Middleware' => 'StaffAuth'],
-    'admin/system-config/save'   => ['Controller' => 'AdminController', 'Action' => 'saveSystemConfig', 'Middleware' => 'StaffAuth'],
+    'admin/system-config'              => ['Controller' => 'AdminController', 'Action' => 'systemConfig', 'Middleware' => 'StaffAuth'],
+    'admin/system-config/save'         => ['Controller' => 'AdminController', 'Action' => 'saveSystemConfig', 'Middleware' => 'StaffAuth'],
+    'admin/system-config/messages'     => ['Controller' => 'AdminController', 'Action' => 'systemMessages', 'Middleware' => 'StaffAuth'],
+    'admin/system-config/messages/save' => ['Controller' => 'AdminController', 'Action' => 'saveSystemMessages', 'Middleware' => 'StaffAuth'],
 ];
 
 if (array_key_exists($route, $routes)) {

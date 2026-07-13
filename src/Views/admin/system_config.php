@@ -63,7 +63,7 @@ function configForm() {
         startDate: '<?= htmlspecialchars($startDate, ENT_QUOTES) ?>',
         saveConfig() {
             if (!this.startDate) {
-                alert('Please select a start date.');
+                showToast('Please select a start date.', 'warning');
                 return;
             }
 
@@ -78,12 +78,12 @@ function configForm() {
             .then(r => r.json())
             .then(r => {
                 if (r.success) {
-                    alert('Configuration saved successfully.');
+                    showToast('Configuration saved successfully.');
                 } else {
-                    alert(r.error || 'Failed to save configuration.');
+                    showToast(r.error || 'Failed to save configuration.', 'error');
                 }
             })
-            .catch(() => alert('Network error.'));
+            .catch(() => showToast('Network error.', 'error'));
         }
     };
 }

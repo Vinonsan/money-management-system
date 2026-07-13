@@ -275,10 +275,10 @@ function submitUser() {
             const err = (response.error || '').toLowerCase();
             if (err.includes('name')) data.userErrors['name'] = response.error;
             else if (err.includes('phone')) data.userErrors['phone'] = response.error;
-            else alert(response.error || 'Unable to save user.');
+            else showToast(response.error || 'Unable to save user.', 'error');
         }
     })
-    .catch(() => alert('Network error. Please try again.'));
+    .catch(() => showToast('Network error. Please try again.', 'error'));
 }
 
 function onWardChange() {
@@ -307,10 +307,10 @@ function deleteUser() {
         if (r.success) {
             window.location.reload();
         } else {
-            alert(r.error || 'Something went wrong.');
+            showToast(r.error || 'Something went wrong.', 'error');
         }
     })
-    .catch(() => alert('Network error.'));
+    .catch(() => showToast('Network error.', 'error'));
 }
 </script>
 

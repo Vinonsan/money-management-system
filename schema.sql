@@ -115,6 +115,21 @@ CREATE TABLE IF NOT EXISTS settings (
 INSERT INTO settings (key_name, value) VALUES ('collection_start_date', '2026-01-01')
 ON DUPLICATE KEY UPDATE value = VALUES(value);
 
+-- ─── Scheduled Messages ─────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS scheduled_messages (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT(10) UNSIGNED NOT NULL,
+    scheduled_date DATE NOT NULL,
+    message TEXT NOT NULL,
+    type VARCHAR(20) NOT NULL DEFAULT 'due',
+    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    sent_at TIMESTAMP NULL DEFAULT NULL,
+    INDEX idx_scheduled_date (scheduled_date),
+    INDEX idx_status (status),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- ─── Seed data ──────────────────────────────────────────────────────────
 INSERT INTO users (name, email, phone, role, is_active)
 VALUES ('vinonsan', 'vinonsan.99@gmail.com', '0754476969', 'admin', 1)

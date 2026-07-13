@@ -319,11 +319,11 @@ function submitWard() {
             if (err.includes('ward number') || err.includes('already exists')) {
                 data.wardError = r.error;
             } else {
-                alert(r.error || 'Something went wrong.');
+                showToast(r.error || 'Something went wrong.', 'error');
             }
         }
     })
-    .catch(() => alert('Network error.'));
+    .catch(() => showToast('Network error.', 'error'));
 }
 
 function multiSelect(id, placeholderText) {
@@ -371,9 +371,9 @@ function deleteWard() {
         if (r.success) {
             window.location.reload();
         } else {
-            alert(r.error || 'Something went wrong.');
+            showToast(r.error || 'Something went wrong.', 'error');
         }
     })
-    .catch(() => alert('Network error.'));
+    .catch(() => showToast('Network error.', 'error'));
 }
 </script>
