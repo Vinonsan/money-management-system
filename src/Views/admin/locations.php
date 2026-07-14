@@ -299,7 +299,7 @@ function deleteLocation() {
     const id = data.modalData?.id;
     if (!id) return;
 
-    fetch('/admin/locations/delete', {
+    fetch(BASE_URL + '/admin/locations/delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
         body: JSON.stringify({ id, _csrf: '<?= e($_SESSION['csrf_token'] ?? '') ?>' }),

@@ -259,8 +259,9 @@ function submitUser() {
         _csrf: '<?= e($_SESSION['csrf_token'] ?? '') ?>',
     };
 
+    const baseUrl = '<?= BASE_URL ?>';
     const isEdit = !!formData.id;
-    const url = isEdit ? '/admin/users/update' : '/admin/users/create';
+    const url = baseUrl + (isEdit ? '/admin/users/update' : '/admin/users/create');
 
     fetch(url, {
         method: 'POST',
@@ -297,7 +298,7 @@ function deleteUser() {
     const id = data.modalData?.id;
     if (!id) return;
 
-    fetch('/admin/users/delete', {
+    fetch(BASE_URL + '/admin/users/delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
         body: JSON.stringify({ id, _csrf: '<?= e($_SESSION['csrf_token'] ?? '') ?>' }),
@@ -373,7 +374,7 @@ HTML
     'label' => 'Monthly Amount (Rs)',
     'value' => '',
     'disabled' => true,
-    'attrs' => ['x-model' => "\"Rs. \" + (parseFloat(drawerData.monthly_amount || 0).toFixed(2))"],
+    'attrs' => [':value' => "'Rs. ' + (parseFloat(drawerData.monthly_amount || 0).toFixed(2))"],
 ]) .
 <<<HTML
         </div>
@@ -435,7 +436,7 @@ HTML
     'label' => 'Ward',
     'value' => '',
     'disabled' => true,
-    'attrs' => ['x-model' => "'Ward #' + (drawerData.ward_number || '')"],
+    'attrs' => [':value' => "'Ward #' + (drawerData.ward_number || '')"],
 ]) .
 <<<HTML
         </div>

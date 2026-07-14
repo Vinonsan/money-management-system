@@ -48,9 +48,23 @@ class AdminController
             [$today]
         )['cnt'] ?? 0;
 
-        // SMS balance
+        // SMS balance — sync live from SMSlenz API
         $smsBalance = (float) (\Models\Setting::get('sms_balance', '0'));
         $smsCost = (float) (\Models\Setting::get('sms_cost_per_message', '0.62'));
+        $smsConfigured = false;
+        try {
+            $sms = new \Services\SMSService();
+            if ($sms->isConfigured()) {
+                $smsConfigured = true;
+                $status = $sms->getAccountStatus();
+                if ($status['success']) {
+                    $smsBalance = $status['balance'];
+                    \Models\Setting::set('sms_balance', (string) $smsBalance);
+                }
+            }
+        } catch (\Exception $e) {
+            // Use local balance if live sync fails
+        }
         $remainingSms = $smsCost > 0 ? floor($smsBalance / $smsCost) : 0;
 
         $this->view('Dashboard', 'dashboard.php', [
@@ -64,6 +78,7 @@ class AdminController
             'smsBalance'     => $smsBalance,
             'smsCost'        => $smsCost,
             'remainingSms'   => (int) $remainingSms,
+            'smsConfigured'  => $smsConfigured,
         ], 'dashboard');
     }
 
@@ -343,8 +358,11 @@ class AdminController
         try {
             User::create([
                 'name' => $name,
+                'email' => !empty($data['email']) ? trim($data['email']) : null,
                 'phone' => $phone,
                 'card_number' => !empty($data['card_number']) ? (int) $data['card_number'] : null,
+                'road_number' => !empty($data['road_number']) ? trim($data['road_number']) : null,
+                'street' => !empty($data['street']) ? trim($data['street']) : null,
                 'location_id' => !empty($data['location_id']) ? (int) $data['location_id'] : null,
                 'ward_id' => !empty($data['ward_id']) ? (int) $data['ward_id'] : null,
                 'monthly_amount' => !empty($data['monthly_amount']) ? (float) $data['monthly_amount'] : 0,
@@ -385,8 +403,11 @@ class AdminController
         try {
             User::update($id, [
                 'name' => $name,
+                'email' => !empty($data['email']) ? trim($data['email']) : null,
                 'phone' => $phone,
                 'card_number' => !empty($data['card_number']) ? (int) $data['card_number'] : null,
+                'road_number' => !empty($data['road_number']) ? trim($data['road_number']) : null,
+                'street' => !empty($data['street']) ? trim($data['street']) : null,
                 'location_id' => !empty($data['location_id']) ? (int) $data['location_id'] : null,
                 'ward_id' => !empty($data['ward_id']) ? (int) $data['ward_id'] : null,
                 'monthly_amount' => !empty($data['monthly_amount']) ? (float) $data['monthly_amount'] : 0,
@@ -499,6 +520,11 @@ class AdminController
         $data = $this->jsonBody();
         $type = trim((string) ($data['type'] ?? 'due'));
         $scheduleDate = trim((string) ($data['schedule_date'] ?? date('Y-m-d')));
+        $scheduleTime = trim((string) ($data['schedule_time'] ?? ''));
+        // Validate time format HH:MM (24-hour)
+        if ($scheduleTime !== '' && !preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $scheduleTime)) {
+            $scheduleTime = '';
+        }
         $status = trim((string) ($data['status'] ?? 'unpaid'));
         $search = trim((string) ($data['search'] ?? ''));
         $locationId = max(0, (int) ($data['location_id'] ?? 0));
@@ -549,37 +575,49 @@ class AdminController
         }
 
         $scheduled = 0;
-        $template = Setting::get('msg_due', 'Dear [Name], your payment of Rs.[Amount] is due. Please pay before [Date].');
+        $template = Setting::get('msg_due', 'Dear [Name], your contribution of Rs.[Amount] for [Month] is due. Pay before [Date].');
 
         foreach ($users as $u) {
             $phone = preg_replace('/[^0-9]/', '', $u['phone'] ?? '');
             if ($phone === '') continue;
 
+            // Determine due month from schedule date
+            $dueMonth = date('F Y', strtotime($scheduleDate));
+
             $msg = str_replace(
-                ['[Name]', '[Amount]', '[Date]'],
-                [$u['name'], number_format((float) ($u['monthly_amount'] ?? 0), 2), $scheduleDate],
+                ['[Name]', '[Amount]', '[MonthlyAmount]', '[Date]', '[Month]'],
+                [$u['name'], number_format((float) ($u['monthly_amount'] ?? 0), 2), number_format((float) ($u['monthly_amount'] ?? 0), 2), $scheduleDate, $dueMonth],
                 $template
             );
 
             $db->execute(
-                'INSERT INTO scheduled_messages (user_id, scheduled_date, message, type, status) VALUES (?, ?, ?, ?, ?)',
-                [(int) $u['id'], $scheduleDate, $msg, 'due', 'pending']
+                'INSERT INTO scheduled_messages (user_id, scheduled_date, scheduled_time, message, type, status) VALUES (?, ?, ?, ?, ?, ?)',
+                [(int) $u['id'], $scheduleDate, $scheduleTime !== '' ? $scheduleTime : null, $msg, 'due', 'pending']
             );
             $scheduled++;
         }
 
-        $this->jsonSuccess("Message scheduled for {$scheduled} member(s) on {$scheduleDate}.");
+        $timeLabel = $scheduleTime !== '' ? " at {$scheduleTime}" : '';
+        $this->jsonSuccess("Message scheduled for {$scheduled} member(s) on {$scheduleDate}{$timeLabel}.");
     }
 
     public function processScheduledMessages(): void
     {
         $this->requireJson();
         $db = \Models\Database::connect();
+
+        // Fetch pending messages where:
+        //   - scheduled_date < CURDATE(), OR
+        //   - scheduled_date = CURDATE() AND (scheduled_time IS NULL OR scheduled_time <= CURTIME())
         $dueMessages = $db->fetchAll(
-            "SELECT sm.id, sm.user_id, sm.message, u.phone
+            "SELECT sm.id, sm.user_id, sm.message, sm.scheduled_date, sm.scheduled_time, u.phone
              FROM scheduled_messages sm
              JOIN users u ON u.id = sm.user_id
-             WHERE sm.status = 'pending' AND sm.scheduled_date <= CURDATE()"
+             WHERE sm.status = 'pending'
+               AND (
+                   sm.scheduled_date < CURDATE()
+                   OR (sm.scheduled_date = CURDATE() AND (sm.scheduled_time IS NULL OR sm.scheduled_time <= CURTIME()))
+               )"
         );
 
         $sent = 0;
@@ -707,16 +745,43 @@ class AdminController
 
             // Send confirmation SMS
             $user = \Models\Database::connect()->fetch(
-                'SELECT name, phone FROM users WHERE id = ?',
+                'SELECT id, name, phone, monthly_amount FROM users WHERE id = ?',
                 [$userId]
             );
             if ($user && !empty($user['phone'])) {
                 $phone = preg_replace('/[^0-9]/', '', $user['phone']);
                 if ($phone !== '') {
-                    $template = Setting::get('msg_confirmation', 'Dear [Name], Rs.[Amount] paid. Thank you!');
+                    // Build period label (e.g. "Jan 2026 - Mar 2026")
+                    $period = '';
+                    if ($calc['from'] && $calc['months'] > 0) {
+                        $from = date('M Y', strtotime($calc['from']));
+                        $to   = date('M Y', strtotime($calc['to']));
+                        $period = ($from === $to) ? $from : "{$from} - {$to}";
+                    }
+                    // Next due month
+                    $nextDue = $calc['to']
+                        ? date('M Y', strtotime($calc['to'] . ' +1 month'))
+                        : date('M Y');
+                    // Total paid so far
+                    $totalPaid = \Models\Database::connect()->fetch(
+                        'SELECT COALESCE(SUM(amount), 0) AS total FROM payments WHERE user_id = ?',
+                        [$userId]
+                    )['total'] ?? 0;
+
+                    $template = Setting::get('msg_confirmation', 'Dear [Name], Rs.[Amount] paid for [Period]. Next due: [NextDue]. Total paid: Rs.[TotalPaid]. Thank you!');
                     $msg = str_replace(
-                        ['[Name]', '[Amount]'],
-                        [$user['name'], number_format($amount, 2)],
+                        ['[Name]', '[Amount]', '[Period]', '[MonthlyAmount]', '[PaidUpTo]', '[NextDue]', '[TotalPaid]', '[ExtraAmount]', '[MonthsCovered]'],
+                        [
+                            $user['name'],
+                            number_format($amount, 2),
+                            $period,
+                            number_format((float) $user['monthly_amount'], 2),
+                            $period ?: '-',
+                            $nextDue,
+                            number_format((float) $totalPaid, 2),
+                            number_format((float) ($calc['extra'] ?? 0), 2),
+                            (string) ($calc['months'] ?? 0),
+                        ],
                         $template
                     );
                     try {
@@ -743,8 +808,42 @@ class AdminController
     {
         $startDate = Setting::get('collection_start_date', date('Y-m-d'));
 
+        // SMSlenz configuration
+        $smsUserId   = Setting::get('smslenz_user_id', '');
+        $smsApiKey   = Setting::get('smslenz_api_key', '');
+        $smsSenderId = Setting::get('smslenz_sender_id', 'SMSlenzDEMO');
+        $smsCost     = Setting::get('sms_cost_per_message', '0.62');
+        $smsBalance  = Setting::get('sms_balance', '0');
+
+        // Live balance from SMSlenz API
+        $liveBalance = null;
+        $livePlan    = null;
+        try {
+            $sms = new \Services\SMSService();
+            if ($sms->isConfigured()) {
+                $status = $sms->getAccountStatus();
+                if ($status['success']) {
+                    $liveBalance = $status['balance'];
+                    $livePlan    = $status['plan'];
+                    // Update local balance from live
+                    Setting::set('sms_balance', (string) $liveBalance);
+                    $smsBalance = (string) $liveBalance;
+                }
+            }
+        } catch (\Exception $e) {
+            // Ignore live sync errors
+        }
+
         $this->view('System Config', 'system_config.php', [
-            'startDate' => $startDate,
+            'startDate'    => $startDate,
+            'smsUserId'    => $smsUserId,
+            'smsApiKey'    => $smsApiKey,
+            'smsSenderId'  => $smsSenderId,
+            'smsCost'      => $smsCost,
+            'smsBalance'   => $smsBalance,
+            'liveBalance'  => $liveBalance,
+            'livePlan'     => $livePlan,
+            'smsConfigured' => $smsUserId !== '' && $smsApiKey !== '',
         ], 'system_config.settings');
     }
 
@@ -767,14 +866,67 @@ class AdminController
         }
     }
 
+    /**
+     * Save SMSlenz API configuration.
+     */
+    public function saveSmsConfig(): void
+    {
+        $this->requireJson();
+        $data = $this->jsonBody();
+
+        $userId   = trim((string) ($data['smslenz_user_id'] ?? ''));
+        $apiKey   = trim((string) ($data['smslenz_api_key'] ?? ''));
+        $senderId = trim((string) ($data['smslenz_sender_id'] ?? 'SMSlenzDEMO'));
+        $cost     = trim((string) ($data['sms_cost_per_message'] ?? '0.62'));
+
+        if ($userId === '') {
+            $this->jsonError('SMSlenz User ID is required.');
+            return;
+        }
+        if ($apiKey === '') {
+            $this->jsonError('SMSlenz API Key is required.');
+            return;
+        }
+        if ($senderId === '') {
+            $this->jsonError('Sender ID is required.');
+            return;
+        }
+        if ($cost === '' || (float) $cost <= 0) {
+            $this->jsonError('Valid cost per message is required.');
+            return;
+        }
+
+        try {
+            Setting::set('smslenz_user_id', $userId);
+            Setting::set('smslenz_api_key', $apiKey);
+            Setting::set('smslenz_sender_id', $senderId);
+            Setting::set('sms_cost_per_message', $cost);
+
+            // Sync live balance after saving
+            try {
+                $sms = new \Services\SMSService();
+                $status = $sms->getAccountStatus();
+                if ($status['success']) {
+                    Setting::set('sms_balance', (string) $status['balance']);
+                }
+            } catch (\Exception $e) {
+                // Ignore
+            }
+
+            $this->jsonSuccess('SMS configuration saved successfully.');
+        } catch (\Exception $e) {
+            $this->jsonError('Failed to save SMS config: ' . $e->getMessage());
+        }
+    }
+
     // ──────────────────────────────────────────────
     //  Message Configuration
     // ──────────────────────────────────────────────
 
     public function systemMessages(): void
     {
-        $msgConfirm = Setting::get('msg_confirmation', 'Dear [Name], Rs.[Amount] paid. Thank you!');
-        $msgDue = Setting::get('msg_due', 'Dear [Name], Rs.[Amount] due. Pay before [Date].');
+        $msgConfirm = Setting::get('msg_confirmation', 'Dear [Name], Rs.[Amount] paid for [Period]. Next due: [NextDue]. Total paid: Rs.[TotalPaid]. Thank you!');
+        $msgDue = Setting::get('msg_due', 'Dear [Name], your monthly contribution of Rs.[MonthlyAmount] for [Month] is due. Kindly pay Rs.[Amount] before [Date].');
 
         $this->view('Message Config', 'messages.php', [
             'msgConfirm' => $msgConfirm,
@@ -795,12 +947,12 @@ class AdminController
             return;
         }
 
-        if (mb_strlen($msgConfirm) > 50) {
-            $this->jsonError('Confirmation message must be 50 characters or less.');
+        if (mb_strlen($msgConfirm) > 150) {
+            $this->jsonError('Confirmation message must be 150 characters or less.');
             return;
         }
-        if (mb_strlen($msgDue) > 50) {
-            $this->jsonError('Due reminder message must be 50 characters or less.');
+        if (mb_strlen($msgDue) > 150) {
+            $this->jsonError('Due reminder message must be 150 characters or less.');
             return;
         }
 

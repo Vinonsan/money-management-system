@@ -100,7 +100,23 @@ $pageTitle = 'Dashboard';
         <div class="flex items-start justify-between">
             <div>
                 <h3 class="text-base font-bold text-slate-900">SMS Balance</h3>
-                <p class="text-xs text-slate-500 mt-0.5">Cost per message: Rs. <?= number_format($smsCost, 2) ?></p>
+                <p class="text-xs text-slate-500 mt-0.5">
+                    Cost per message: Rs. <?= number_format($smsCost, 2) ?>
+                    <span class="mx-1.5">·</span>
+                    Gateway:
+                    <?php if ($smsConfigured ?? false): ?>
+                        <span class="inline-flex items-center gap-1 text-green-600 font-medium">
+                            <span class="inline-block h-1.5 w-1.5 rounded-full bg-green-500"></span>
+                            SMSlenz
+                        </span>
+                    <?php else: ?>
+                        <span class="inline-flex items-center gap-1 text-amber-600 font-medium">
+                            <span class="inline-block h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+                            Not configured
+                        </span>
+                        <a href="/admin/system-config" class="text-blue-600 hover:underline ml-1">Configure</a>
+                    <?php endif; ?>
+                </p>
             </div>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">

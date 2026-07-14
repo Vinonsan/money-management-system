@@ -23,6 +23,7 @@ final class AppLayout
     <title><?= e($title) ?> | <?= APP_NAME ?></title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script>const BASE_URL = '<?= BASE_URL ?>';</script>
     <style>[x-cloak] { display: none !important; }
         .toast-enter { animation: toastIn 0.3s ease-out; }
         .toast-exit { animation: toastOut 0.3s ease-in forwards; }

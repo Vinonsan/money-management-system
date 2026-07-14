@@ -115,11 +115,24 @@ CREATE TABLE IF NOT EXISTS settings (
 INSERT INTO settings (key_name, value) VALUES ('collection_start_date', '2026-01-01')
 ON DUPLICATE KEY UPDATE value = VALUES(value);
 
+-- SMSlenz Configuration (set via System Config UI)
+INSERT INTO settings (key_name, value) VALUES ('smslenz_user_id', '')
+ON DUPLICATE KEY UPDATE value = VALUES(value);
+INSERT INTO settings (key_name, value) VALUES ('smslenz_api_key', '')
+ON DUPLICATE KEY UPDATE value = VALUES(value);
+INSERT INTO settings (key_name, value) VALUES ('smslenz_sender_id', 'SMSlenzDEMO')
+ON DUPLICATE KEY UPDATE value = VALUES(value);
+INSERT INTO settings (key_name, value) VALUES ('sms_cost_per_message', '0.62')
+ON DUPLICATE KEY UPDATE value = VALUES(value);
+INSERT INTO settings (key_name, value) VALUES ('sms_balance', '0')
+ON DUPLICATE KEY UPDATE value = VALUES(value);
+
 -- ─── Scheduled Messages ─────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS scheduled_messages (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT(10) UNSIGNED NOT NULL,
     scheduled_date DATE NOT NULL,
+    scheduled_time TIME DEFAULT NULL COMMENT 'Optional time of day to send',
     message TEXT NOT NULL,
     type VARCHAR(20) NOT NULL DEFAULT 'due',
     status VARCHAR(20) NOT NULL DEFAULT 'pending',

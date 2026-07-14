@@ -68,12 +68,14 @@ class User
     public static function create(array $data): string
     {
         return Database::connect()->insert(
-            'INSERT INTO users (name, email, phone, card_number, location_id, ward_id, monthly_amount, role, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)',
+            'INSERT INTO users (name, email, phone, card_number, road_number, street, location_id, ward_id, monthly_amount, role, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)',
             [
                 $data['name'],
                 $data['email'] ?? null,
                 $data['phone'],
                 !empty($data['card_number']) ? (int) $data['card_number'] : null,
+                $data['road_number'] ?? null,
+                $data['street'] ?? null,
                 $data['location_id'] ?? null,
                 $data['ward_id'] ?? null,
                 $data['monthly_amount'] ?? 0,
@@ -106,11 +108,14 @@ class User
     public static function update(int $id, array $data): int
     {
         return Database::connect()->execute(
-            'UPDATE users SET name = ?, phone = ?, card_number = ?, location_id = ?, ward_id = ?, monthly_amount = ? WHERE id = ?',
+            'UPDATE users SET name = ?, email = ?, phone = ?, card_number = ?, road_number = ?, street = ?, location_id = ?, ward_id = ?, monthly_amount = ? WHERE id = ?',
             [
                 $data['name'],
+                $data['email'] ?? null,
                 $data['phone'],
                 !empty($data['card_number']) ? (int) $data['card_number'] : null,
+                $data['road_number'] ?? null,
+                $data['street'] ?? null,
                 $data['location_id'] ?? null,
                 $data['ward_id'] ?? null,
                 $data['monthly_amount'] ?? 0,

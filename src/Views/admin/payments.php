@@ -201,7 +201,7 @@ function paymentManager() {
         searchUsers() {
             if (!this.searchQuery.trim()) return;
             this.searched = true;
-            fetch('/admin/payments/search-user', {
+            fetch(BASE_URL + '/admin/payments/search-user', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ query: this.searchQuery, _csrf: '<?= e($_SESSION['csrf_token'] ?? '') ?>' }),
@@ -226,7 +226,7 @@ function paymentManager() {
 
         loadPaymentInfo() {
             if (!this.selectedUser) return;
-            fetch('/admin/payments/user-info', {
+            fetch(BASE_URL + '/admin/payments/user-info', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ user_id: this.selectedUser.id, _csrf: '<?= e($_SESSION['csrf_token'] ?? '') ?>' }),
@@ -252,7 +252,7 @@ function paymentManager() {
                 this.calculation = null;
                 return;
             }
-            fetch('/admin/payments/calculate', {
+            fetch(BASE_URL + '/admin/payments/calculate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -271,7 +271,7 @@ function paymentManager() {
             const amount = parseFloat(this.paymentAmount);
             if (!amount || amount <= 0) { showToast('Enter a valid amount.', 'warning'); return; }
 
-            fetch('/admin/payments/create', {
+            fetch(BASE_URL + '/admin/payments/create', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

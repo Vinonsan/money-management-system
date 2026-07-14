@@ -208,14 +208,31 @@ $tabQs = $qsSearch . $qsLoc . $qsWard;
 
                 <!-- Body -->
                 <div class="flex-1 overflow-y-auto bg-white px-8 py-6">
-                    <!-- Date Picker -->
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-2">Schedule Date</label>
-                        <input type="date"
-                               x-model="scheduleDate"
-                               :min="scheduleDateMin"
-                               class="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/10">
-                        <p class="mt-2 text-xs text-slate-400">Messages will be sent to all unpaid members on this date.</p>
+                    <div class="space-y-5">
+                        <!-- Date Picker -->
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-2">Schedule Date <span class="text-rose-500">*</span></label>
+                            <input type="date"
+                                   x-model="scheduleDate"
+                                   :min="scheduleDateMin"
+                                   class="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/10">
+                        </div>
+
+                        <!-- Time Picker -->
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-2">
+                                Schedule Time
+                                <span class="ml-1.5 text-xs font-normal text-slate-400">(optional)</span>
+                            </label>
+                            <input type="time"
+                                   x-model="scheduleTime"
+                                   class="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/10">
+                            <p class="mt-2 text-xs text-slate-400">
+                                Messages will be sent to all unpaid members on the selected date
+                                <span x-show="scheduleTime">at <strong x-text="scheduleTime"></strong></span>.
+                                <span x-show="!scheduleTime">If no time is set, messages go out as soon as the date arrives.</span>
+                            </p>
+                        </div>
                     </div>
                 </div>
 
@@ -246,6 +263,7 @@ function memberManager() {
         wardId: <?= $wardId ?>,
         scheduleDrawer: false,
         scheduleDate: '',
+        scheduleTime: '',
         scheduleDateMin: '',
         init() {
             const today = new Date();
@@ -277,7 +295,7 @@ function memberManager() {
                 showToast('Please select a schedule date.', 'warning');
                 return;
             }
-            fetch('/admin/payments/schedule-message', {
+            fetch(BASE_URL + '/admin/payments/schedule-message', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -286,6 +304,7 @@ function memberManager() {
                     location_id: this.locationId,
                     ward_id: this.wardId,
                     schedule_date: this.scheduleDate,
+                    schedule_time: this.scheduleTime,
                     _csrf: '<?= e($_SESSION['csrf_token'] ?? '') ?>',
                 }),
             })

@@ -10,7 +10,9 @@ $isLocal  = in_array($host, ['localhost', '127.0.0.1', '::1'], true);
 
 // PHP built-in server serves from /public — no subfolder needed
 $isBuiltInServer = PHP_SAPI === 'cli-server';
-$subfolder = ($isLocal && !$isBuiltInServer) ? '/masjidpay' : '';
+// When using XAMPP, the project subfolder matches the htdocs folder name
+$projectFolder = basename(dirname(__DIR__)); // money-management-system-1
+$subfolder = ($isLocal && !$isBuiltInServer) ? '/' . $projectFolder : '';
 
 define('BASE_URL', rtrim($protocol . $host . $subfolder, '/'));
 

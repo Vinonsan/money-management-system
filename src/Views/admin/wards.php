@@ -361,7 +361,7 @@ function deleteWard() {
     const id = data.modalData?.id;
     if (!id) return;
 
-    fetch('/admin/wards/delete', {
+    fetch(BASE_URL + '/admin/wards/delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
         body: JSON.stringify({ id, _csrf: '<?= e($_SESSION['csrf_token'] ?? '') ?>' }),

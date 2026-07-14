@@ -29,12 +29,12 @@ $pageTitle = 'Message Configuration';
                         <h3 class="font-semibold text-emerald-800">Confirmation Message</h3>
                         <p class="mt-1 text-sm text-emerald-600">Sent to a member after they make a payment.</p>
                         <div class="mt-3">
-                            <textarea x-model="msgConfirm" maxlength="50" rows="2"
+                            <textarea x-model="msgConfirm" maxlength="150" rows="3"
                                 class="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/10"
-                                placeholder="Dear [Name], Rs.[Amount] paid. Thank you!"></textarea>
+                                placeholder="Dear [Name], Rs.[Amount] paid for [Period]. Next due: [NextDue]. Total paid: Rs.[TotalPaid]. Thank you!"></textarea>
                             <div class="mt-1.5 flex items-center justify-between">
-                                <span class="text-xs text-slate-400">Available: <code class="rounded bg-slate-100 px-1">[Name]</code> <code class="rounded bg-slate-100 px-1">[Amount]</code></span>
-                                <span class="text-xs font-medium" x-text="msgConfirm.length + '/50'" :class="msgConfirm.length > 50 ? 'text-red-500' : 'text-slate-400'"></span>
+                                <span class="text-xs text-slate-400">Available: <code class="rounded bg-slate-100 px-1">[Name]</code> <code class="rounded bg-slate-100 px-1">[Amount]</code> <code class="rounded bg-slate-100 px-1">[Period]</code> <code class="rounded bg-slate-100 px-1">[MonthlyAmount]</code> <code class="rounded bg-slate-100 px-1">[NextDue]</code> <code class="rounded bg-slate-100 px-1">[PaidUpTo]</code> <code class="rounded bg-slate-100 px-1">[TotalPaid]</code> <code class="rounded bg-slate-100 px-1">[ExtraAmount]</code> <code class="rounded bg-slate-100 px-1">[MonthsCovered]</code></span>
+                                <span class="text-xs font-medium" x-text="msgConfirm.length + '/150'" :class="msgConfirm.length > 150 ? 'text-red-500' : 'text-slate-400'"></span>
                             </div>
                         </div>
                     </div>
@@ -51,12 +51,12 @@ $pageTitle = 'Message Configuration';
                         <h3 class="font-semibold text-amber-800">Due Reminder Message</h3>
                         <p class="mt-1 text-sm text-amber-600">Sent to unpaid members as a payment reminder.</p>
                         <div class="mt-3">
-                            <textarea x-model="msgDue" maxlength="50" rows="2"
+                            <textarea x-model="msgDue" maxlength="150" rows="3"
                                 class="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/10"
-                                placeholder="Dear [Name], Rs.[Amount] due. Pay before [Date]."></textarea>
+                                placeholder="Dear [Name], your monthly contribution of Rs.[MonthlyAmount] for [Month] is due. Kindly pay before [Date]."></textarea>
                             <div class="mt-1.5 flex items-center justify-between">
-                                <span class="text-xs text-slate-400">Available: <code class="rounded bg-slate-100 px-1">[Name]</code> <code class="rounded bg-slate-100 px-1">[Amount]</code> <code class="rounded bg-slate-100 px-1">[Date]</code></span>
-                                <span class="text-xs font-medium" x-text="msgDue.length + '/50'" :class="msgDue.length > 50 ? 'text-red-500' : 'text-slate-400'"></span>
+                                <span class="text-xs text-slate-400">Available: <code class="rounded bg-slate-100 px-1">[Name]</code> <code class="rounded bg-slate-100 px-1">[Amount]</code> <code class="rounded bg-slate-100 px-1">[MonthlyAmount]</code> <code class="rounded bg-slate-100 px-1">[Month]</code> <code class="rounded bg-slate-100 px-1">[Date]</code></span>
+                                <span class="text-xs font-medium" x-text="msgDue.length + '/150'" :class="msgDue.length > 150 ? 'text-red-500' : 'text-slate-400'"></span>
                             </div>
                         </div>
                     </div>
@@ -86,12 +86,12 @@ function msgForm() {
                 showToast('Both message templates are required.', 'warning');
                 return;
             }
-            if (this.msgConfirm.length > 50 || this.msgDue.length > 50) {
-                showToast('Messages must be 50 characters or less.', 'warning');
+            if (this.msgConfirm.length > 150 || this.msgDue.length > 150) {
+                showToast('Messages must be 150 characters or less.', 'warning');
                 return;
             }
 
-            fetch('/admin/system-config/messages/save', {
+            fetch(BASE_URL + '/admin/system-config/messages/save', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
                 body: JSON.stringify({

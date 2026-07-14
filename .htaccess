@@ -1,5 +1,5 @@
 RewriteEngine On
-RewriteBase /masjidpay/
+RewriteBase /money-management-system-1/
 
 # Redirect direct access to .php files to clean URLs
 RewriteCond %{THE_REQUEST} ^[A-Z]{3,}\s([^.]+)\.php [NC]

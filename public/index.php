@@ -47,6 +47,7 @@ $routes = [
     // System Config
     'admin/system-config'              => ['Controller' => 'AdminController', 'Action' => 'systemConfig', 'Middleware' => 'StaffAuth'],
     'admin/system-config/save'         => ['Controller' => 'AdminController', 'Action' => 'saveSystemConfig', 'Middleware' => 'StaffAuth'],
+    'admin/system-config/sms-save'     => ['Controller' => 'AdminController', 'Action' => 'saveSmsConfig', 'Middleware' => 'StaffAuth'],
     'admin/system-config/messages'     => ['Controller' => 'AdminController', 'Action' => 'systemMessages', 'Middleware' => 'StaffAuth'],
     'admin/system-config/messages/save' => ['Controller' => 'AdminController', 'Action' => 'saveSystemMessages', 'Middleware' => 'StaffAuth'],
 ];
