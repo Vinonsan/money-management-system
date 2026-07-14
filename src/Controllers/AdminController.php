@@ -48,25 +48,6 @@ class AdminController
             [$today]
         )['cnt'] ?? 0;
 
-        // SMS balance — sync live from SMSlenz API
-        $smsBalance = (float) (\Models\Setting::get('sms_balance', '0'));
-        $smsCost = (float) (\Models\Setting::get('sms_cost_per_message', '0.62'));
-        $smsConfigured = false;
-        try {
-            $sms = new \Services\SMSService();
-            if ($sms->isConfigured()) {
-                $smsConfigured = true;
-                $status = $sms->getAccountStatus();
-                if ($status['success']) {
-                    $smsBalance = $status['balance'];
-                    \Models\Setting::set('sms_balance', (string) $smsBalance);
-                }
-            }
-        } catch (\Exception $e) {
-            // Use local balance if live sync fails
-        }
-        $remainingSms = $smsCost > 0 ? floor($smsBalance / $smsCost) : 0;
-
         $this->view('Dashboard', 'dashboard.php', [
             'totalMembers'   => (int) $totalMembers,
             'monthlyTarget'  => (float) $monthlyTarget,
@@ -808,42 +789,8 @@ class AdminController
     {
         $startDate = Setting::get('collection_start_date', date('Y-m-d'));
 
-        // SMSlenz configuration
-        $smsUserId   = Setting::get('smslenz_user_id', '');
-        $smsApiKey   = Setting::get('smslenz_api_key', '');
-        $smsSenderId = Setting::get('smslenz_sender_id', 'SMSlenzDEMO');
-        $smsCost     = Setting::get('sms_cost_per_message', '0.62');
-        $smsBalance  = Setting::get('sms_balance', '0');
-
-        // Live balance from SMSlenz API
-        $liveBalance = null;
-        $livePlan    = null;
-        try {
-            $sms = new \Services\SMSService();
-            if ($sms->isConfigured()) {
-                $status = $sms->getAccountStatus();
-                if ($status['success']) {
-                    $liveBalance = $status['balance'];
-                    $livePlan    = $status['plan'];
-                    // Update local balance from live
-                    Setting::set('sms_balance', (string) $liveBalance);
-                    $smsBalance = (string) $liveBalance;
-                }
-            }
-        } catch (\Exception $e) {
-            // Ignore live sync errors
-        }
-
         $this->view('System Config', 'system_config.php', [
-            'startDate'    => $startDate,
-            'smsUserId'    => $smsUserId,
-            'smsApiKey'    => $smsApiKey,
-            'smsSenderId'  => $smsSenderId,
-            'smsCost'      => $smsCost,
-            'smsBalance'   => $smsBalance,
-            'liveBalance'  => $liveBalance,
-            'livePlan'     => $livePlan,
-            'smsConfigured' => $smsUserId !== '' && $smsApiKey !== '',
+            'startDate' => $startDate,
         ], 'system_config.settings');
     }
 
@@ -863,59 +810,6 @@ class AdminController
             $this->jsonSuccess('Configuration saved.');
         } catch (\Exception $e) {
             $this->jsonError('Failed to save: ' . $e->getMessage());
-        }
-    }
-
-    /**
-     * Save SMSlenz API configuration.
-     */
-    public function saveSmsConfig(): void
-    {
-        $this->requireJson();
-        $data = $this->jsonBody();
-
-        $userId   = trim((string) ($data['smslenz_user_id'] ?? ''));
-        $apiKey   = trim((string) ($data['smslenz_api_key'] ?? ''));
-        $senderId = trim((string) ($data['smslenz_sender_id'] ?? 'SMSlenzDEMO'));
-        $cost     = trim((string) ($data['sms_cost_per_message'] ?? '0.62'));
-
-        if ($userId === '') {
-            $this->jsonError('SMSlenz User ID is required.');
-            return;
-        }
-        if ($apiKey === '') {
-            $this->jsonError('SMSlenz API Key is required.');
-            return;
-        }
-        if ($senderId === '') {
-            $this->jsonError('Sender ID is required.');
-            return;
-        }
-        if ($cost === '' || (float) $cost <= 0) {
-            $this->jsonError('Valid cost per message is required.');
-            return;
-        }
-
-        try {
-            Setting::set('smslenz_user_id', $userId);
-            Setting::set('smslenz_api_key', $apiKey);
-            Setting::set('smslenz_sender_id', $senderId);
-            Setting::set('sms_cost_per_message', $cost);
-
-            // Sync live balance after saving
-            try {
-                $sms = new \Services\SMSService();
-                $status = $sms->getAccountStatus();
-                if ($status['success']) {
-                    Setting::set('sms_balance', (string) $status['balance']);
-                }
-            } catch (\Exception $e) {
-                // Ignore
-            }
-
-            $this->jsonSuccess('SMS configuration saved successfully.');
-        } catch (\Exception $e) {
-            $this->jsonError('Failed to save SMS config: ' . $e->getMessage());
         }
     }
 

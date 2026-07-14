@@ -14,6 +14,7 @@ final class Sidebar
     public static function render(string $activeNav = ''): string
     {
         $appName = APP_NAME;
+        $logoSrc = BASE_URL . '/assets/img/logo.png';
 
         $itemsHtml = '';
         foreach (SidebarRouter::routes() as $key => $item) {
@@ -37,13 +38,13 @@ final class Sidebar
             ]"
         >
             <div class="relative flex h-16 items-center gap-3 border-b border-slate-200 bg-white px-4">
-                <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-700 overflow-hidden">
-                    <img src="/assets/img/3f7f4c32-5f86-409b-a9e6-d6ceee81daa4.png" alt="MasjidPay" class="h-full w-full object-cover">
+                <div class="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden">
+                    <img src="{$logoSrc}" alt="MasjidPay" class="h-full w-full object-contain">
                 </div>
                 <div class="min-w-0 overflow-hidden transition-all duration-200"
                      :class="collapsed ? 'lg:opacity-0 lg:w-0' : 'opacity-100'">
-                    <p class="truncate text-base font-bold tracking-tight text-slate-900">{$appName}</p>
-                    <p class="truncate text-[11px] font-medium uppercase tracking-wider text-slate-400">Admin Panel</p>
+                    <p class="truncate text-base font-bold tracking-tight text-brand-charcoal">{$appName}</p>
+                    <p class="truncate text-[11px] font-medium uppercase tracking-wider text-brand-gray">Admin Panel</p>
                 </div>
 
                 <button

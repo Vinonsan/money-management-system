@@ -41,7 +41,7 @@ final class Modal
 
         $btnVariant = match ($confirmVariant) {
             'danger'  => 'bg-red-600 text-white hover:bg-red-700',
-            'primary' => 'bg-emerald-700 text-white hover:bg-emerald-800',
+            'primary' => 'bg-primary-700 text-white hover:bg-primary-800',
             'warning' => 'bg-amber-500 text-white hover:bg-amber-600',
             default   => 'bg-red-600 text-white hover:bg-red-700',
         };

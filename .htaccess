@@ -15,6 +15,11 @@ RewriteRule ^deploy/ - [F,L]
 RewriteRule ^\.git - [F,L]
 RewriteRule \.(sql|md|log|yml|env)$ - [F,L]
 
+# Serve existing files from /public/ directory (assets, uploads, etc.)
+RewriteCond %{DOCUMENT_ROOT}/money-management-system-1/public/$1 -f [OR]
+RewriteCond %{DOCUMENT_ROOT}/money-management-system-1/public/$1 -d
+RewriteRule ^(.*)$ public/$1 [L]
+
 # Front controller pattern
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d

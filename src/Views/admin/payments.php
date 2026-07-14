@@ -30,7 +30,7 @@ $pageTitle = 'Payments';
             <input type="text" x-model="searchQuery" @input.debounce.400ms="searchUsers()"
                 @keydown.enter.prevent="searchUsers()"
                 placeholder="Search by name or card number..."
-                class="w-full rounded-lg border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm text-slate-700 placeholder-slate-400 transition-all focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/10">
+                class="w-full rounded-lg border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm text-slate-700 placeholder-slate-400 transition-all focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/10">
         </div>
 
         <!-- Search Results -->
@@ -38,8 +38,8 @@ $pageTitle = 'Payments';
             <div class="space-y-1.5 max-h-60 overflow-y-auto">
                 <template x-for="u in searchResults" :key="u.id">
                     <div @click="selectUser(u)"
-                        class="flex items-center justify-between gap-4 p-3 rounded-xl border border-slate-200 cursor-pointer transition hover:border-emerald-300 hover:bg-emerald-50/50"
-                        :class="selectedUser?.id === u.id ? 'border-emerald-400 bg-emerald-50 ring-2 ring-emerald-200' : ''">
+                        class="flex items-center justify-between gap-4 p-3 rounded-xl border border-slate-200 cursor-pointer transition hover:border-primary-300 hover:bg-primary-50/50"
+                        :class="selectedUser?.id === u.id ? 'border-primary-400 bg-primary-50 ring-2 ring-primary-200' : ''">
                         <div class="min-w-0 flex-1">
                             <p class="text-sm font-semibold text-slate-800" x-text="u.name"></p>
                             <p class="text-xs text-slate-500">
@@ -50,7 +50,7 @@ $pageTitle = 'Payments';
                             </p>
                         </div>
                         <div class="text-right shrink-0">
-                            <p class="text-sm font-bold text-emerald-700" x-text="'Rs. ' + parseFloat(u.monthly_amount || 0).toFixed(2)"></p>
+                            <p class="text-sm font-bold text-primary-700" x-text="'Rs. ' + parseFloat(u.monthly_amount || 0).toFixed(2)"></p>
                             <p class="text-xs text-slate-400">/month</p>
                         </div>
                     </div>
@@ -79,11 +79,11 @@ $pageTitle = 'Payments';
             <div class="rounded-xl bg-slate-50 p-3 border border-slate-100">
                 <p class="text-xs text-slate-500 font-medium">Next Due</p>
                 <p class="text-lg font-bold" x-text="paymentInfo?.next_due_month ? formatDate(paymentInfo.next_due_month) : '-'"
-                   :class="paymentInfo?.next_due_month ? (isOverdue(paymentInfo.next_due_month) ? 'text-red-600' : 'text-emerald-600') : ''"></p>
+                   :class="paymentInfo?.next_due_month ? (isOverdue(paymentInfo.next_due_month) ? 'text-red-600' : 'text-primary-600') : ''"></p>
             </div>
             <div class="rounded-xl bg-slate-50 p-3 border border-slate-100">
                 <p class="text-xs text-slate-500 font-medium">Total Paid</p>
-                <p class="text-lg font-bold text-emerald-700" x-text="'Rs. ' + parseFloat(paymentInfo?.total_paid || 0).toFixed(2)"></p>
+                <p class="text-lg font-bold text-primary-700" x-text="'Rs. ' + parseFloat(paymentInfo?.total_paid || 0).toFixed(2)"></p>
             </div>
         </div>
 
@@ -93,13 +93,13 @@ $pageTitle = 'Payments';
                 <label class="block text-sm font-semibold text-slate-700 mb-1.5">Amount Received (Rs)</label>
                 <input type="number" x-model="paymentAmount" @input.debounce.500ms="calculate()" @keydown.enter.prevent="calculate()"
                     min="0" step="0.01" placeholder="e.g. 5000"
-                    class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/10">
+                    class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/10">
             </div>
 
             <!-- Calculation preview -->
-            <div x-show="calculation" x-cloak class="rounded-xl bg-emerald-50 border border-emerald-200 p-4 space-y-2">
-                <p class="text-sm font-semibold text-emerald-800">Payment Breakdown</p>
-                <div class="text-sm text-emerald-700 space-y-1">
+            <div x-show="calculation" x-cloak class="rounded-xl bg-primary-50 border border-primary-200 p-4 space-y-2">
+                <p class="text-sm font-semibold text-primary-800">Payment Breakdown</p>
+                <div class="text-sm text-primary-700 space-y-1">
                     <p><span class="font-medium">From:</span> <span x-text="formatDate(calculation?.from)"></span></p>
                     <p><span class="font-medium">To:</span> <span x-text="formatDate(calculation?.to)"></span></p>
                     <p><span class="font-medium">Months Covered:</span> <span x-text="calculation?.months"></span></p>
@@ -112,7 +112,7 @@ $pageTitle = 'Payments';
 
             <div class="flex items-center gap-3 pt-2">
                 <button type="button" @click="submitPayment()" :disabled="!calculation || !paymentAmount"
-                    class="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-600/20 transition hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed">
+                    class="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-6 py-2.5 text-sm font-semibold text-white shadow-md shadow-primary-600/20 transition hover:bg-primary-700 disabled:opacity-40 disabled:cursor-not-allowed">
                     <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
                     </svg>
@@ -287,7 +287,7 @@ function paymentManager() {
                     if (r.sms_sent) {
                         setTimeout(() => showToast('SMS sent successfully!'), 500);
                     }
-                    window.location.reload();
+                    setTimeout(() => window.location.reload(), 2000);
                 } else {
                     showToast(r.error || 'Failed to record payment.', 'error');
                 }

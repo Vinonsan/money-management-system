@@ -48,7 +48,7 @@ final class Search
             $filterHtml = <<<HTML
             <div class="relative">
                 <select id="search-filter"
-                    class="h-full rounded-l-lg border border-r-0 border-slate-300 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-600 appearance-none cursor-pointer"
+                    class="h-full rounded-l-lg border border-r-0 border-slate-300 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-600 appearance-none cursor-pointer"
                     style="min-width: 130px;">
                     {$filterOptions}
                 </select>
@@ -84,7 +84,7 @@ final class Search
                     @input.debounce.300ms="search()"
                     @keydown.enter.prevent="search()"
                     placeholder="{$placeholder}"
-                    class="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 transition">
+                    class="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-600 focus:border-primary-600 transition">
             </div>
             <button type="button" @click="resetSearch()"
                 class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 hover:text-slate-800">

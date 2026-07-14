@@ -21,9 +21,13 @@ final class AppLayout
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= e($title) ?> | <?= APP_NAME ?></title>
+    <link rel="icon" type="image/svg+xml" href="<?= BASE_URL ?>/assets/img/favicon.svg">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { theme: { extend: <?= \adminTailwindColorsJs() ?> } };
+        const BASE_URL = '<?= BASE_URL ?>';
+    </script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <script>const BASE_URL = '<?= BASE_URL ?>';</script>
     <style>[x-cloak] { display: none !important; }
         .toast-enter { animation: toastIn 0.3s ease-out; }
         .toast-exit { animation: toastOut 0.3s ease-in forwards; }
@@ -34,7 +38,7 @@ final class AppLayout
         * { scrollbar-width: none; -ms-overflow-style: none; }
     </style>
 </head>
-<body class="h-full bg-white text-slate-800 antialiased">
+<body class="h-full bg-white text-brand-charcoal antialiased">
 
 <?php if ($isLoggedIn): ?>
 <div
@@ -77,8 +81,11 @@ final class AppLayout
 <div class="min-h-screen">
     <header class="border-b border-slate-200 bg-white">
         <div class="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-            <a href="<?= BASE_URL ?>/" class="text-xl font-bold text-emerald-800"><?= APP_NAME ?></a>
-            <a href="<?= BASE_URL ?>/login" class="text-sm font-semibold text-slate-600 hover:text-emerald-800">Login</a>
+            <a href="<?= BASE_URL ?>/" class="flex items-center gap-2">
+                <img src="<?= BASE_URL ?>/assets/img/logo.png" alt="<?= APP_NAME ?>" class="h-8 w-auto">
+                <span class="text-xl font-bold text-primary-600"><?= APP_NAME ?></span>
+            </a>
+            <a href="<?= BASE_URL ?>/login" class="rounded-lg bg-primary-500 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-600 transition">Login</a>
         </div>
     </header>
     <main>
@@ -97,7 +104,7 @@ function showToast(message, type) {
     if (!container) return;
 
     const colors = {
-        success: { bg: 'bg-emerald-600', icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>' },
+        success: { bg: 'bg-primary-600', icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>' },
         error:   { bg: 'bg-red-600',   icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>' },
         warning: { bg: 'bg-amber-500',  icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/>' },
     };

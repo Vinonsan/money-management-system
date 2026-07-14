@@ -84,7 +84,7 @@ final class Drawer
             <div class="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-8 py-5">
                 <h3 class="text-lg font-bold text-slate-900 truncate pr-4">
                     <span x-text="drawerMode === 'view' ? 'View' : (drawerMode === 'edit' ? 'Edit' : 'Add')"></span>
-                    <span class="text-emerald-700">{$title}</span>
+                    <span class="text-primary-700">{$title}</span>
                 </h3>
                 <button type="button" @click="drawer = ''"
                     class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700">

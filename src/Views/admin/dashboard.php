@@ -7,9 +7,6 @@
  * @var float $thisYear       Amount collected this year
  * @var float $totalCollected Total collection overall
  * @var int   $unpaidCount    Members with payment due
- * @var float $smsBalance     Current SMS balance (Rs.)
- * @var float $smsCost        Cost per SMS (Rs.)
- * @var int   $remainingSms   Estimated remaining SMS count
  */
 $pageTitle = 'Dashboard';
 ?>
@@ -26,7 +23,7 @@ $pageTitle = 'Dashboard';
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
         <div class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
             <div class="flex items-center gap-3">
-                <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-50 text-primary-600">
                     <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
                     </svg>
@@ -68,14 +65,14 @@ $pageTitle = 'Dashboard';
 
         <div class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
             <div class="flex items-center gap-3">
-                <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-50 text-primary-600">
                     <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
                 </div>
                 <div>
                     <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">This Month</p>
-                    <p class="text-2xl font-bold text-emerald-700">Rs. <?= number_format($thisMonth, 2) ?></p>
+                    <p class="text-2xl font-bold text-primary-700">Rs. <?= number_format($thisMonth, 2) ?></p>
                 </div>
             </div>
         </div>
@@ -95,49 +92,6 @@ $pageTitle = 'Dashboard';
         </div>
     </div>
 
-    <!-- SMS Balance (priority - above progress) -->
-    <div class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-        <div class="flex items-start justify-between">
-            <div>
-                <h3 class="text-base font-bold text-slate-900">SMS Balance</h3>
-                <p class="text-xs text-slate-500 mt-0.5">
-                    Cost per message: Rs. <?= number_format($smsCost, 2) ?>
-                    <span class="mx-1.5">·</span>
-                    Gateway:
-                    <?php if ($smsConfigured ?? false): ?>
-                        <span class="inline-flex items-center gap-1 text-green-600 font-medium">
-                            <span class="inline-block h-1.5 w-1.5 rounded-full bg-green-500"></span>
-                            SMSlenz
-                        </span>
-                    <?php else: ?>
-                        <span class="inline-flex items-center gap-1 text-amber-600 font-medium">
-                            <span class="inline-block h-1.5 w-1.5 rounded-full bg-amber-500"></span>
-                            Not configured
-                        </span>
-                        <a href="/admin/system-config" class="text-blue-600 hover:underline ml-1">Configure</a>
-                    <?php endif; ?>
-                </p>
-            </div>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
-            <div class="rounded-xl bg-slate-50 border border-slate-100 p-4">
-                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Current Balance</p>
-                <p class="text-xl font-bold text-slate-900 mt-1">Rs. <?= number_format($smsBalance, 2) ?></p>
-            </div>
-            <div class="rounded-xl bg-emerald-50 border border-emerald-100 p-4">
-                <p class="text-xs font-semibold text-emerald-600 uppercase tracking-wider">Remaining SMS</p>
-                <p class="text-xl font-bold text-emerald-700 mt-1"><?= (int) $remainingSms ?></p>
-            </div>
-            <div class="rounded-xl bg-amber-50 border border-amber-100 p-4">
-                <p class="text-xs font-semibold text-amber-600 uppercase tracking-wider">Unpaid Recipients</p>
-                <p class="text-xl font-bold text-amber-700 mt-1"><?= (int) $unpaidCount ?></p>
-                <?php if ($unpaidCount > $remainingSms): ?>
-                    <p class="text-xs text-amber-600 mt-1">⚠️ Need top-up to message all unpaid members</p>
-                <?php endif; ?>
-            </div>
-        </div>
-    </div>
-
     <!-- Progress & Unpaid -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <!-- Monthly Progress -->
@@ -145,7 +99,7 @@ $pageTitle = 'Dashboard';
             <h3 class="text-base font-bold text-slate-900 mb-3">Monthly Progress</h3>
             <?php
             $mpct = $monthlyTarget > 0 ? round(($thisMonth / $monthlyTarget) * 100, 1) : 0;
-            $mColor = $mpct >= 100 ? 'bg-emerald-500' : ($mpct >= 50 ? 'bg-blue-500' : 'bg-amber-500');
+            $mColor = $mpct >= 100 ? 'bg-primary-500' : ($mpct >= 50 ? 'bg-blue-500' : 'bg-amber-500');
             ?>
             <div class="flex items-baseline gap-2 mb-2">
                 <span class="text-3xl font-bold text-slate-900"><?= $mpct ?>%</span>
@@ -165,7 +119,7 @@ $pageTitle = 'Dashboard';
             <h3 class="text-base font-bold text-slate-900 mb-3">Yearly Progress</h3>
             <?php
             $ypct = $yearlyTarget > 0 ? round(($thisYear / $yearlyTarget) * 100, 1) : 0;
-            $yColor = $ypct >= 100 ? 'bg-emerald-500' : ($ypct >= 50 ? 'bg-blue-500' : 'bg-amber-500');
+            $yColor = $ypct >= 100 ? 'bg-primary-500' : ($ypct >= 50 ? 'bg-blue-500' : 'bg-amber-500');
             ?>
             <div class="flex items-baseline gap-2 mb-2">
                 <span class="text-3xl font-bold text-slate-900"><?= $ypct ?>%</span>

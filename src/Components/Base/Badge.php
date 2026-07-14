@@ -14,7 +14,7 @@ final class Badge
     public static function render(string $text, string $color = 'gray', array $opts = []): string
     {
         $colors = [
-            'green'  => 'bg-white text-emerald-700 ring-1 ring-emerald-300',
+            'green'  => 'bg-white text-primary-700 ring-1 ring-primary-300',
             'blue'   => 'bg-white text-blue-700 ring-1 ring-blue-300',
             'red'    => 'bg-white text-red-700 ring-1 ring-red-300',
             'yellow' => 'bg-white text-amber-700 ring-1 ring-amber-300',
@@ -43,7 +43,7 @@ final class Badge
         $dotHtml = '';
         if ($dot) {
             $dotColors = [
-                'green'  => 'bg-emerald-500',
+                'green'  => 'bg-primary-500',
                 'blue'   => 'bg-blue-500',
                 'red'    => 'bg-red-500',
                 'yellow' => 'bg-amber-500',

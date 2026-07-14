@@ -12,7 +12,7 @@ $phone = $phone ?? '';
 <?php endif; ?>
 
 <?php if (!empty($success)): ?>
-    <div class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"><?= e($success) ?></div>
+    <div class="mb-4 rounded-lg border border-primary-200 bg-primary-50 px-4 py-3 text-sm text-primary-800"><?= e($success) ?></div>
 <?php endif; ?>
 
 <?php if ($step === 'otp'): ?>
@@ -25,11 +25,11 @@ $phone = $phone ?? '';
         <?= OtpInput::render('otp', 6, ['label' => 'Enter OTP', 'autofocus' => true]) ?>
 
         <button type="submit"
-                class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-2.5 rounded-lg transition">
+                class="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-2.5 rounded-lg transition">
             Verify &amp; Login
         </button>
 
-        <a href="<?= BASE_URL ?>/login?reset=1" class="block text-center text-sm text-gray-500 hover:text-emerald-800">
+        <a href="<?= BASE_URL ?>/login?reset=1" class="block text-center text-sm text-gray-500 hover:text-primary-700">
             Change phone number
         </a>
     </form>
@@ -42,12 +42,12 @@ $phone = $phone ?? '';
             <input type="tel" name="phone" required autofocus
                    value="<?= e($phone) ?>"
                    placeholder="07XXXXXXXX"
-                   class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600">
+                   class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
             <p class="mt-1.5 text-xs text-gray-400">Admin staff login with OTP.</p>
         </div>
 
         <button type="submit"
-                class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-2.5 rounded-lg transition">
+                class="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-2.5 rounded-lg transition">
             Send OTP
         </button>
     </form>

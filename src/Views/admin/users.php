@@ -89,7 +89,7 @@ $columns = [
         'field' => 'is_active',
         'sortable' => true,
         'format' => static fn ($v): string => (int) $v === 1
-            ? '<span class="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">Active</span>'
+            ? '<span class="inline-flex rounded-full bg-primary-50 px-2.5 py-1 text-xs font-semibold text-primary-700 ring-1 ring-inset ring-primary-600/20">Active</span>'
             : '<span class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">Inactive</span>',
     ],
     [
@@ -102,7 +102,7 @@ $columns = [
             $name = htmlspecialchars($row['name'] ?? '', ENT_QUOTES);
             $rowJsonEsc = htmlspecialchars(json_encode($row), ENT_COMPAT, 'UTF-8');
 
-            $viewBtn = '<button type="button" onclick="event.stopPropagation(); openDrawer(\'view\', ' . $rowJsonEsc . ')" class="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors" title="View">' . $iconEye . '</button>';
+            $viewBtn = '<button type="button" onclick="event.stopPropagation(); openDrawer(\'view\', ' . $rowJsonEsc . ')" class="p-1.5 rounded-lg text-slate-400 hover:text-primary-600 hover:bg-primary-50 transition-colors" title="View">' . $iconEye . '</button>';
             $editBtn = '<button type="button" onclick="event.stopPropagation(); openDrawer(\'edit\', ' . $rowJsonEsc . ')" class="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="Edit">' . $iconEdit . '</button>';
             $deleteBtn = '<button type="button" onclick="event.stopPropagation(); openDeleteModal(' . $id . ', \'' . htmlspecialchars($name, ENT_COMPAT, 'UTF-8') . '\')" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors" title="Delete">' . $iconTrash . '</button>';
 
@@ -117,12 +117,12 @@ $columns = [
         <div>
             <div class="flex items-center gap-3">
                 <h1 class="text-2xl font-bold tracking-tight text-slate-900">User Management</h1>
-                <span class="rounded-full bg-emerald-50 px-3 py-1 text-sm font-bold text-emerald-700"><?= (int) $total ?> Users</span>
+                <span class="rounded-full bg-primary-50 px-3 py-1 text-sm font-bold text-primary-700"><?= (int) $total ?> Users</span>
             </div>
             <p class="mt-1 text-sm font-medium text-slate-500">Add and manage registered users.</p>
         </div>
         <button type="button" @click="drawerData = {}; drawerMode = 'add'; drawer = 'user-drawer'"
-            class="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-600/20 transition-all hover:bg-emerald-700">
+            class="inline-flex items-center justify-center gap-2 rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-primary-600/20 transition-all hover:bg-primary-700">
             <svg class="h-4 w-4 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
             Add User
         </button>
@@ -139,16 +139,16 @@ $columns = [
                 </svg>
                 <input type="text" x-model="search" @input.debounce.500ms="apply()"
                     placeholder="Search by name or phone..."
-                    class="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm text-slate-700 placeholder-slate-400 transition-all focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/10">
+                    class="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm text-slate-700 placeholder-slate-400 transition-all focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/10">
             </div>
 
             <select x-model="locationId" @change="apply()"
-                class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 font-medium focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/10">
+                class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 font-medium focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/10">
                 <?= $locFilterOpts ?>
             </select>
 
             <select x-model="wardId" @change="apply()"
-                class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 font-medium focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/10">
+                class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 font-medium focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/10">
                 <?= $wardFilterOpts ?>
             </select>
 
@@ -271,7 +271,8 @@ function submitUser() {
     .then(response => response.json())
     .then(response => {
         if (response.success) {
-            window.location.reload();
+            showToast(response.message || 'User saved!');
+            setTimeout(() => window.location.reload(), 1500);
         } else {
             const err = (response.error || '').toLowerCase();
             if (err.includes('name')) data.userErrors['name'] = response.error;
@@ -306,7 +307,8 @@ function deleteUser() {
     .then(r => r.json())
     .then(r => {
         if (r.success) {
-            window.location.reload();
+            showToast(r.message || 'User deleted!');
+            setTimeout(() => window.location.reload(), 1500);
         } else {
             showToast(r.error || 'Something went wrong.', 'error');
         }
@@ -347,7 +349,7 @@ $drawerBody = <<<HTML
             <label class="block mb-1.5 text-sm font-semibold text-slate-700">Full Name <span class="text-rose-500">*</span></label>
             <input type="text" x-model="drawerData.name" :disabled="drawerMode === 'view'" required
                 placeholder="Enter full name"
-                :class="'w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 transition focus:outline-none focus:ring-2 ' + (userErrors?.name ? 'border-red-300 focus:border-red-500 focus:ring-red-500/30' : 'border-slate-300 focus:border-emerald-600 focus:ring-emerald-600/30')">
+                :class="'w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 transition focus:outline-none focus:ring-2 ' + (userErrors?.name ? 'border-red-300 focus:border-red-500 focus:ring-red-500/30' : 'border-slate-300 focus:border-primary-600 focus:ring-primary-600/30')">
             <p x-show="userErrors?.name" x-text="userErrors.name" class="mt-1 text-xs font-medium text-red-600"></p>
         </div>
         <div x-show="drawerMode === 'view'">
@@ -366,7 +368,7 @@ HTML
             <label class="block mb-1.5 text-sm font-semibold text-slate-700">Monthly Amount (Rs)</label>
             <input type="number" x-model="drawerData.monthly_amount" :disabled="drawerMode === 'view'"
                 placeholder="e.g. 500.00" min="0" step="0.01"
-                :class="'w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 transition focus:outline-none focus:ring-2 border-slate-300 focus:border-emerald-600 focus:ring-emerald-600/30'">
+                :class="'w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 transition focus:outline-none focus:ring-2 border-slate-300 focus:border-primary-600 focus:ring-primary-600/30'">
         </div>
         <div x-show="drawerMode === 'view'">
 HTML
@@ -384,7 +386,7 @@ HTML
             <label class="block mb-1.5 text-sm font-semibold text-slate-700">Phone Number <span class="text-rose-500">*</span></label>
             <input type="tel" x-model="drawerData.phone" :disabled="drawerMode === 'view'" required
                 placeholder="e.g. 0771234567"
-                :class="'w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 transition focus:outline-none focus:ring-2 ' + (userErrors?.phone ? 'border-red-300 focus:border-red-500 focus:ring-red-500/30' : 'border-slate-300 focus:border-emerald-600 focus:ring-emerald-600/30')">
+                :class="'w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 transition focus:outline-none focus:ring-2 ' + (userErrors?.phone ? 'border-red-300 focus:border-red-500 focus:ring-red-500/30' : 'border-slate-300 focus:border-primary-600 focus:ring-primary-600/30')">
             <p x-show="userErrors?.phone" x-text="userErrors.phone" class="mt-1 text-xs font-medium text-red-600"></p>
         </div>
         <div x-show="drawerMode === 'view'">
@@ -424,7 +426,7 @@ HTML
         <div x-show="drawerMode !== 'view'">
             <label class="block mb-1.5 text-sm font-semibold text-slate-700">Ward <span class="text-rose-500">*</span></label>
             <select x-model="drawerData.ward_id" @change="onWardChange()" :disabled="drawerMode === 'view'" required
-                :class="'w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-slate-800 transition focus:outline-none focus:ring-2 appearance-none ' + (userErrors?.ward_id ? 'border-red-300 focus:border-red-500 focus:ring-red-500/30' : 'border-slate-300 focus:border-emerald-600 focus:ring-emerald-600/30')">
+                :class="'w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-slate-800 transition focus:outline-none focus:ring-2 appearance-none ' + (userErrors?.ward_id ? 'border-red-300 focus:border-red-500 focus:ring-red-500/30' : 'border-slate-300 focus:border-primary-600 focus:ring-primary-600/30')">
                 <option value="">Select ward...</option>
                 <?= $wardOptsHtml ?>
             </select>
@@ -445,7 +447,7 @@ HTML
         <div x-show="drawerMode !== 'view'">
             <label class="block mb-1.5 text-sm font-semibold text-slate-700">Street / Location</label>
             <select x-model="drawerData.location_id" :disabled="drawerMode === 'view'"
-                :class="'w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-slate-800 transition focus:outline-none focus:ring-2 appearance-none border-slate-300 focus:border-emerald-600 focus:ring-emerald-600/30'">
+                :class="'w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-slate-800 transition focus:outline-none focus:ring-2 appearance-none border-slate-300 focus:border-primary-600 focus:ring-primary-600/30'">
                 <option value="">Select location...</option>
                 <?= $locOptsHtml ?>
             </select>
@@ -495,7 +497,7 @@ HTML;
 $drawerFooter = <<<HTML
 <div class="flex items-center justify-end gap-3 border-t border-slate-100 bg-white px-6 py-4">
     <button type="button" @click="drawer = ''" class="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50">Cancel</button>
-    <button type="button" x-show="drawerMode !== 'view'" @click="submitUser()" class="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-600/20 transition hover:bg-emerald-700">
+    <button type="button" x-show="drawerMode !== 'view'" @click="submitUser()" class="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-primary-600/20 transition hover:bg-primary-700">
         <span x-text="drawerMode === 'edit' ? 'Update User' : 'Save User'"></span>
     </button>
 </div>

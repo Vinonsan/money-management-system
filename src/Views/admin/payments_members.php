@@ -59,7 +59,7 @@ $tabQs = $qsSearch . $qsLoc . $qsWard;
                 <a href="/admin/payments/members?status=unpaid<?= $tabQs ?>"
                    class="rounded-md px-3.5 py-1.5 text-xs font-semibold transition <?= $status === 'unpaid' ? 'bg-rose-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-800' ?>">Unpaid</a>
                 <a href="/admin/payments/members?status=paid<?= $tabQs ?>"
-                   class="rounded-md px-3.5 py-1.5 text-xs font-semibold transition <?= $status === 'paid' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-800' ?>">Paid</a>
+                   class="rounded-md px-3.5 py-1.5 text-xs font-semibold transition <?= $status === 'paid' ? 'bg-primary-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-800' ?>">Paid</a>
                 <a href="/admin/payments/members?status=all<?= $tabQs ?>"
                    class="rounded-md px-3.5 py-1.5 text-xs font-semibold transition <?= $status === 'all' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-600 hover:text-slate-800' ?>">All</a>
             </div>
@@ -73,14 +73,14 @@ $tabQs = $qsSearch . $qsLoc . $qsWard;
             </svg>
             <input type="text" x-model="search" @input.debounce.500ms="apply()"
                 placeholder="Search by name or card..."
-                class="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/10">
+                class="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/10">
         </div>
         <select x-model="locationId" @change="apply()"
-            class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/10">
+            class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/10">
             <?= $locOpts ?>
         </select>
         <select x-model="wardId" @change="apply()"
-            class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/10">
+            class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/10">
             <?= $wardOpts ?>
         </select>
         <button type="button" @click="reset()"
@@ -91,7 +91,7 @@ $tabQs = $qsSearch . $qsLoc . $qsWard;
             Reset
         </button>
         <button type="button" @click="scheduleMessage()"
-            class="ml-auto rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 transition">
+            class="ml-auto rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-700 transition">
             <svg class="inline h-4 w-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
             </svg>
@@ -196,7 +196,7 @@ $tabQs = $qsSearch . $qsLoc . $qsWard;
                 <!-- Header -->
                 <div class="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-8 py-5">
                     <h3 class="text-lg font-bold text-slate-900">
-                        <span class="text-emerald-700">Schedule Message</span>
+                        <span class="text-primary-700">Schedule Message</span>
                     </h3>
                     <button type="button" @click="scheduleDrawer = false"
                         class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700">
@@ -215,7 +215,7 @@ $tabQs = $qsSearch . $qsLoc . $qsWard;
                             <input type="date"
                                    x-model="scheduleDate"
                                    :min="scheduleDateMin"
-                                   class="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/10">
+                                   class="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/10">
                         </div>
 
                         <!-- Time Picker -->
@@ -226,7 +226,7 @@ $tabQs = $qsSearch . $qsLoc . $qsWard;
                             </label>
                             <input type="time"
                                    x-model="scheduleTime"
-                                   class="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/10">
+                                   class="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/10">
                             <p class="mt-2 text-xs text-slate-400">
                                 Messages will be sent to all unpaid members on the selected date
                                 <span x-show="scheduleTime">at <strong x-text="scheduleTime"></strong></span>.
@@ -243,7 +243,7 @@ $tabQs = $qsSearch . $qsLoc . $qsWard;
                         Cancel
                     </button>
                     <button type="button" @click="confirmSchedule()"
-                        class="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-600/20 transition hover:bg-emerald-700">
+                        class="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-primary-600/20 transition hover:bg-primary-700">
                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                         </svg>

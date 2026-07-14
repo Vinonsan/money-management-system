@@ -33,6 +33,7 @@ define('LOGIN_ESCALATED_LOCK_SECONDS', 3600); // 1 hour
 define('DEPLOY_SECRET', 'change-this-to-a-secure-random-token');
 
 require_once __DIR__ . '/database.php';
+require_once __DIR__ . '/theme.php';
 
 // ─── Session ────────────────────────────────────────────────────────────
 if (session_status() === PHP_SESSION_NONE) {

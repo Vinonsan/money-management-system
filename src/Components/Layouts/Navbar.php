@@ -33,7 +33,7 @@ final class Navbar
                 <button type="button"
                         @click="userMenu = !userMenu"
                         class="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white py-1.5 pl-1.5 pr-3 text-left shadow-sm transition hover:border-slate-300 hover:bg-slate-50">
-                    <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-700 text-xs font-bold text-white">
+                    <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-600 text-xs font-bold text-white">
                         {$userInitial}
                     </span>
                     <span class="hidden min-w-0 sm:block">

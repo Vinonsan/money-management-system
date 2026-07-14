@@ -2,7 +2,7 @@
 namespace Components\Base;
 
 /**
- * Reusable Button component with emerald theme variants, size, icon, and loading state.
+ * Reusable Button component with primary theme variants, size, icon, and loading state.
  *
  * Usage:
  *   echo Button::render('Save', 'primary', ['type' => 'submit']);
@@ -15,12 +15,12 @@ final class Button
     public static function render(string $label, string $variant = 'primary', array $attrs = []): string
     {
         $variants = [
-            'primary'   => 'bg-emerald-700 text-white hover:bg-emerald-800 shadow-sm shadow-emerald-600/20',
+            'primary'   => 'bg-primary-700 text-white hover:bg-primary-800 shadow-sm shadow-primary-600/20',
             'secondary' => 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900',
             'danger'    => 'bg-red-600 text-white hover:bg-red-700 shadow-sm shadow-red-600/20',
             'ghost'     => 'bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900',
-            'outline'   => 'border border-emerald-600 text-emerald-700 hover:bg-emerald-50 bg-transparent',
-            'success'   => 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm shadow-emerald-600/20',
+            'outline'   => 'border border-primary-600 text-primary-700 hover:bg-primary-50 bg-transparent',
+            'success'   => 'bg-primary-600 text-white hover:bg-primary-700 shadow-sm shadow-primary-600/20',
             'warning'   => 'bg-amber-500 text-white hover:bg-amber-600 shadow-sm shadow-amber-500/20',
         ];
 

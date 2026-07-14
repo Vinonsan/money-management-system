@@ -7,14 +7,14 @@ $userInitial = strtoupper(substr($userName !== '' ? $userName : 'U', 0, 1));
 ?>
 <div class="mx-auto max-w-2xl">
     <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div class="border-b border-slate-100 bg-gradient-to-r from-emerald-700 to-emerald-800 px-6 py-8">
+        <div class="border-b border-slate-100 bg-gradient-to-r from-primary-700 to-primary-800 px-6 py-8">
             <div class="flex items-center gap-4">
                 <div class="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/15 text-2xl font-bold text-white ring-2 ring-white/30">
                     <?= e($userInitial) ?>
                 </div>
                 <div>
                     <h2 class="text-xl font-bold text-white"><?= e($userName) ?></h2>
-                    <p class="mt-0.5 text-sm capitalize text-emerald-100"><?= e(str_replace('_', ' ', $userRole)) ?></p>
+                    <p class="mt-0.5 text-sm capitalize text-primary-100"><?= e(str_replace('_', ' ', $userRole)) ?></p>
                 </div>
             </div>
         </div>

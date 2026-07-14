@@ -66,7 +66,7 @@ final class Select
         if ($hasError) {
             $selectAttrs['class'] .= ' border-red-300 focus:border-red-500 focus:ring-red-500/30';
         } else {
-            $selectAttrs['class'] .= ' border-slate-300 focus:border-emerald-600 focus:ring-emerald-600/30';
+            $selectAttrs['class'] .= ' border-slate-300 focus:border-primary-600 focus:ring-primary-600/30';
         }
 
         foreach ($attrs as $k => $v) {

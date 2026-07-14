@@ -36,9 +36,9 @@ final class MultiSelect
             $val     = htmlspecialchars((string) $key, ENT_QUOTES, 'UTF-8');
             $optName = htmlspecialchars((string) $optLabel, ENT_QUOTES, 'UTF-8');
             $optionsHtml .= <<<OPT
-            <label class="flex items-center gap-2.5 px-3 py-2 text-sm text-slate-700 hover:bg-emerald-50 cursor-pointer transition rounded-md">
+            <label class="flex items-center gap-2.5 px-3 py-2 text-sm text-slate-700 hover:bg-primary-50 cursor-pointer transition rounded-md">
                 <input type="checkbox" value="{$val}" x-model="{$model}"
-                    class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" style="accent-color: #059669;">
+                    class="rounded border-slate-300 text-primary-600 focus:ring-primary-500" style="accent-color: #059669;">
                 <span>{$optName}</span>
             </label>
 OPT;
@@ -57,7 +57,7 @@ OPT;
                     {$disabledAttr}
                     @click="toggle()"
                     @keydown.escape="open = false"
-                    class="w-full flex items-center justify-between gap-2 rounded-lg border bg-white px-3 py-2.5 text-sm text-left transition focus:outline-none focus:ring-2 border-slate-300 focus:border-emerald-600 focus:ring-emerald-600/30">
+                    class="w-full flex items-center justify-between gap-2 rounded-lg border bg-white px-3 py-2.5 text-sm text-left transition focus:outline-none focus:ring-2 border-slate-300 focus:border-primary-600 focus:ring-primary-600/30">
 
                     <span class="truncate flex-1" x-text="selectedText"
                           :class="selectedText === placeholder ? 'text-slate-400' : 'text-slate-800'"></span>

@@ -21,11 +21,11 @@ final class SidebarItem
         $label = htmlspecialchars($item['label'], ENT_QUOTES, 'UTF-8');
         $href = htmlspecialchars((string) ($item['href'] ?? '#'), ENT_QUOTES, 'UTF-8');
         $linkClass = $active
-            ? 'text-emerald-700 bg-emerald-50/50 ring-1 ring-emerald-200'
-            : 'text-slate-700 hover:text-emerald-700';
+            ? 'text-primary-700 bg-primary-50/50 ring-1 ring-primary-200'
+            : 'text-slate-700 hover:text-primary-600';
         $iconWrap = $active
-            ? 'bg-emerald-100 text-emerald-700'
-            : 'text-slate-400 group-hover:text-emerald-600';
+            ? 'bg-primary-100 text-primary-700'
+            : 'text-slate-400 group-hover:text-primary-600';
 
         return <<<HTML
         <a href="{$href}"
@@ -48,11 +48,11 @@ final class SidebarItem
         $label = htmlspecialchars($item['label'], ENT_QUOTES, 'UTF-8');
         $keyJs = htmlspecialchars($key, ENT_QUOTES, 'UTF-8');
         $iconWrap = $parentActive
-            ? 'bg-emerald-100 text-emerald-700'
-            : 'text-slate-400 group-hover:text-emerald-600';
+            ? 'bg-primary-100 text-primary-700'
+            : 'text-slate-400 group-hover:text-primary-600';
         $btnClass = $parentActive
-            ? 'text-emerald-700'
-            : 'text-slate-700 hover:text-emerald-700';
+            ? 'text-primary-700'
+            : 'text-slate-700 hover:text-primary-700';
 
         $childrenHtml = '';
         $flyoutChildren = '';
@@ -61,12 +61,12 @@ final class SidebarItem
             $cLabel = htmlspecialchars($child['label'], ENT_QUOTES, 'UTF-8');
             $cHref = htmlspecialchars($child['href'], ENT_QUOTES, 'UTF-8');
             $cClass = $childActive
-                ? 'text-emerald-700 font-semibold bg-emerald-50/50'
-                : 'text-slate-600 hover:text-emerald-700';
+                ? 'text-primary-700 font-semibold bg-primary-50/50'
+                : 'text-slate-600 hover:text-primary-700';
             $cDot = $childActive
-                ? '<span class="ml-auto h-1.5 w-1.5 rounded-full bg-emerald-500"></span>'
+                ? '<span class="ml-auto h-1.5 w-1.5 rounded-full bg-primary-500"></span>'
                 : '';
-            $bulletClass = $childActive ? 'bg-emerald-500' : 'bg-slate-300';
+            $bulletClass = $childActive ? 'bg-primary-500' : 'bg-slate-300';
 
             $childrenHtml .= <<<HTML
             <a href="{$cHref}"
@@ -78,8 +78,8 @@ final class SidebarItem
             HTML;
 
             $fClass = $childActive
-                ? 'text-emerald-700 font-semibold'
-                : 'text-slate-600 hover:text-emerald-700';
+                ? 'text-primary-700 font-semibold'
+                : 'text-slate-600 hover:text-primary-700';
             $flyoutChildren .= <<<HTML
             <a href="{$cHref}" class="block rounded-lg px-3 py-2 text-sm transition {$fClass}">{$cLabel}</a>
             HTML;
@@ -102,7 +102,7 @@ final class SidebarItem
                 <span class="flex-1 truncate text-left transition-all duration-200"
                       :class="collapsed ? 'lg:hidden' : ''">{$label}</span>
                 <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-slate-400 transition-all duration-300"
-                      :class="[isOpen('{$keyJs}') ? 'rotate-180 text-emerald-600' : '', collapsed ? 'lg:hidden' : '']">
+                      :class="[isOpen('{$keyJs}') ? 'rotate-180 text-primary-600' : '', collapsed ? 'lg:hidden' : '']">
                     <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/>
                     </svg>

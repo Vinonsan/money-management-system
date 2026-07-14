@@ -115,18 +115,6 @@ CREATE TABLE IF NOT EXISTS settings (
 INSERT INTO settings (key_name, value) VALUES ('collection_start_date', '2026-01-01')
 ON DUPLICATE KEY UPDATE value = VALUES(value);
 
--- SMSlenz Configuration (set via System Config UI)
-INSERT INTO settings (key_name, value) VALUES ('smslenz_user_id', '')
-ON DUPLICATE KEY UPDATE value = VALUES(value);
-INSERT INTO settings (key_name, value) VALUES ('smslenz_api_key', '')
-ON DUPLICATE KEY UPDATE value = VALUES(value);
-INSERT INTO settings (key_name, value) VALUES ('smslenz_sender_id', 'SMSlenzDEMO')
-ON DUPLICATE KEY UPDATE value = VALUES(value);
-INSERT INTO settings (key_name, value) VALUES ('sms_cost_per_message', '0.62')
-ON DUPLICATE KEY UPDATE value = VALUES(value);
-INSERT INTO settings (key_name, value) VALUES ('sms_balance', '0')
-ON DUPLICATE KEY UPDATE value = VALUES(value);
-
 -- ─── Scheduled Messages ─────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS scheduled_messages (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -143,7 +131,7 @@ CREATE TABLE IF NOT EXISTS scheduled_messages (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- ─── Seed data ──────────────────────────────────────────────────────────
+-- ─── Seed data (admin user only) ───────────────────────────────────────
 INSERT INTO users (name, email, phone, role, is_active)
 VALUES ('vinonsan', 'vinonsan.99@gmail.com', '0754476969', 'admin', 1)
 ON DUPLICATE KEY UPDATE
@@ -151,31 +139,3 @@ ON DUPLICATE KEY UPDATE
     email = VALUES(email),
     role = VALUES(role),
     is_active = 1;
-
-INSERT INTO locations (name, address, city, is_active) VALUES
-('Main Masjid', '123 Main Street', 'Colombo', 1),
-('Branch Masjid', '456 Branch Road', 'Kandy', 1)
-ON DUPLICATE KEY UPDATE name = VALUES(name);
-
-INSERT INTO wards (ward_number, is_active) VALUES
-(1, 1),
-(2, 1),
-(3, 1)
-ON DUPLICATE KEY UPDATE is_active = VALUES(is_active);
-
-INSERT IGNORE INTO ward_locations (ward_id, location_id) VALUES
-(1, 1),
-(1, 2),
-(2, 1),
-(3, 2);
-
--- ─── Migration for existing databases ───────────────────────────────────
--- If your database already has the old users table without location_id,
--- ward_id, and monthly_amount, run this ALTER TABLE:
---
--- ALTER TABLE users
---   ADD COLUMN location_id INT UNSIGNED DEFAULT NULL AFTER street,
---   ADD COLUMN ward_id INT UNSIGNED DEFAULT NULL AFTER location_id,
---   ADD COLUMN monthly_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER ward_id,
---   ADD INDEX idx_user_location (location_id),
---   ADD INDEX idx_user_ward (ward_id);

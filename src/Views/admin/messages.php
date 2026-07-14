@@ -20,17 +20,17 @@ $pageTitle = 'Message Configuration';
               x-data="msgForm()">
 
             <!-- Confirmation Message -->
-            <div class="rounded-xl border border-emerald-100 bg-emerald-50/50 p-5">
+            <div class="rounded-xl border border-primary-100 bg-primary-50/50 p-5">
                 <div class="flex items-start gap-3">
-                    <svg class="h-5 w-5 shrink-0 mt-0.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="h-5 w-5 shrink-0 mt-0.5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
                     <div class="flex-1">
-                        <h3 class="font-semibold text-emerald-800">Confirmation Message</h3>
-                        <p class="mt-1 text-sm text-emerald-600">Sent to a member after they make a payment.</p>
+                        <h3 class="font-semibold text-primary-800">Confirmation Message</h3>
+                        <p class="mt-1 text-sm text-primary-600">Sent to a member after they make a payment.</p>
                         <div class="mt-3">
                             <textarea x-model="msgConfirm" maxlength="150" rows="3"
-                                class="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/10"
+                                class="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/10"
                                 placeholder="Dear [Name], Rs.[Amount] paid for [Period]. Next due: [NextDue]. Total paid: Rs.[TotalPaid]. Thank you!"></textarea>
                             <div class="mt-1.5 flex items-center justify-between">
                                 <span class="text-xs text-slate-400">Available: <code class="rounded bg-slate-100 px-1">[Name]</code> <code class="rounded bg-slate-100 px-1">[Amount]</code> <code class="rounded bg-slate-100 px-1">[Period]</code> <code class="rounded bg-slate-100 px-1">[MonthlyAmount]</code> <code class="rounded bg-slate-100 px-1">[NextDue]</code> <code class="rounded bg-slate-100 px-1">[PaidUpTo]</code> <code class="rounded bg-slate-100 px-1">[TotalPaid]</code> <code class="rounded bg-slate-100 px-1">[ExtraAmount]</code> <code class="rounded bg-slate-100 px-1">[MonthsCovered]</code></span>
@@ -52,7 +52,7 @@ $pageTitle = 'Message Configuration';
                         <p class="mt-1 text-sm text-amber-600">Sent to unpaid members as a payment reminder.</p>
                         <div class="mt-3">
                             <textarea x-model="msgDue" maxlength="150" rows="3"
-                                class="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/10"
+                                class="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/10"
                                 placeholder="Dear [Name], your monthly contribution of Rs.[MonthlyAmount] for [Month] is due. Kindly pay before [Date]."></textarea>
                             <div class="mt-1.5 flex items-center justify-between">
                                 <span class="text-xs text-slate-400">Available: <code class="rounded bg-slate-100 px-1">[Name]</code> <code class="rounded bg-slate-100 px-1">[Amount]</code> <code class="rounded bg-slate-100 px-1">[MonthlyAmount]</code> <code class="rounded bg-slate-100 px-1">[Month]</code> <code class="rounded bg-slate-100 px-1">[Date]</code></span>
@@ -65,7 +65,7 @@ $pageTitle = 'Message Configuration';
 
             <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
                 <button type="submit"
-                    class="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-600/20 transition hover:bg-emerald-700">
+                    class="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-6 py-2.5 text-sm font-semibold text-white shadow-md shadow-primary-600/20 transition hover:bg-primary-700">
                     <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
                     </svg>

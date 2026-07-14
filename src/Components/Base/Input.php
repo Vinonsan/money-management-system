@@ -64,7 +64,7 @@ final class Input
         if ($hasError) {
             $inputAttrs['class'] .= ' border-red-300 focus:border-red-500 focus:ring-red-500/30';
         } else {
-            $inputAttrs['class'] .= ' border-slate-300 focus:border-emerald-600 focus:ring-emerald-600/30';
+            $inputAttrs['class'] .= ' border-slate-300 focus:border-primary-600 focus:ring-primary-600/30';
         }
         if ($icon) {
             $inputAttrs['class'] .= ' pl-10';
