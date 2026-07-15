@@ -116,6 +116,19 @@ CREATE TABLE IF NOT EXISTS settings (
 INSERT INTO settings (key_name, value) VALUES ('collection_start_date', '2026-01-01')
 ON DUPLICATE KEY UPDATE value = VALUES(value);
 
+-- ─── SMS Refill Requests (admin → super admin) ────────────────────────
+CREATE TABLE IF NOT EXISTS refill_requests (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    admin_id INT UNSIGNED NOT NULL,
+    amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    message TEXT DEFAULT NULL COMMENT 'Admin\'s note for refill',
+    status ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+    approved_by INT UNSIGNED DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (admin_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- ─── Scheduled Messages ─────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS scheduled_messages (
     id INT AUTO_INCREMENT PRIMARY KEY,

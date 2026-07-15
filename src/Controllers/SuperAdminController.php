@@ -207,6 +207,68 @@ class SuperAdminController
         $this->jsonSuccess('SMS balance refilled. New balance: Rs. ' . number_format($newBalance, 2));
     }
 
+    // ─── Refill Requests ─────────────────────────────
+
+    public function refillRequests(): void
+    {
+        $db = Database::connect();
+        $requests = $db->fetchAll(
+            "SELECT r.*, u.name AS admin_name, u.phone AS admin_phone
+             FROM refill_requests r
+             JOIN users u ON u.id = r.admin_id
+             ORDER BY r.created_at DESC
+             LIMIT 50"
+        );
+
+        require_once __DIR__ . '/../Views/layouts/app_layout.php';
+        renderAppLayout('Refill Requests', __DIR__ . '/../Views/admin/super_admin/refill_requests.php', [
+            'requests' => $requests,
+        ], 'super_admin.refill_requests');
+    }
+
+    public function approveRefill(): void
+    {
+        $this->requireJson();
+        $data = $this->jsonBody();
+
+        $id = (int) ($data['id'] ?? 0);
+        $action = $data['action'] ?? ''; // 'approve' or 'reject'
+        $superAdminId = (int) ($_SESSION['user_id'] ?? 0);
+
+        if ($id <= 0 || !in_array($action, ['approve', 'reject'], true)) {
+            $this->jsonError('Invalid request.');
+            return;
+        }
+
+        $db = Database::connect();
+        $req = $db->fetch('SELECT * FROM refill_requests WHERE id = ? AND status = ?', [$id, 'pending']);
+        if (!$req) {
+            $this->jsonError('Request not found or already processed.');
+            return;
+        }
+
+        if ($action === 'approve') {
+            $amount = (float) ($req['amount'] ?? 0);
+            $current = (float) Setting::get('sms_balance', '0');
+            Setting::set('sms_balance', (string) ($current + $amount));
+
+            $txnId = 'sms_txn_' . date('Ymd_His') . '_' . bin2hex(random_bytes(4));
+            Setting::set($txnId, 'Refill (request #' . $id . '): +' . number_format($amount, 2) . ' | Balance: ' . number_format($current + $amount, 2));
+
+            $db->execute(
+                'UPDATE refill_requests SET status = ?, approved_by = ? WHERE id = ?',
+                ['approved', $superAdminId, $id]
+            );
+            $this->jsonSuccess('Request #' . $id . ' approved. Rs. ' . number_format($amount, 2) . ' added to balance.');
+        } else {
+            $db->execute(
+                'UPDATE refill_requests SET status = ?, approved_by = ? WHERE id = ?',
+                ['rejected', $superAdminId, $id]
+            );
+            $this->jsonSuccess('Request #' . $id . ' rejected.');
+        }
+    }
+
     // ─── Helpers ───────────────────────────────────────
 
     private function view(string $title, string $file, array $data, string $activeNav): void

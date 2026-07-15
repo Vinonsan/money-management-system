@@ -970,6 +970,90 @@ class AdminController
         ], $activeNav);
     }
 
+    // ──────────────────────────────────────────────
+    //  SMS Manager (Admin)
+    // ──────────────────────────────────────────────
+
+    public function smsManager(): void
+    {
+        $db = \Models\Database::connect();
+
+        // Use phone-based lookup for reliable user ID
+        $adminId = 0;
+        $phone = $_SESSION['user_phone'] ?? '';
+        if ($phone) {
+            $user = \Models\User::findByPhone($phone);
+            if ($user) {
+                $adminId = (int) $user['id'];
+            }
+        }
+        if ($adminId <= 0) {
+            $adminId = (int) ($_SESSION['user_id'] ?? 0);
+        }
+
+        $smsBalance = \Models\Setting::get('sms_balance', '0');
+        $smsCost = \Models\Setting::get('sms_cost_per_message', '0.62');
+        $remainingSms = (float)$smsCost > 0 ? floor((float)$smsBalance / (float)$smsCost) : 0;
+
+        $requests = $db->fetchAll(
+            'SELECT * FROM refill_requests WHERE admin_id = ? ORDER BY created_at DESC LIMIT 20',
+            [$adminId]
+        );
+
+        $this->view('SMS Manager', 'sms_manager.php', [
+            'smsBalance'    => $smsBalance,
+            'smsCost'       => $smsCost,
+            'remainingSms'  => (int) $remainingSms,
+            'requests'      => $requests,
+            'requestError'  => $_SESSION['refill_error'] ?? null,
+            'requestSuccess' => $_SESSION['refill_success'] ?? null,
+        ], 'sms');
+        unset($_SESSION['refill_error'], $_SESSION['refill_success']);
+    }
+
+    public function requestRefill(): void
+    {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+            http_response_code(405);
+            exit;
+        }
+
+        // Use phone-based lookup for reliable user ID
+        $adminId = 0;
+        $phone = $_SESSION['user_phone'] ?? '';
+        if ($phone) {
+            $user = \Models\User::findByPhone($phone);
+            if ($user) {
+                $adminId = (int) $user['id'];
+            }
+        }
+        if ($adminId <= 0) {
+            $adminId = (int) ($_SESSION['user_id'] ?? 0);
+        }
+
+        $amount  = (float) ($_POST['amount'] ?? 0);
+        $message = trim((string) ($_POST['message'] ?? ''));
+
+        if ($amount <= 0) {
+            $_SESSION['refill_error'] = 'Enter a valid amount.';
+            header('Location: ' . BASE_URL . '/admin/sms');
+            exit;
+        }
+
+        \Models\Database::connect()->insert(
+            'INSERT INTO refill_requests (admin_id, amount, message) VALUES (?, ?, ?)',
+            [$adminId, $amount, $message]
+        );
+
+        $_SESSION['refill_success'] = 'Refill request submitted. Waiting for Super Admin approval.';
+        header('Location: ' . BASE_URL . '/admin/sms');
+        exit;
+    }
+
+    // ──────────────────────────────────────────────
+    //  Helpers
+    // ──────────────────────────────────────────────
+
     private function view(string $title, string $file, array $data, string $activeNav): void
     {
         require_once __DIR__ . '/../Views/layouts/app_layout.php';
@@ -1007,21 +1091,6 @@ class AdminController
     }
 
     private function locationIds(mixed $locationIds): array
-    {
-        if (!is_array($locationIds)) {
-            return [];
-        }
-
-        $ids = array_values(array_unique(array_filter(
-            array_map('intval', $locationIds),
-            static fn (int $id): bool => $id > 0
-        )));
-        $activeIds = array_map('intval', array_column(Location::allActive(), 'id'));
-
-        return count($ids) === count(array_intersect($ids, $activeIds)) ? $ids : [];
-    }
-
-    private function jsonError(string $message): void
     {
         header('Content-Type: application/json');
         http_response_code(400);

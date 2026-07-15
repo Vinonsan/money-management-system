@@ -61,6 +61,11 @@ final class SidebarRouter
                 'href'  => BASE_URL . '/admin/profile',
                 'icon'  => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>',
             ],
+            'sms' => [
+                'label' => 'SMS Manager',
+                'href'  => BASE_URL . '/admin/sms',
+                'icon'  => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>',
+            ],
             'system_config' => [
                 'label' => 'System Config',
                 'href'  => null,
@@ -81,6 +86,7 @@ final class SidebarRouter
                     'dashboard' => ['label' => 'Dashboard', 'href' => BASE_URL . '/super-admin'],
                     'admins'    => ['label' => 'Manage Admins', 'href' => BASE_URL . '/super-admin/admins'],
                     'sms'       => ['label' => 'SMS Management', 'href' => BASE_URL . '/super-admin/sms'],
+                    'refill_requests' => ['label' => 'Refill Requests', 'href' => BASE_URL . '/super-admin/sms/refill-requests'],
                 ],
             ],
         ];

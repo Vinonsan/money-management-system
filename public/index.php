@@ -3,7 +3,6 @@ require_once __DIR__ . '/../config/config.php';
 
 $route = isset($_GET['route']) ? rtrim($_GET['route'], '/') : '';
 
-// Fix avatar paths utility
 $routes = [
     // Public
     ''      => ['Controller' => 'HomeController', 'Action' => 'index'],
@@ -66,6 +65,12 @@ $routes = [
     'super-admin/sms'               => ['Controller' => 'SuperAdminController', 'Action' => 'smsConfig', 'Middleware' => 'SuperAdminAuth'],
     'super-admin/sms/save-config'   => ['Controller' => 'SuperAdminController', 'Action' => 'saveSmsConfig', 'Middleware' => 'SuperAdminAuth'],
     'super-admin/sms/refill'        => ['Controller' => 'SuperAdminController', 'Action' => 'refillSms', 'Middleware' => 'SuperAdminAuth'],
+    'super-admin/sms/refill-requests' => ['Controller' => 'SuperAdminController', 'Action' => 'refillRequests', 'Middleware' => 'SuperAdminAuth'],
+    'super-admin/sms/approve-refill'  => ['Controller' => 'SuperAdminController', 'Action' => 'approveRefill', 'Middleware' => 'SuperAdminAuth'],
+
+    // Admin SMS Management
+    'admin/sms'                       => ['Controller' => 'AdminController', 'Action' => 'smsManager', 'Middleware' => 'StaffAuth'],
+    'admin/sms/request-refill'        => ['Controller' => 'AdminController', 'Action' => 'requestRefill', 'Middleware' => 'StaffAuth'],
 ];
 
 if (array_key_exists($route, $routes)) {
