@@ -9,10 +9,15 @@ $routes = [
     'home'  => ['Controller' => 'HomeController', 'Action' => 'index'],
 
     // Auth (OTP login)
-    'login'              => ['Controller' => 'AuthController', 'Action' => 'showLogin'],
-    'login/request-otp'  => ['Controller' => 'AuthController', 'Action' => 'requestOtp'],
-    'login/verify-otp'   => ['Controller' => 'AuthController', 'Action' => 'verifyOtp'],
-    'logout'             => ['Controller' => 'AuthController', 'Action' => 'logout'],
+    'login'                       => ['Controller' => 'AuthController', 'Action' => 'showLogin'],
+    'login/request-otp'           => ['Controller' => 'AuthController', 'Action' => 'requestOtp'],
+    'login/verify-otp'            => ['Controller' => 'AuthController', 'Action' => 'verifyOtp'],
+    'logout'                      => ['Controller' => 'AuthController', 'Action' => 'logout'],
+
+    // Super Admin Auth (Red-themed login)
+    'super-admin/login'                   => ['Controller' => 'AuthController', 'Action' => 'showSuperAdminLogin'],
+    'super-admin/login/request-otp'       => ['Controller' => 'AuthController', 'Action' => 'requestSuperAdminOtp'],
+    'super-admin/login/verify-otp'        => ['Controller' => 'AuthController', 'Action' => 'verifySuperAdminOtp'],
 
     // Admin (Protected)
     'admin'         => ['Controller' => 'AdminController', 'Action' => 'index', 'Middleware' => 'StaffAuth'],
@@ -49,6 +54,16 @@ $routes = [
     'admin/system-config/save'         => ['Controller' => 'AdminController', 'Action' => 'saveSystemConfig', 'Middleware' => 'StaffAuth'],
     'admin/system-config/messages'     => ['Controller' => 'AdminController', 'Action' => 'systemMessages', 'Middleware' => 'StaffAuth'],
     'admin/system-config/messages/save' => ['Controller' => 'AdminController', 'Action' => 'saveSystemMessages', 'Middleware' => 'StaffAuth'],
+
+    // Super Admin (Protected - super_admin role only)
+    'super-admin'                   => ['Controller' => 'SuperAdminController', 'Action' => 'index', 'Middleware' => 'SuperAdminAuth'],
+    'super-admin/admins'            => ['Controller' => 'SuperAdminController', 'Action' => 'admins', 'Middleware' => 'SuperAdminAuth'],
+    'super-admin/admins/create'     => ['Controller' => 'SuperAdminController', 'Action' => 'createAdmin', 'Middleware' => 'SuperAdminAuth'],
+    'super-admin/admins/update'     => ['Controller' => 'SuperAdminController', 'Action' => 'updateAdmin', 'Middleware' => 'SuperAdminAuth'],
+    'super-admin/admins/delete'     => ['Controller' => 'SuperAdminController', 'Action' => 'deleteAdmin', 'Middleware' => 'SuperAdminAuth'],
+    'super-admin/sms'               => ['Controller' => 'SuperAdminController', 'Action' => 'smsConfig', 'Middleware' => 'SuperAdminAuth'],
+    'super-admin/sms/save-config'   => ['Controller' => 'SuperAdminController', 'Action' => 'saveSmsConfig', 'Middleware' => 'SuperAdminAuth'],
+    'super-admin/sms/refill'        => ['Controller' => 'SuperAdminController', 'Action' => 'refillSms', 'Middleware' => 'SuperAdminAuth'],
 ];
 
 if (array_key_exists($route, $routes)) {

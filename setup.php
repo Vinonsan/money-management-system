@@ -16,8 +16,9 @@ try {
 
     echo "<p style='color:green'>Database '" . DB_NAME . "' ready.</p>";
     echo "<p>Admin seeded: <strong>vinonsan</strong> / phone <strong>0754476969</strong></p>";
-    echo "<p>Login OTP (dev): <strong>111111</strong></p>";
-    echo '<p><a href="/masjidpay/login">Go to Login →</a></p>';
+    echo "<p>Super Admin seeded: <strong>vinonsan</strong> / phone <strong>0758311995</strong></p>";
+    echo "<p>Login OTP: <strong>Secure 6-digit random OTP via SMS</strong></p>";
+    echo '<p><a href="/masjidpay/login">Staff Login →</a> | <a href="/masjidpay/super-admin/login">Super Admin Login →</a></p>';
 } catch (PDOException $e) {
     echo "<p style='color:red'>Error: " . htmlspecialchars($e->getMessage()) . '</p>';
 }

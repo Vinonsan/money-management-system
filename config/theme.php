@@ -41,3 +41,37 @@ JS;
 function adminTailwindColorsJs(): string {
     return themeTailwindColorsJs();
 }
+
+/**
+ * Premium Red palette for Super Admin section
+ * Dark, bold red — luxurious & authoritative.
+ * Replaces the orange primary with a rich red scale.
+ */
+function superAdminTailwindColorsJs(): string {
+    return <<<'JS'
+{
+    colors: {
+        primary: {
+            50: '#fef2f2',
+            100: '#ffe1e1',
+            200: '#ffc7c7',
+            300: '#ffa0a0',
+            400: '#ff6b6b',
+            500: '#f83e3e',
+            600: '#e51d1d',
+            700: '#c21414',
+            800: '#a01414',
+            900: '#841818',
+            950: '#480a0a',
+        },
+        brand: {
+            orange: '#F68B1F',
+            'orange-bright': '#FF9F1A',
+            charcoal: '#1E1E1E',
+            gray: '#2F2F32',
+            shadow: '#4A4A4A',
+        },
+    }
+}
+JS;
+}

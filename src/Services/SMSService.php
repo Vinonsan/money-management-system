@@ -50,15 +50,11 @@ class SMSService
     }
 
     /**
-     * Generate a random 6-digit OTP.
-     * In dev mode (OTP_DEV_CODE defined and non-empty), returns the dev code.
+     * Generate a cryptographically secure random 6-digit OTP.
+     * Uses random_int() for secure unpredictability.
      */
     public function generateOtp(): string
     {
-        // If OTP_DEV_CODE is set and not empty, use it for development/testing
-        if (defined('OTP_DEV_CODE') && OTP_DEV_CODE !== '') {
-            return OTP_DEV_CODE;
-        }
         return str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
     }
 

@@ -29,6 +29,137 @@ class AuthController
         unset($_SESSION['flash_error'], $_SESSION['flash_success']);
     }
 
+    public function showSuperAdminLogin(): void
+    {
+        if (!empty($_SESSION['user_id'])) {
+            if (($_SESSION['user_role'] ?? '') === 'super_admin') {
+                header('Location: ' . BASE_URL . '/super-admin');
+            } else {
+                header('Location: ' . BASE_URL . '/admin');
+            }
+            exit;
+        }
+
+        if (isset($_GET['reset'])) {
+            unset($_SESSION['sa_otp_step'], $_SESSION['sa_otp_phone'], $_SESSION['flash_success']);
+        }
+
+        require_once __DIR__ . '/../Views/layouts/super_admin_auth_layout.php';
+        renderSuperAdminAuthLayout('Super Admin Login', __DIR__ . '/../Views/auth/super_admin_login.php', [
+            'error'   => $_SESSION['flash_error'] ?? null,
+            'success' => $_SESSION['flash_success'] ?? null,
+            'step'    => $_SESSION['sa_otp_step'] ?? 'phone',
+            'phone'   => $_SESSION['sa_otp_phone'] ?? '',
+        ]);
+        unset($_SESSION['flash_error'], $_SESSION['flash_success']);
+    }
+
+    public function requestSuperAdminOtp(): void
+    {
+        $this->assertPost();
+        $this->assertCsrf();
+
+        $phone = $this->normalizePhone($_POST['phone'] ?? '');
+
+        if ($phone === '' || !$this->isValidPhone($phone)) {
+            $this->flashError('Enter a valid phone number (e.g. 0754476969).');
+            $this->redirectSuperAdminLogin();
+        }
+
+        $lockMsg = LoginRateLimit::isLocked($phone);
+        if ($lockMsg !== null) {
+            $this->flashError($lockMsg);
+            $this->redirectSuperAdminLogin();
+        }
+
+        $user = User::findByPhone($phone);
+        if (!$user) {
+            $this->flashError('If this number is registered, an OTP will be sent.');
+            $this->redirectSuperAdminLogin();
+        }
+
+        // Only super_admin role allowed
+        if ($user['role'] !== 'super_admin') {
+            $this->flashError('This portal is only for Super Administrators.');
+            $this->redirectSuperAdminLogin();
+        }
+
+        $rateMsg = LoginRateLimit::recordOtpRequest($phone);
+        if ($rateMsg !== null) {
+            $this->flashError($rateMsg);
+            $_SESSION['sa_otp_step'] = 'phone';
+            unset($_SESSION['sa_otp_phone']);
+            $this->redirectSuperAdminLogin();
+        }
+
+        $sms = new SMSService();
+        $otp = $sms->generateOtp();
+        OtpCode::create($phone, $otp);
+        $sms->sendOtp($phone, $otp);
+
+        $_SESSION['sa_otp_step'] = 'otp';
+        $_SESSION['sa_otp_phone'] = $phone;
+        $_SESSION['flash_success'] = 'OTP sent successfully. Check your phone.';
+        $this->redirectSuperAdminLogin();
+    }
+
+    public function verifySuperAdminOtp(): void
+    {
+        $this->assertPost();
+        $this->assertCsrf();
+
+        $phone = $this->normalizePhone($_POST['phone'] ?? ($_SESSION['sa_otp_phone'] ?? ''));
+        $otp = trim((string) ($_POST['otp'] ?? ''));
+
+        if ($phone === '' || !$this->isValidPhone($phone)) {
+            $this->flashError('Session expired. Enter your phone number again.');
+            $_SESSION['sa_otp_step'] = 'phone';
+            unset($_SESSION['sa_otp_phone']);
+            $this->redirectSuperAdminLogin();
+        }
+
+        $lockMsg = LoginRateLimit::isLocked($phone);
+        if ($lockMsg !== null) {
+            $this->flashError($lockMsg);
+            $_SESSION['sa_otp_step'] = 'phone';
+            unset($_SESSION['sa_otp_phone']);
+            $this->redirectSuperAdminLogin();
+        }
+
+        if ($otp === '' || !preg_match('/^\d{6}$/', $otp)) {
+            $this->flashError('Enter the 6-digit OTP.');
+            $_SESSION['sa_otp_step'] = 'otp';
+            $_SESSION['sa_otp_phone'] = $phone;
+            $this->redirectSuperAdminLogin();
+        }
+
+        $user = User::findByPhone($phone);
+        if (!$user || !OtpCode::verify($phone, $otp)) {
+            $msg = LoginRateLimit::recordFailedLogin($phone);
+            $this->flashError($msg);
+            if (LoginRateLimit::isLocked($phone) !== null) {
+                $_SESSION['sa_otp_step'] = 'phone';
+                unset($_SESSION['sa_otp_phone']);
+            } else {
+                $_SESSION['sa_otp_step'] = 'otp';
+                $_SESSION['sa_otp_phone'] = $phone;
+            }
+            $this->redirectSuperAdminLogin();
+        }
+
+        LoginRateLimit::clearOnSuccess($phone);
+
+        session_regenerate_id(true);
+        $_SESSION['user_id'] = (int) $user['id'];
+        $_SESSION['user_name'] = $user['name'];
+        $_SESSION['user_role'] = $user['role'];
+        $_SESSION['user_phone'] = $user['phone'];
+        unset($_SESSION['sa_otp_step'], $_SESSION['sa_otp_phone'], $_SESSION['flash_error'], $_SESSION['flash_success']);
+
+        header('Location: ' . BASE_URL . '/super-admin');
+        exit;
+    }
+
     public function requestOtp(): void
     {
         $this->assertPost();
@@ -134,7 +265,9 @@ class AuthController
         $_SESSION['user_phone'] = $user['phone'];
         unset($_SESSION['otp_step'], $_SESSION['otp_phone'], $_SESSION['flash_error'], $_SESSION['flash_success']);
 
-        header('Location: ' . BASE_URL . '/admin');
+        // Redirect super_admin to super admin portal
+        $redirect = ($user['role'] === 'super_admin') ? '/super-admin' : '/admin';
+        header('Location: ' . BASE_URL . $redirect);
         exit;
     }
 
@@ -188,6 +321,12 @@ class AuthController
     private function redirectLogin(): void
     {
         header('Location: ' . BASE_URL . '/login');
+        exit;
+    }
+
+    private function redirectSuperAdminLogin(): void
+    {
+        header('Location: ' . BASE_URL . '/super-admin/login');
         exit;
     }
 }

@@ -17,7 +17,31 @@ final class Sidebar
         $logoSrc = BASE_URL . '/assets/img/logo.png';
 
         $itemsHtml = '';
+        $currentRole = $_SESSION['user_role'] ?? '';
         foreach (SidebarRouter::routes() as $key => $item) {
+            // Skip items that require a specific role
+            if (!empty($item['role']) && $item['role'] !== $currentRole) {
+                continue;
+            }
+            // Super admin should only see super_admin-items, not regular admin menu
+            if ($currentRole === 'super_admin' && empty($item['role'])) {
+                continue;
+            }
+            // Premium divider before super admin section
+            if ($key === 'super_admin') {
+                $itemsHtml .= <<<HTML
+                <div class="my-3 border-t border-slate-200" 
+                     :class="collapsed ? 'lg:opacity-0 lg:my-1' : ''">
+                    <div class="mt-1.5 mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400"
+                         :class="collapsed ? 'lg:hidden' : ''">
+                        <span class="flex items-center gap-1.5">
+                            <span class="h-1.5 w-1.5 rounded-full bg-primary-500"></span>
+                            Privileged
+                        </span>
+                    </div>
+                </div>
+                HTML;
+            }
             $itemsHtml .= SidebarItem::render($key, $item, $activeNav);
         }
 

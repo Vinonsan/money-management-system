@@ -19,8 +19,9 @@ define('BASE_URL', rtrim($protocol . $host . $subfolder, '/'));
 // ─── App Settings ───────────────────────────────────────────────────────
 define('APP_NAME', 'MasjidPay');
 
-// ─── OTP / SMS (SMS API later; fixed OTP for now) ───────────────────────
-define('OTP_DEV_CODE', '111111');
+// ─── OTP / SMS ──────────────────────────────────────────────────────────
+// OTP is generated as a cryptographically secure 6‑digit random number via random_int().
+// Remove any OTP_DEV_CODE definition in production — the fallback is always secure.
 define('OTP_EXPIRY_MINUTES', 5);
 define('OTP_MAX_REQUESTS', 3);          // 3 OTP requests → lock 1 minute
 define('OTP_LOCK_SECONDS', 60);

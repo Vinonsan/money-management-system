@@ -70,6 +70,19 @@ final class SidebarRouter
                     'messages' => ['label' => 'Message Config', 'href' => BASE_URL . '/admin/system-config/messages'],
                 ],
             ],
+
+            // ─── Super Admin (only shown for super_admin role) ─────────
+            'super_admin' => [
+                'label' => 'Super Admin',
+                'href'  => null,
+                'icon'  => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>',
+                'role'  => 'super_admin',
+                'children' => [
+                    'dashboard' => ['label' => 'Dashboard', 'href' => BASE_URL . '/super-admin'],
+                    'admins'    => ['label' => 'Manage Admins', 'href' => BASE_URL . '/super-admin/admins'],
+                    'sms'       => ['label' => 'SMS Management', 'href' => BASE_URL . '/super-admin/sms'],
+                ],
+            ],
         ];
     }
 

@@ -131,9 +131,17 @@ CREATE TABLE IF NOT EXISTS scheduled_messages (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- ─── Seed data (admin user only) ───────────────────────────────────────
+-- ─── Seed data ──────────────────────────────────────────────────────────
 INSERT INTO users (name, email, phone, role, is_active)
 VALUES ('vinonsan', 'vinonsan.99@gmail.com', '0754476969', 'admin', 1)
+ON DUPLICATE KEY UPDATE
+    name = VALUES(name),
+    email = VALUES(email),
+    role = VALUES(role),
+    is_active = 1;
+
+INSERT INTO users (name, email, phone, role, is_active)
+VALUES ('vinonsan', 'vinonsan.superadmin@gmail.com', '0758311995', 'super_admin', 1)
 ON DUPLICATE KEY UPDATE
     name = VALUES(name),
     email = VALUES(email),

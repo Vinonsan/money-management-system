@@ -48,6 +48,12 @@ class AdminController
             [$today]
         )['cnt'] ?? 0;
 
+        // SMS data (optional — may not be configured for regular admins)
+        $smsBalance    = Setting::get('sms_balance', '0');
+        $smsCost       = Setting::get('sms_cost_per_message', '0.62');
+        $remainingSms  = (float)$smsCost > 0 ? floor((float)$smsBalance / (float)$smsCost) : 0;
+        $smsConfigured = (float)$smsBalance > 0;
+
         $this->view('Dashboard', 'dashboard.php', [
             'totalMembers'   => (int) $totalMembers,
             'monthlyTarget'  => (float) $monthlyTarget,

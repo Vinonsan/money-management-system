@@ -10,10 +10,15 @@ final class AppLayout
     {
         extract($data);
         $isLoggedIn = !empty($_SESSION['user_id']);
+        $isSuperAdmin = str_starts_with($activeNav, 'super_admin');
         $openParents = SidebarRouter::initiallyOpenParents($activeNav);
         $openParentsJson = $openParents === []
             ? '{}'
             : json_encode($openParents, JSON_UNESCAPED_SLASHES);
+        $themeClass = $isSuperAdmin ? ' super-admin-theme' : '';
+        $tailwindConfig = $isSuperAdmin
+            ? \superAdminTailwindColorsJs()
+            : \adminTailwindColorsJs();
         ?>
 <!DOCTYPE html>
 <html lang="en" class="h-full">
@@ -24,7 +29,7 @@ final class AppLayout
     <link rel="icon" type="image/svg+xml" href="<?= BASE_URL ?>/assets/img/favicon.svg">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        tailwind.config = { theme: { extend: <?= \adminTailwindColorsJs() ?> } };
+        tailwind.config = { theme: { extend: <?= $tailwindConfig ?> } };
         const BASE_URL = '<?= BASE_URL ?>';
     </script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -36,9 +41,31 @@ final class AppLayout
         /* Hide scrollbar globally */
         ::-webkit-scrollbar { display: none; }
         * { scrollbar-width: none; -ms-overflow-style: none; }
+        /* ─── Super Admin Premium Red Theme ─────────── */
+        .super-admin-theme::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 99999;
+            height: 3px;
+            background: linear-gradient(90deg, #a01414, #e51d1d, #ff6b6b, #e51d1d, #a01414);
+            background-size: 200% 100%;
+            animation: premiumRedGradient 3s ease infinite;
+            pointer-events: none;
+        }
+        @keyframes premiumRedGradient {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+        /* Super admin sidebar active item accent */
+        .super-admin-theme .sa-sidebar-accent {
+            border-left: 3px solid #c21414 !important;
+        }
     </style>
 </head>
-<body class="h-full bg-white text-brand-charcoal antialiased">
+<body class="h-full bg-white text-brand-charcoal antialiased<?= $themeClass ?>">
 
 <?php if ($isLoggedIn): ?>
 <div
