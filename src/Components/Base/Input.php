@@ -48,7 +48,7 @@ final class Input
             'id'          => $id,
             'value'       => htmlspecialchars((string)$value, ENT_QUOTES),
             'placeholder' => htmlspecialchars($placeholder, ENT_QUOTES),
-            'class'       => 'w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 transition focus:outline-none focus:ring-2',
+            'class'       => 'w-full rounded-lg border bg-primary-50/30 px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 transition focus:outline-none focus:ring-2 focus:bg-white',
         ];
 
         if ($required) {
@@ -64,7 +64,7 @@ final class Input
         if ($hasError) {
             $inputAttrs['class'] .= ' border-red-300 focus:border-red-500 focus:ring-red-500/30';
         } else {
-            $inputAttrs['class'] .= ' border-slate-300 focus:border-primary-600 focus:ring-primary-600/30';
+            $inputAttrs['class'] .= ' border-primary-200 focus:border-primary-600 focus:ring-primary-600/30';
         }
         if ($icon) {
             $inputAttrs['class'] .= ' pl-10';
@@ -86,7 +86,7 @@ final class Input
                 ? ' <span class="text-red-500">*</span>'
                 : '';
             $labelHtml = <<<HTML
-            <label for="{$id}" class="block mb-1.5 text-sm font-semibold text-slate-700">{$label}{$reqBadge}</label>
+            <label for="{$id}" class="block mb-1.5 text-sm font-semibold text-primary-800">{$label}{$reqBadge}</label>
             HTML;
         }
 
@@ -100,7 +100,7 @@ final class Input
             ? '<p class="mt-1 text-xs font-medium text-red-600">' . htmlspecialchars($error, ENT_QUOTES, 'UTF-8') . '</p>'
             : '';
         $helpHtml = $help && !$hasError
-            ? '<p class="mt-1 text-xs text-slate-400">' . htmlspecialchars($help, ENT_QUOTES, 'UTF-8') . '</p>'
+            ? '<p class="mt-1 text-xs text-primary-400">' . htmlspecialchars($help, ENT_QUOTES, 'UTF-8') . '</p>'
             : '';
 
         $wrapperClass = trim('input-component ' . $class);

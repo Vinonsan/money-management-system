@@ -95,7 +95,14 @@ class AuthController
         $sms = new SMSService();
         $otp = $sms->generateOtp();
         OtpCode::create($phone, $otp);
-        $sms->sendOtp($phone, $otp);
+        $sent = $sms->sendOtp($phone, $otp);
+
+        if (!$sent && $sms->isConfigured()) {
+            $this->flashError('Failed to send SMS. Please check SMS configuration (Sender ID) in Super Admin panel.');
+            $_SESSION['sa_otp_step'] = 'phone';
+            unset($_SESSION['sa_otp_phone']);
+            $this->redirectSuperAdminLogin();
+        }
 
         $_SESSION['sa_otp_step'] = 'otp';
         $_SESSION['sa_otp_phone'] = $phone;
@@ -203,7 +210,14 @@ class AuthController
         $sms = new SMSService();
         $otp = $sms->generateOtp();
         OtpCode::create($phone, $otp);
-        $sms->sendOtp($phone, $otp);
+        $sent = $sms->sendOtp($phone, $otp);
+
+        if (!$sent && $sms->isConfigured()) {
+            $this->flashError('Failed to send SMS. Please check SMS configuration (Sender ID) in Super Admin panel.');
+            $_SESSION['otp_step'] = 'phone';
+            unset($_SESSION['otp_phone']);
+            $this->redirectLogin();
+        }
 
         $_SESSION['otp_step'] = 'otp';
         $_SESSION['otp_phone'] = $phone;

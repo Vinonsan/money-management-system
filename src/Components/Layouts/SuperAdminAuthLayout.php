@@ -2,8 +2,8 @@
 namespace Components\Layouts;
 
 /**
- * Red-themed auth layout for Super Admin login.
- * Uses the premium red palette from superAdminTailwindColorsJs().
+ * Purple-themed auth layout for Super Admin login.
+ * Uses the premium purple palette (#321E48).
  */
 final class SuperAdminAuthLayout
 {
@@ -17,7 +17,9 @@ final class SuperAdminAuthLayout
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($title) ?> | <?= \APP_NAME ?></title>
+    <link rel="icon" type="image/png" href="<?= \BASE_URL ?>/assets/img/logo.png">
     <link rel="icon" type="image/svg+xml" href="<?= \BASE_URL ?>/assets/img/favicon.svg">
+    <link rel="apple-touch-icon" href="<?= \BASE_URL ?>/assets/img/logo.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = { theme: { extend: <?= \superAdminTailwindColorsJs() ?> } };
@@ -26,7 +28,7 @@ final class SuperAdminAuthLayout
     <style>
         [x-cloak] { display: none !important; }
 
-        /* Premium Red Top Bar Animation */
+        /* Premium Purple Top Bar Animation */
         .sa-auth::before {
             content: '';
             position: fixed;
@@ -35,20 +37,20 @@ final class SuperAdminAuthLayout
             right: 0;
             z-index: 99999;
             height: 3px;
-            background: linear-gradient(90deg, #a01414, #e51d1d, #ff6b6b, #e51d1d, #a01414);
+            background: linear-gradient(90deg, #28153a, #5a3c85, #af8bcf, #5a3c85, #28153a);
             background-size: 200% 100%;
-            animation: premiumRedGradient 3s ease infinite;
+            animation: premiumPurpleGradient 3s ease infinite;
             pointer-events: none;
         }
-        @keyframes premiumRedGradient {
+        @keyframes premiumPurpleGradient {
             0%, 100% { background-position: 0% 50%; }
             50% { background-position: 100% 50%; }
         }
 
-        /* Red glow on focus */
+        /* Purple glow on focus */
         .sa-input:focus {
-            box-shadow: 0 0 0 3px rgba(248, 62, 62, 0.15);
-            border-color: #f83e3e !important;
+            box-shadow: 0 0 0 3px rgba(90, 60, 133, 0.15);
+            border-color: #5a3c85 !important;
         }
 
         /* Secure badge pulse */
@@ -61,7 +63,7 @@ final class SuperAdminAuthLayout
         }
     </style>
 </head>
-<body class="bg-gradient-to-br from-red-50 via-white to-red-100 text-brand-charcoal antialiased sa-auth">
+<body class="bg-gradient-to-br from-primary-50 via-white to-primary-100 text-brand-charcoal antialiased sa-auth">
     <div class="min-h-screen flex items-center justify-center px-4 py-12">
         <div class="w-full max-w-md">
             <!-- Brand -->

@@ -48,7 +48,7 @@ final class Search
             $filterHtml = <<<HTML
             <div class="relative">
                 <select id="search-filter"
-                    class="h-full rounded-l-lg border border-r-0 border-slate-300 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-600 appearance-none cursor-pointer"
+                    class="h-full rounded-l-lg border border-r-0 border-primary-200 bg-primary-50/50 px-3 py-2.5 text-sm font-medium text-primary-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-600 appearance-none cursor-pointer"
                     style="min-width: 130px;">
                     {$filterOptions}
                 </select>
@@ -84,10 +84,10 @@ final class Search
                     @input.debounce.300ms="search()"
                     @keydown.enter.prevent="search()"
                     placeholder="{$placeholder}"
-                    class="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-600 focus:border-primary-600 transition">
+                    class="w-full rounded-lg border border-primary-200 bg-primary-50/30 py-2.5 pl-10 pr-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-600 focus:border-primary-600 focus:bg-white transition">
             </div>
             <button type="button" @click="resetSearch()"
-                class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 hover:text-slate-800">
+                class="inline-flex items-center gap-1.5 rounded-lg border border-primary-200 bg-white px-4 py-2.5 text-sm font-semibold text-primary-600 transition hover:bg-primary-50 hover:text-primary-800">
                 <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                 </svg>

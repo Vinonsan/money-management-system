@@ -15,6 +15,26 @@ final class Navbar
         $profileHref = htmlspecialchars(SidebarRouter::href('profile'), ENT_QUOTES, 'UTF-8');
         $logoutHref = htmlspecialchars(BASE_URL . '/logout', ENT_QUOTES, 'UTF-8');
 
+        // Load avatar from DB
+        $hasAvatar = false;
+        $avatarContent = $userInitial;
+        $avatarBgClass = 'bg-primary-600 text-xs font-bold text-white';
+        $userId = (int) ($_SESSION['user_id'] ?? 0);
+        if ($userId > 0) {
+            $row = \Models\Database::connect()->fetch(
+                'SELECT avatar FROM users WHERE id = ?',
+                [$userId]
+            );
+            if (!empty($row['avatar'])) {
+                $avatarUrl = htmlspecialchars(BASE_URL . '/' . $row['avatar'], ENT_QUOTES, 'UTF-8');
+                $avatarContent = <<<HTML
+                <img src="{$avatarUrl}" alt="Avatar" class="h-full w-full object-cover">
+                HTML;
+                $hasAvatar = true;
+                $avatarBgClass = '';
+            }
+        }
+
         return <<<HTML
         <header class="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b border-slate-200/80 bg-white/90 px-4 backdrop-blur-md sm:px-6">
             <div class="flex items-center gap-3">
@@ -33,8 +53,8 @@ final class Navbar
                 <button type="button"
                         @click="userMenu = !userMenu"
                         class="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white py-1.5 pl-1.5 pr-3 text-left shadow-sm transition hover:border-slate-300 hover:bg-slate-50">
-                    <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-600 text-xs font-bold text-white">
-                        {$userInitial}
+                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg {$avatarBgClass} overflow-hidden">
+                        {$avatarContent}
                     </span>
                     <span class="hidden min-w-0 sm:block">
                         <span class="block max-w-[10rem] truncate text-sm font-semibold text-slate-800">{$userName}</span>

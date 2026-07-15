@@ -136,4 +136,12 @@ class User
             [$id]
         );
     }
+
+    public static function updateAvatar(int $id, string $avatarPath): int
+    {
+        return Database::connect()->execute(
+            'UPDATE users SET avatar = ? WHERE id = ?',
+            [$avatarPath, $id]
+        );
+    }
 }

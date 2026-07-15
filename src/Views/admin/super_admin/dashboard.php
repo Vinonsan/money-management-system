@@ -94,7 +94,7 @@ $pageTitle = 'Super Admin Dashboard';
     </div>
 
     <!-- SMS Balance Summary -->
-    <div class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+    <div class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all duration-300 hover:border-primary-300 hover:shadow-md">
         <div class="flex items-center gap-2 mb-4">
             <div class="h-1.5 w-1.5 rounded-full bg-primary-500"></div>
             <h3 class="text-base font-bold text-slate-900">SMS Balance</h3>
@@ -104,8 +104,8 @@ $pageTitle = 'Super Admin Dashboard';
                 <p class="text-xs font-semibold text-primary-600 uppercase tracking-wider">Current Balance</p>
                 <p class="text-xl font-bold text-primary-800">Rs. <?= number_format((float) $smsBalance, 2) ?></p>
             </div>
-            <div class="rounded-xl bg-slate-50 p-4 border border-slate-100">
-                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Cost Per SMS</p>
+            <div class="rounded-xl bg-primary-50/50 p-4 border border-primary-100">
+                <p class="text-xs font-semibold text-primary-600 uppercase tracking-wider">Cost Per SMS</p>
                 <p class="text-xl font-bold text-slate-900">Rs. <?= number_format((float) $smsCost, 2) ?></p>
             </div>
             <div class="rounded-xl bg-gradient-to-br from-primary-50 to-white p-4 border border-primary-200">

@@ -117,14 +117,28 @@ class SMSService
             }
 
             $result = json_decode($response, true);
-            $success = $result['success'] ?? false;
+            $apiSuccess = ($result['success'] ?? false) && $httpCode === 200;
 
-            // Deduct SMS balance from local tracking on success
-            if ($success) {
-                $this->deductBalance();
+            // Log API response for debugging
+            if (!$apiSuccess) {
+                $apiMsg = $result['message'] ?? 'Unknown API error';
+                $errLine = sprintf(
+                    "[%s] SMS FAILED to %s (HTTP %d): %s | Response: %s%s",
+                    date('Y-m-d H:i:s'),
+                    $phone,
+                    $httpCode,
+                    $apiMsg,
+                    mb_substr($response, 0, 500),
+                    PHP_EOL
+                );
+                @file_put_contents(__DIR__ . '/../../sms_log.txt', $errLine, FILE_APPEND);
+                return false;
             }
 
-            return $success;
+            // Deduct SMS balance from local tracking on success
+            $this->deductBalance();
+
+            return true;
         } catch (\Exception $e) {
             // Log error but don't block the application
             $errLine = sprintf(
@@ -136,8 +150,7 @@ class SMSService
             );
             @file_put_contents(__DIR__ . '/../../sms_log.txt', $errLine, FILE_APPEND);
 
-            // Fall back to local-only logging (don't throw)
-            return true;
+            return false;
         }
     }
 
@@ -198,20 +211,25 @@ class SMSService
 
     /**
      * Normalize phone to +94XXXXXXXXX format.
+     * Handles: 0754476969, +94754476969, 94754476969, 754476969 (9 digits without 0)
      */
     private function normalizePhone(string $phone): string
     {
         $phone = preg_replace('/\s+/', '', $phone) ?? '';
-        // If starts with 0, replace with +94
+        // If starts with 0, replace with +94 (e.g. 0754476969 → +94754476969)
         if (preg_match('/^0(\d{9})$/', $phone, $m)) {
             return '+94' . $m[1];
         }
-        // If already +94 format
+        // If already +94 format (e.g. +94754476969)
         if (preg_match('/^\+94\d{9}$/', $phone)) {
             return $phone;
         }
-        // If just digits starting with 94
+        // If just digits starting with 94 (e.g. 94754476969)
         if (preg_match('/^94(\d{9})$/', $phone, $m)) {
+            return '+94' . $m[1];
+        }
+        // If 9 digits without leading 0 or 94 (e.g. 754476969 → +94754476969)
+        if (preg_match('/^(\d{9})$/', $phone, $m)) {
             return '+94' . $m[1];
         }
         // Return as is (might fail at API)

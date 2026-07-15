@@ -20,7 +20,7 @@ final class OtpInput
             $boxes .= sprintf(
                 '<input type="text" inputmode="numeric" maxlength="1" pattern="[0-9]"
                     id="%s-%d" data-otp-index="%d"
-                    class="otp-digit w-11 h-12 sm:w-12 sm:h-14 text-center text-lg font-bold rounded-xl border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-600 focus:border-primary-600 transition"
+                    class="otp-digit w-11 h-12 sm:w-12 sm:h-14 text-center text-lg font-bold rounded-xl border border-primary-200 bg-primary-50/30 text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-600 focus:border-primary-600 focus:bg-white transition"
                     x-ref="digit%d"
                     @input="onInput($event, %d)"
                     @keydown.backspace="onBackspace($event, %d)"
@@ -36,7 +36,7 @@ final class OtpInput
         }
 
         $labelHtml = $label !== ''
-            ? '<label class="block text-sm font-semibold text-gray-700 mb-3">' . htmlspecialchars($label, ENT_QUOTES) . '</label>'
+            ? '<label class="block text-sm font-semibold text-primary-800 mb-3">' . htmlspecialchars($label, ENT_QUOTES) . '</label>'
             : '';
 
         return <<<HTML

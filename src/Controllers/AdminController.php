@@ -72,7 +72,100 @@ class AdminController
     public function profile(): void
     {
         $user = User::findById((int) ($_SESSION['user_id'] ?? 0));
-        $this->view('Profile', 'profile.php', ['user' => $user ?? []], 'profile');
+        $avatarUrl = null;
+        if (!empty($user['avatar'])) {
+            $avatarUrl = BASE_URL . '/' . $user['avatar'];
+        }
+        $this->view('Profile', 'profile.php', [
+            'user' => $user ?? [],
+            'avatarUrl' => $avatarUrl,
+            'uploadError' => $_SESSION['upload_error'] ?? null,
+            'uploadSuccess' => $_SESSION['upload_success'] ?? null,
+        ], 'profile');
+        unset($_SESSION['upload_error'], $_SESSION['upload_success']);
+    }
+
+    public function uploadAvatar(): void
+    {
+        $userId = (int) ($_SESSION['user_id'] ?? 0);
+        if ($userId <= 0) {
+            $_SESSION['upload_error'] = 'Please login first.';
+            header('Location: ' . BASE_URL . '/admin/profile');
+            exit;
+        }
+
+        if (!isset($_FILES['avatar']) || $_FILES['avatar']['error'] !== UPLOAD_ERR_OK) {
+            $_SESSION['upload_error'] = 'No file uploaded or upload error.';
+            header('Location: ' . BASE_URL . '/admin/profile');
+            exit;
+        }
+
+        $file = $_FILES['avatar'];
+        $maxSize = 2 * 1024 * 1024; // 2MB
+        $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+
+        // Validate file type
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $mime = finfo_file($finfo, $file['tmp_name']);
+        finfo_close($finfo);
+
+        if (!in_array($mime, $allowedTypes, true)) {
+            $_SESSION['upload_error'] = 'Only JPG, PNG, GIF &amp; WebP images are allowed.';
+            header('Location: ' . BASE_URL . '/admin/profile');
+            exit;
+        }
+
+        if ($file['size'] > $maxSize) {
+            $_SESSION['upload_error'] = 'Image must be less than 2MB.';
+            header('Location: ' . BASE_URL . '/admin/profile');
+            exit;
+        }
+
+        // Generate unique filename
+        $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
+        $filename = 'avatar_' . $userId . '_' . time() . '.' . $ext;
+        $uploadDir = __DIR__ . '/../../public/assets/uploads/avatars/';
+
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+
+        $destPath = $uploadDir . $filename;
+
+        if (!move_uploaded_file($file['tmp_name'], $destPath)) {
+            $_SESSION['upload_error'] = 'Failed to save image. Please try again.';
+            header('Location: ' . BASE_URL . '/admin/profile');
+            exit;
+        }
+
+        // Delete old avatar if exists (handle both old public/ prefix and new path)
+        $user = User::findById($userId);
+        if (!empty($user['avatar'])) {
+            $oldPath = $user['avatar'];
+            if (str_starts_with($oldPath, 'public/')) {
+                $oldPath = substr($oldPath, 7);
+            }
+            $oldFile = __DIR__ . '/../../public/' . $oldPath;
+            if (file_exists($oldFile)) {
+                @unlink($oldFile);
+            }
+        }
+
+        // Save relative path - find user by phone from session for reliability
+        $phone = $_SESSION['user_phone'] ?? '';
+        if ($phone) {
+            $userByPhone = User::findByPhone($phone);
+            if ($userByPhone) {
+                $userId = (int) $userByPhone['id'];
+            }
+        }
+        $relativePath = 'assets/uploads/avatars/' . $filename;
+        User::updateAvatar($userId, $relativePath);
+        User::updateAvatar($userId, $relativePath);
+
+        $_SESSION['upload_success'] = 'Profile picture updated successfully.';
+        header('Location: ' . BASE_URL . '/admin/profile');
+        exit;
     }
 
     // ──────────────────────────────────────────────

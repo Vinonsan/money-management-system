@@ -102,7 +102,7 @@ $iconTrash = '<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 
             </p>
             <div class="flex items-center gap-1.5">
                 <?php if ($page > 1): ?>
-                    <a href="/admin/wards?page=<?= $page - 1 ?>"
+                    <a href="<?= BASE_URL ?>/admin/wards?page=<?= $page - 1 ?>"
                        class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-xs text-slate-600 shadow-sm hover:bg-slate-50 transition-all">
                         <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
                     </a>
@@ -113,11 +113,11 @@ $iconTrash = '<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 
                         ? 'bg-primary-600 text-white font-semibold shadow-sm shadow-primary-600/30'
                         : 'text-slate-600 hover:bg-slate-100';
                 ?>
-                    <a href="/admin/wards?page=<?= $i ?>"
+                    <a href="<?= BASE_URL ?>/admin/wards?page=<?= $i ?>"
                        class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-xs transition-all <?= $activeClass ?>"><?= $i ?></a>
                 <?php endfor; ?>
                 <?php if ($page < $totalPages): ?>
-                    <a href="/admin/wards?page=<?= $page + 1 ?>"
+                    <a href="<?= BASE_URL ?>/admin/wards?page=<?= $page + 1 ?>"
                        class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-xs text-slate-600 shadow-sm hover:bg-slate-50 transition-all">
                         <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
                     </a>
@@ -141,11 +141,11 @@ $drawerBody = <<<HTML
     <div class="space-y-5 py-2">
         <!-- 1. Ward Number -->
         <div x-show="drawerMode !== 'view'">
-            <label class="block mb-1.5 text-sm font-semibold text-slate-700">Ward Number <span class="text-rose-500">*</span></label>
+            <label class="block mb-1.5 text-sm font-semibold text-primary-800">Ward Number <span class="text-rose-500">*</span></label>
             <input type="number" name="ward_number" x-model="drawerData.ward_number" required
                 placeholder="e.g. 1" min="1" step="1"
                 onkeypress="return (event.charCode >= 48 && event.charCode <= 57)"
-                :class="'w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 transition focus:outline-none focus:ring-2 ' + (wardError ? 'border-red-300 focus:border-red-500 focus:ring-red-500/30' : 'border-slate-300 focus:border-primary-600 focus:ring-primary-600/30')">
+                :class="'w-full rounded-lg border bg-primary-50/30 px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 transition focus:outline-none focus:ring-2 focus:bg-white ' + (wardError ? 'border-red-300 focus:border-red-500 focus:ring-red-500/30' : 'border-primary-200 focus:border-primary-600 focus:ring-primary-600/30')">
             <p x-show="wardError" x-text="wardError" class="mt-1 text-xs font-medium text-red-600"></p>
         </div>
         <div x-show="drawerMode === 'view'">

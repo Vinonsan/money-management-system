@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS users (
     monthly_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     password VARCHAR(255) DEFAULT NULL,
     role ENUM('super_admin', 'admin', 'collector') NOT NULL DEFAULT 'collector',
+    avatar VARCHAR(255) DEFAULT NULL COMMENT 'Profile image path',
     is_active TINYINT(1) NOT NULL DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

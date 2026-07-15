@@ -45,11 +45,11 @@ OPT;
         }
 
         $disabledAttr = $disabled ? 'disabled' : '';
-        $helpHtml = $help !== '' ? '<p class="mt-1 text-xs text-slate-400">' . $help . '</p>' : '';
+        $helpHtml = $help !== '' ? '<p class="mt-1 text-xs text-primary-400">' . $help . '</p>' : '';
 
         return <<<HTML
         <div class="multi-select-component" x-data="multiSelect('{$id}', '{$placeholder}')">
-            <label class="block mb-1.5 text-sm font-semibold text-slate-700">{$label}{$reqBadge}</label>
+            <label class="block mb-1.5 text-sm font-semibold text-primary-800">{$label}{$reqBadge}</label>
 
             <div class="relative">
                 <button type="button"
@@ -57,7 +57,7 @@ OPT;
                     {$disabledAttr}
                     @click="toggle()"
                     @keydown.escape="open = false"
-                    class="w-full flex items-center justify-between gap-2 rounded-lg border bg-white px-3 py-2.5 text-sm text-left transition focus:outline-none focus:ring-2 border-slate-300 focus:border-primary-600 focus:ring-primary-600/30">
+                    class="w-full flex items-center justify-between gap-2 rounded-lg border bg-primary-50/30 px-3 py-2.5 text-sm text-left transition focus:outline-none focus:ring-2 border-primary-200 focus:border-primary-600 focus:ring-primary-600/30 focus:bg-white">
 
                     <span class="truncate flex-1" x-text="selectedText"
                           :class="selectedText === placeholder ? 'text-slate-400' : 'text-slate-800'"></span>

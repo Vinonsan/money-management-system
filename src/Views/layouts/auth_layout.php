@@ -10,7 +10,9 @@ function renderAuthLayout(string $title, string $contentView, array $data = []):
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= e($title) ?> | <?= APP_NAME ?></title>
+    <link rel="icon" type="image/png" href="<?= BASE_URL ?>/assets/img/logo.png">
     <link rel="icon" type="image/svg+xml" href="<?= BASE_URL ?>/assets/img/favicon.svg">
+    <link rel="apple-touch-icon" href="<?= BASE_URL ?>/assets/img/logo.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = { theme: { extend: <?= \themeTailwindColorsJs() ?> } };

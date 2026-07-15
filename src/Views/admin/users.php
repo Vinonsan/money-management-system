@@ -139,21 +139,21 @@ $columns = [
                 </svg>
                 <input type="text" x-model="search" @input.debounce.500ms="apply()"
                     placeholder="Search by name or phone..."
-                    class="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm text-slate-700 placeholder-slate-400 transition-all focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/10">
+                    class="w-full rounded-lg border border-primary-200 bg-primary-50/30 py-2 pl-9 pr-3 text-sm text-slate-700 placeholder-slate-400 transition-all focus:border-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-600/20 focus:bg-white">
             </div>
 
             <select x-model="locationId" @change="apply()"
-                class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 font-medium focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/10">
+                class="rounded-lg border border-primary-200 bg-primary-50/30 px-3 py-2 text-sm text-slate-700 font-medium focus:border-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-600/20 focus:bg-white">
                 <?= $locFilterOpts ?>
             </select>
 
             <select x-model="wardId" @change="apply()"
-                class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 font-medium focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/10">
+                class="rounded-lg border border-primary-200 bg-primary-50/30 px-3 py-2 text-sm text-slate-700 font-medium focus:border-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-600/20 focus:bg-white">
                 <?= $wardFilterOpts ?>
             </select>
 
             <button type="button" @click="reset()"
-                class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-rose-600">
+                class="inline-flex items-center gap-1.5 rounded-lg border border-primary-200 bg-white px-3.5 py-2 text-sm font-semibold text-primary-600 shadow-sm transition hover:bg-primary-50 hover:text-primary-800">
                 <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                 </svg>
@@ -346,10 +346,10 @@ $drawerBody = <<<HTML
     <div class="space-y-5 py-2">
         <!-- 1. Name -->
         <div x-show="drawerMode !== 'view'">
-            <label class="block mb-1.5 text-sm font-semibold text-slate-700">Full Name <span class="text-rose-500">*</span></label>
+            <label class="block mb-1.5 text-sm font-semibold text-primary-800">Full Name <span class="text-rose-500">*</span></label>
             <input type="text" x-model="drawerData.name" :disabled="drawerMode === 'view'" required
                 placeholder="Enter full name"
-                :class="'w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 transition focus:outline-none focus:ring-2 ' + (userErrors?.name ? 'border-red-300 focus:border-red-500 focus:ring-red-500/30' : 'border-slate-300 focus:border-primary-600 focus:ring-primary-600/30')">
+                :class="'w-full rounded-lg border bg-primary-50/30 px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 transition focus:outline-none focus:ring-2 focus:bg-white ' + (userErrors?.name ? 'border-red-300 focus:border-red-500 focus:ring-red-500/30' : 'border-primary-200 focus:border-primary-600 focus:ring-primary-600/30')">
             <p x-show="userErrors?.name" x-text="userErrors.name" class="mt-1 text-xs font-medium text-red-600"></p>
         </div>
         <div x-show="drawerMode === 'view'">
@@ -365,10 +365,10 @@ HTML
 
         <!-- 2. Monthly Amount -->
         <div x-show="drawerMode !== 'view'">
-            <label class="block mb-1.5 text-sm font-semibold text-slate-700">Monthly Amount (Rs)</label>
+            <label class="block mb-1.5 text-sm font-semibold text-primary-800">Monthly Amount (Rs)</label>
             <input type="number" x-model="drawerData.monthly_amount" :disabled="drawerMode === 'view'"
                 placeholder="e.g. 500.00" min="0" step="0.01"
-                :class="'w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 transition focus:outline-none focus:ring-2 border-slate-300 focus:border-primary-600 focus:ring-primary-600/30'">
+                :class="'w-full rounded-lg border bg-primary-50/30 px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 transition focus:outline-none focus:ring-2 focus:bg-white border-primary-200 focus:border-primary-600 focus:ring-primary-600/30'">
         </div>
         <div x-show="drawerMode === 'view'">
 HTML
@@ -383,10 +383,10 @@ HTML
 
         <!-- 3. Phone -->
         <div x-show="drawerMode !== 'view'">
-            <label class="block mb-1.5 text-sm font-semibold text-slate-700">Phone Number <span class="text-rose-500">*</span></label>
+            <label class="block mb-1.5 text-sm font-semibold text-primary-800">Phone Number <span class="text-rose-500">*</span></label>
             <input type="tel" x-model="drawerData.phone" :disabled="drawerMode === 'view'" required
                 placeholder="e.g. 0771234567"
-                :class="'w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 transition focus:outline-none focus:ring-2 ' + (userErrors?.phone ? 'border-red-300 focus:border-red-500 focus:ring-red-500/30' : 'border-slate-300 focus:border-primary-600 focus:ring-primary-600/30')">
+                :class="'w-full rounded-lg border bg-primary-50/30 px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 transition focus:outline-none focus:ring-2 focus:bg-white ' + (userErrors?.phone ? 'border-red-300 focus:border-red-500 focus:ring-red-500/30' : 'border-primary-200 focus:border-primary-600 focus:ring-primary-600/30')">
             <p x-show="userErrors?.phone" x-text="userErrors.phone" class="mt-1 text-xs font-medium text-red-600"></p>
         </div>
         <div x-show="drawerMode === 'view'">
@@ -424,9 +424,9 @@ HTML
 
         <!-- 5. Ward -->
         <div x-show="drawerMode !== 'view'">
-            <label class="block mb-1.5 text-sm font-semibold text-slate-700">Ward <span class="text-rose-500">*</span></label>
+            <label class="block mb-1.5 text-sm font-semibold text-primary-800">Ward <span class="text-rose-500">*</span></label>
             <select x-model="drawerData.ward_id" @change="onWardChange()" :disabled="drawerMode === 'view'" required
-                :class="'w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-slate-800 transition focus:outline-none focus:ring-2 appearance-none ' + (userErrors?.ward_id ? 'border-red-300 focus:border-red-500 focus:ring-red-500/30' : 'border-slate-300 focus:border-primary-600 focus:ring-primary-600/30')">
+                :class="'w-full rounded-lg border bg-primary-50/30 px-3 py-2.5 text-sm text-slate-800 transition focus:outline-none focus:ring-2 appearance-none focus:bg-white ' + (userErrors?.ward_id ? 'border-red-300 focus:border-red-500 focus:ring-red-500/30' : 'border-primary-200 focus:border-primary-600 focus:ring-primary-600/30')">
                 <option value="">Select ward...</option>
                 <?= $wardOptsHtml ?>
             </select>
@@ -445,9 +445,9 @@ HTML
 
         <!-- 6. Street / Location -->
         <div x-show="drawerMode !== 'view'">
-            <label class="block mb-1.5 text-sm font-semibold text-slate-700">Street / Location</label>
+            <label class="block mb-1.5 text-sm font-semibold text-primary-800">Street / Location</label>
             <select x-model="drawerData.location_id" :disabled="drawerMode === 'view'"
-                :class="'w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-slate-800 transition focus:outline-none focus:ring-2 appearance-none border-slate-300 focus:border-primary-600 focus:ring-primary-600/30'">
+                :class="'w-full rounded-lg border bg-primary-50/30 px-3 py-2.5 text-sm text-slate-800 transition focus:outline-none focus:ring-2 appearance-none focus:bg-white border-primary-200 focus:border-primary-600 focus:ring-primary-600/30'">
                 <option value="">Select location...</option>
                 <?= $locOptsHtml ?>
             </select>

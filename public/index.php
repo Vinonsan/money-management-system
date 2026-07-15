@@ -3,6 +3,7 @@ require_once __DIR__ . '/../config/config.php';
 
 $route = isset($_GET['route']) ? rtrim($_GET['route'], '/') : '';
 
+// Fix avatar paths utility
 $routes = [
     // Public
     ''      => ['Controller' => 'HomeController', 'Action' => 'index'],
@@ -21,7 +22,8 @@ $routes = [
 
     // Admin (Protected)
     'admin'         => ['Controller' => 'AdminController', 'Action' => 'index', 'Middleware' => 'StaffAuth'],
-    'admin/profile' => ['Controller' => 'AdminController', 'Action' => 'profile', 'Middleware' => 'StaffAuth'],
+    'admin/profile'       => ['Controller' => 'AdminController', 'Action' => 'profile', 'Middleware' => 'StaffAuth'],
+    'admin/profile/upload-avatar' => ['Controller' => 'AdminController', 'Action' => 'uploadAvatar', 'Middleware' => 'StaffAuth'],
 
     // Location Management
     'admin/locations'          => ['Controller' => 'AdminController', 'Action' => 'locations', 'Middleware' => 'StaffAuth'],

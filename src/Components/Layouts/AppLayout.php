@@ -26,7 +26,9 @@ final class AppLayout
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= e($title) ?> | <?= APP_NAME ?></title>
+    <link rel="icon" type="image/png" href="<?= BASE_URL ?>/assets/img/logo.png">
     <link rel="icon" type="image/svg+xml" href="<?= BASE_URL ?>/assets/img/favicon.svg">
+    <link rel="apple-touch-icon" href="<?= BASE_URL ?>/assets/img/logo.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = { theme: { extend: <?= $tailwindConfig ?> } };
@@ -41,7 +43,7 @@ final class AppLayout
         /* Hide scrollbar globally */
         ::-webkit-scrollbar { display: none; }
         * { scrollbar-width: none; -ms-overflow-style: none; }
-        /* ─── Super Admin Premium Red Theme ─────────── */
+        /* ─── Super Admin Premium Purple Theme ─────── */
         .super-admin-theme::before {
             content: '';
             position: fixed;
@@ -50,18 +52,18 @@ final class AppLayout
             right: 0;
             z-index: 99999;
             height: 3px;
-            background: linear-gradient(90deg, #a01414, #e51d1d, #ff6b6b, #e51d1d, #a01414);
+            background: linear-gradient(90deg, #28153a, #5a3c85, #af8bcf, #5a3c85, #28153a);
             background-size: 200% 100%;
-            animation: premiumRedGradient 3s ease infinite;
+            animation: premiumPurpleGradient 3s ease infinite;
             pointer-events: none;
         }
-        @keyframes premiumRedGradient {
+        @keyframes premiumPurpleGradient {
             0%, 100% { background-position: 0% 50%; }
             50% { background-position: 100% 50%; }
         }
         /* Super admin sidebar active item accent */
         .super-admin-theme .sa-sidebar-accent {
-            border-left: 3px solid #c21414 !important;
+            border-left: 3px solid #5a3c85 !important;
         }
     </style>
 </head>

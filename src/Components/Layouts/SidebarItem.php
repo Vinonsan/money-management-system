@@ -21,16 +21,23 @@ final class SidebarItem
         $label = htmlspecialchars($item['label'], ENT_QUOTES, 'UTF-8');
         $href = htmlspecialchars((string) ($item['href'] ?? '#'), ENT_QUOTES, 'UTF-8');
         $linkClass = $active
-            ? 'text-primary-700 bg-primary-50/50 ring-1 ring-primary-200'
-            : 'text-slate-700 hover:text-primary-600';
+            ? 'text-white bg-primary-700 shadow-md shadow-primary-700/20'
+            : 'text-slate-600 hover:text-primary-700 hover:bg-primary-50/50';
         $iconWrap = $active
-            ? 'bg-primary-100 text-primary-700'
+            ? 'text-white'
             : 'text-slate-400 group-hover:text-primary-600';
+
+        $activeIndicator = $active
+            ? '<span class="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-primary-400"></span>'
+            : '';
+
+        $labelQuoted = "'{$label}'";
 
         return <<<HTML
         <a href="{$href}"
            class="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-200 {$linkClass}"
-           :title="collapsed ? '{$label}' : ''">
+           :title="collapsed ? {$labelQuoted} : ''">
+            {$activeIndicator}
             <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition {$iconWrap}">
                 <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">{$item['icon']}</svg>
             </span>
@@ -48,11 +55,21 @@ final class SidebarItem
         $label = htmlspecialchars($item['label'], ENT_QUOTES, 'UTF-8');
         $keyJs = htmlspecialchars($key, ENT_QUOTES, 'UTF-8');
         $iconWrap = $parentActive
-            ? 'bg-primary-100 text-primary-700'
+            ? 'text-white'
             : 'text-slate-400 group-hover:text-primary-600';
         $btnClass = $parentActive
-            ? 'text-primary-700'
-            : 'text-slate-700 hover:text-primary-700';
+            ? 'text-white bg-primary-700 shadow-md shadow-primary-700/20'
+            : 'text-slate-600 hover:text-primary-700 hover:bg-primary-50/50';
+
+        $activeIndicator = $parentActive
+            ? '<span class="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-primary-400"></span>'
+            : '';
+
+        $gridClosedClass = "grid-rows-[0fr]";
+        $gridOpenClass = "grid-rows-[1fr]";
+        $keyJsQuoted = "'{$keyJs}'";
+        $arrowColor = $parentActive ? 'text-primary-300' : 'text-slate-400';
+        $borderColor = $parentActive ? 'border-primary-300' : 'border-slate-200';
 
         $childrenHtml = '';
         $flyoutChildren = '';
@@ -61,12 +78,12 @@ final class SidebarItem
             $cLabel = htmlspecialchars($child['label'], ENT_QUOTES, 'UTF-8');
             $cHref = htmlspecialchars($child['href'], ENT_QUOTES, 'UTF-8');
             $cClass = $childActive
-                ? 'text-primary-700 font-semibold bg-primary-50/50'
-                : 'text-slate-600 hover:text-primary-700';
+                ? 'text-primary-700 font-semibold bg-primary-700/10'
+                : 'text-slate-500 hover:text-primary-700';
             $cDot = $childActive
-                ? '<span class="ml-auto h-1.5 w-1.5 rounded-full bg-primary-500"></span>'
+                ? '<span class="ml-auto h-2 w-2 rounded-full bg-primary-600 ring-2 ring-primary-200"></span>'
                 : '';
-            $bulletClass = $childActive ? 'bg-primary-500' : 'bg-slate-300';
+            $bulletClass = $childActive ? 'bg-primary-600' : 'bg-slate-300';
 
             $childrenHtml .= <<<HTML
             <a href="{$cHref}"
@@ -92,17 +109,18 @@ final class SidebarItem
             <button type="button"
                     class="group relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-200 {$btnClass}"
                     :class="collapsed ? 'lg:justify-center' : ''"
-                    @click="collapsed ? (flyout = !flyout) : toggleOpen('{$keyJs}')"
+                    @click="collapsed ? (flyout = !flyout) : toggleOpen({$keyJsQuoted})"
                     @mouseenter="if (collapsed) flyout = true"
                     :title="collapsed ? '{$label}' : ''"
-                    :aria-expanded="isOpen('{$keyJs}')">
+                    :aria-expanded="isOpen({$keyJsQuoted})">
+                {$activeIndicator}
                 <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition {$iconWrap}">
                     <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">{$item['icon']}</svg>
                 </span>
                 <span class="flex-1 truncate text-left transition-all duration-200"
                       :class="collapsed ? 'lg:hidden' : ''">{$label}</span>
-                <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-slate-400 transition-all duration-300"
-                      :class="[isOpen('{$keyJs}') ? 'rotate-180 text-primary-600' : '', collapsed ? 'lg:hidden' : '']">
+                <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-all duration-300 {$arrowColor}"
+                      :class="[isOpen({$keyJsQuoted}) ? 'rotate-180' : '', collapsed ? 'lg:hidden' : '']">
                     <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/>
                     </svg>
@@ -111,9 +129,9 @@ final class SidebarItem
 
             <!-- Modern grid accordion (0fr → 1fr) -->
             <div class="grid transition-[grid-template-rows] duration-300 ease-out"
-                 :class="(!collapsed && isOpen('{$keyJs}')) ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'">
+                 :class="(!collapsed && isOpen({$keyJsQuoted})) ? '{$gridOpenClass}' : '{$gridClosedClass}'">
                 <div class="min-h-0 overflow-hidden">
-                    <div class="relative mt-2 ml-4 space-y-1.5 border-l-2 border-slate-200 pl-3 pb-1.5">
+                    <div class="relative mt-2 ml-4 space-y-1.5 border-l-2 {$borderColor} pl-3 pb-1.5">
                         {$childrenHtml}
                     </div>
                 </div>

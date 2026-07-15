@@ -32,7 +32,7 @@ foreach ($wards as $w) {
     $wardOpts .= '<option value="' . $wid . '"' . $sel . '>Ward #' . $wn . '</option>';
 }
 
-$baseUrl = '/admin/payments/members?status=' . urlencode($status);
+$baseUrl = BASE_URL . '/admin/payments/members?status=' . urlencode($status);
 if ($search) $baseUrl .= '&search=' . urlencode($search);
 if ($locationId > 0) $baseUrl .= '&location_id=' . $locationId;
 if ($wardId > 0) $baseUrl .= '&ward_id=' . $wardId;
@@ -56,12 +56,12 @@ $tabQs = $qsSearch . $qsLoc . $qsWard;
         </div>
         <div class="flex items-center gap-2">
             <div class="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 shadow-sm">
-                <a href="/admin/payments/members?status=unpaid<?= $tabQs ?>"
-                   class="rounded-md px-3.5 py-1.5 text-xs font-semibold transition <?= $status === 'unpaid' ? 'bg-rose-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-800' ?>">Unpaid</a>
-                <a href="/admin/payments/members?status=paid<?= $tabQs ?>"
-                   class="rounded-md px-3.5 py-1.5 text-xs font-semibold transition <?= $status === 'paid' ? 'bg-primary-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-800' ?>">Paid</a>
-                <a href="/admin/payments/members?status=all<?= $tabQs ?>"
-                   class="rounded-md px-3.5 py-1.5 text-xs font-semibold transition <?= $status === 'all' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-600 hover:text-slate-800' ?>">All</a>
+                <a href="<?= BASE_URL ?>/admin/payments/members?status=unpaid<?= $tabQs ?>"
+                   class="rounded-md px-3.5 py-1.5 text-xs font-semibold transition <?= $status === 'unpaid' ? 'bg-primary-700 text-white shadow-sm' : 'text-slate-600 hover:text-slate-800' ?>">Unpaid</a>
+                <a href="<?= BASE_URL ?>/admin/payments/members?status=paid<?= $tabQs ?>"
+                   class="rounded-md px-3.5 py-1.5 text-xs font-semibold transition <?= $status === 'paid' ? 'bg-primary-700 text-white shadow-sm' : 'text-slate-600 hover:text-slate-800' ?>">Paid</a>
+                <a href="<?= BASE_URL ?>/admin/payments/members?status=all<?= $tabQs ?>"
+                   class="rounded-md px-3.5 py-1.5 text-xs font-semibold transition <?= $status === 'all' ? 'bg-primary-700 text-white shadow-sm' : 'text-slate-600 hover:text-slate-800' ?>">All</a>
             </div>
         </div>
     </div>

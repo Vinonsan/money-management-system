@@ -108,7 +108,7 @@ $iconTrash = '<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 
             </p>
             <div class="flex items-center gap-1.5">
                 <?php if ($page > 1): ?>
-                    <a href="/admin/locations?page=<?= $page - 1 ?>&per_page=<?= $perPage ?><?= $searchParam ?>"
+                    <a href="<?= BASE_URL ?>/admin/locations?page=<?= $page - 1 ?>&per_page=<?= $perPage ?><?= $searchParam ?>"
                        class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-xs text-slate-600 shadow-sm hover:bg-slate-50 transition-all">
                         <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
                     </a>
@@ -119,11 +119,11 @@ $iconTrash = '<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 
                         ? 'bg-primary-600 text-white font-semibold shadow-sm shadow-primary-600/30'
                         : 'text-slate-600 hover:bg-slate-100';
                 ?>
-                    <a href="/admin/locations?page=<?= $i ?>&per_page=<?= $perPage ?><?= $searchParam ?>"
+                    <a href="<?= BASE_URL ?>/admin/locations?page=<?= $i ?>&per_page=<?= $perPage ?><?= $searchParam ?>"
                        class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-xs transition-all <?= $activeClass ?>"><?= $i ?></a>
                 <?php endfor; ?>
                 <?php if ($page < $totalPages): ?>
-                    <a href="/admin/locations?page=<?= $page + 1 ?>&per_page=<?= $perPage ?><?= $searchParam ?>"
+                    <a href="<?= BASE_URL ?>/admin/locations?page=<?= $page + 1 ?>&per_page=<?= $perPage ?><?= $searchParam ?>"
                        class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-xs text-slate-600 shadow-sm hover:bg-slate-50 transition-all">
                         <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
                     </a>
