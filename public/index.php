@@ -5,39 +5,88 @@ $route = isset($_GET['route']) ? rtrim($_GET['route'], '/') : '';
 
 $routes = [
     // Public
-    ''          => ['Controller' => 'HomeController', 'Action' => 'index'],
-    'home'      => ['Controller' => 'HomeController', 'Action' => 'index'],
-    'about'     => ['Controller' => 'AboutController', 'Action' => 'index'],
-    'contact'   => ['Controller' => 'ContactController', 'Action' => 'index'],
-    'booking'   => ['Controller' => 'BookingController', 'Action' => 'index'],
+    ''      => ['Controller' => 'HomeController', 'Action' => 'index'],
+    'home'  => ['Controller' => 'HomeController', 'Action' => 'index'],
 
-    // Auth
-    'login'     => ['Controller' => 'AuthController', 'Action' => 'showLogin'],
-    'register'  => ['Controller' => 'AuthController', 'Action' => 'showRegister'],
-    'logout'    => ['Controller' => 'AuthController', 'Action' => 'logout'],
+    // Auth (OTP login)
+    'login'                       => ['Controller' => 'AuthController', 'Action' => 'showLogin'],
+    'login/request-otp'           => ['Controller' => 'AuthController', 'Action' => 'requestOtp'],
+    'login/verify-otp'            => ['Controller' => 'AuthController', 'Action' => 'verifyOtp'],
+    'logout'                      => ['Controller' => 'AuthController', 'Action' => 'logout'],
+
+    // Super Admin Auth (Red-themed login)
+    'super-admin/login'                   => ['Controller' => 'AuthController', 'Action' => 'showSuperAdminLogin'],
+    'super-admin/login/request-otp'       => ['Controller' => 'AuthController', 'Action' => 'requestSuperAdminOtp'],
+    'super-admin/login/verify-otp'        => ['Controller' => 'AuthController', 'Action' => 'verifySuperAdminOtp'],
 
     // Admin (Protected)
-    'admin'             => ['Controller' => 'AdminController', 'Action' => 'index', 'Middleware' => 'StaffAuth'],
-    'admin/users'       => ['Controller' => 'AdminController', 'Action' => 'users', 'Middleware' => 'StaffAuth'],
-    'admin/billing'     => ['Controller' => 'BillingController', 'Action' => 'index', 'Middleware' => 'StaffAuth'],
-    'admin/inventory'   => ['Controller' => 'InventoryController', 'Action' => 'index', 'Middleware' => 'StaffAuth'],
+    'admin'         => ['Controller' => 'AdminController', 'Action' => 'index', 'Middleware' => 'StaffAuth'],
+    'admin/profile'       => ['Controller' => 'AdminController', 'Action' => 'profile', 'Middleware' => 'StaffAuth'],
+    'admin/profile/upload-avatar' => ['Controller' => 'AdminController', 'Action' => 'uploadAvatar', 'Middleware' => 'StaffAuth'],
 
-    // Portal (Protected)
-    'portal'    => ['Controller' => 'PortalController', 'Action' => 'index', 'Middleware' => 'CustomerAuth'],
+    // Location Management
+    'admin/locations'          => ['Controller' => 'AdminController', 'Action' => 'locations', 'Middleware' => 'StaffAuth'],
+    'admin/locations/create'   => ['Controller' => 'AdminController', 'Action' => 'createLocation', 'Middleware' => 'StaffAuth'],
+    'admin/locations/update'   => ['Controller' => 'AdminController', 'Action' => 'updateLocation', 'Middleware' => 'StaffAuth'],
+    'admin/locations/delete'   => ['Controller' => 'AdminController', 'Action' => 'deleteLocation', 'Middleware' => 'StaffAuth'],
+    'admin/wards'          => ['Controller' => 'AdminController', 'Action' => 'wards', 'Middleware' => 'StaffAuth'],
+    'admin/wards/create'   => ['Controller' => 'AdminController', 'Action' => 'createWard', 'Middleware' => 'StaffAuth'],
+    'admin/wards/update'   => ['Controller' => 'AdminController', 'Action' => 'updateWard', 'Middleware' => 'StaffAuth'],
+    'admin/wards/delete'   => ['Controller' => 'AdminController', 'Action' => 'deleteWard', 'Middleware' => 'StaffAuth'],
+
+    // Users
+    'admin/users'          => ['Controller' => 'AdminController', 'Action' => 'usersList', 'Middleware' => 'StaffAuth'],
+    'admin/users/create'   => ['Controller' => 'AdminController', 'Action' => 'createUser', 'Middleware' => 'StaffAuth'],
+    'admin/users/update'   => ['Controller' => 'AdminController', 'Action' => 'updateUser', 'Middleware' => 'StaffAuth'],
+    'admin/users/delete'         => ['Controller' => 'AdminController', 'Action' => 'deleteUser', 'Middleware' => 'StaffAuth'],
+
+    // Payments
+    'admin/payments/update'              => ['Controller' => 'AdminController', 'Action' => 'paymentUpdate', 'Middleware' => 'StaffAuth'],
+    'admin/payments/members'             => ['Controller' => 'AdminController', 'Action' => 'paymentMembers', 'Middleware' => 'StaffAuth'],
+    'admin/payments/schedule-message'    => ['Controller' => 'AdminController', 'Action' => 'scheduleMessage', 'Middleware' => 'StaffAuth'],
+    'admin/payments/process-scheduled'   => ['Controller' => 'AdminController', 'Action' => 'processScheduledMessages', 'Middleware' => 'StaffAuth'],
+    'admin/payments/search-user'         => ['Controller' => 'AdminController', 'Action' => 'searchUser', 'Middleware' => 'StaffAuth'],
+    'admin/payments/user-info'           => ['Controller' => 'AdminController', 'Action' => 'getUserPaymentInfo', 'Middleware' => 'StaffAuth'],
+    'admin/payments/calculate'           => ['Controller' => 'AdminController', 'Action' => 'calculatePayment', 'Middleware' => 'StaffAuth'],
+    'admin/payments/create'              => ['Controller' => 'AdminController', 'Action' => 'createPayment', 'Middleware' => 'StaffAuth'],
+
+    // System Config
+    'admin/system-config'              => ['Controller' => 'AdminController', 'Action' => 'systemConfig', 'Middleware' => 'StaffAuth'],
+    'admin/system-config/save'         => ['Controller' => 'AdminController', 'Action' => 'saveSystemConfig', 'Middleware' => 'StaffAuth'],
+    'admin/system-config/messages'     => ['Controller' => 'AdminController', 'Action' => 'systemMessages', 'Middleware' => 'StaffAuth'],
+    'admin/system-config/messages/save' => ['Controller' => 'AdminController', 'Action' => 'saveSystemMessages', 'Middleware' => 'StaffAuth'],
+
+    // Super Admin (Protected - super_admin role only)
+    'super-admin'                   => ['Controller' => 'SuperAdminController', 'Action' => 'index', 'Middleware' => 'SuperAdminAuth'],
+    'super-admin/admins'            => ['Controller' => 'SuperAdminController', 'Action' => 'admins', 'Middleware' => 'SuperAdminAuth'],
+    'super-admin/admins/create'     => ['Controller' => 'SuperAdminController', 'Action' => 'createAdmin', 'Middleware' => 'SuperAdminAuth'],
+    'super-admin/admins/update'     => ['Controller' => 'SuperAdminController', 'Action' => 'updateAdmin', 'Middleware' => 'SuperAdminAuth'],
+    'super-admin/admins/delete'     => ['Controller' => 'SuperAdminController', 'Action' => 'deleteAdmin', 'Middleware' => 'SuperAdminAuth'],
+    'super-admin/sms'               => ['Controller' => 'SuperAdminController', 'Action' => 'smsConfig', 'Middleware' => 'SuperAdminAuth'],
+    'super-admin/sms/save-config'   => ['Controller' => 'SuperAdminController', 'Action' => 'saveSmsConfig', 'Middleware' => 'SuperAdminAuth'],
+    'super-admin/sms/refill'        => ['Controller' => 'SuperAdminController', 'Action' => 'refillSms', 'Middleware' => 'SuperAdminAuth'],
+    'super-admin/sms/refill-requests' => ['Controller' => 'SuperAdminController', 'Action' => 'refillRequests', 'Middleware' => 'SuperAdminAuth'],
+    'super-admin/sms/approve-refill'  => ['Controller' => 'SuperAdminController', 'Action' => 'approveRefill', 'Middleware' => 'SuperAdminAuth'],
+
+    // Admin SMS Management
+    'admin/sms'                       => ['Controller' => 'AdminController', 'Action' => 'smsManager', 'Middleware' => 'StaffAuth'],
+    'admin/sms/request-refill'        => ['Controller' => 'AdminController', 'Action' => 'requestRefill', 'Middleware' => 'StaffAuth'],
 ];
 
 if (array_key_exists($route, $routes)) {
     $info = $routes[$route];
     if (isset($info['Middleware'])) {
         $mwClass = 'Middleware\\' . $info['Middleware'];
-        if (class_exists($mwClass)) (new $mwClass())->handle();
+        if (class_exists($mwClass)) {
+            (new $mwClass())->handle();
+        }
     }
     $ctrlClass = 'Controllers\\' . $info['Controller'];
     if (class_exists($ctrlClass)) {
         (new $ctrlClass())->{$info['Action']}();
     } else {
         http_response_code(500);
-        echo "<h1>Controller Not Found</h1>";
+        echo '<h1>Controller Not Found</h1>';
     }
 } else {
     http_response_code(404);
