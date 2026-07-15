@@ -1,23 +1,40 @@
 <?php
 declare(strict_types=1);
 
-date_default_timezone_set('UTC');
+date_default_timezone_set('Asia/Colombo');
 
 // ─── Environment Detection ──────────────────────────────────────────────
-// Auto-detect: local dev uses /php-structure, production uses document root
 $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
 $host     = $_SERVER['HTTP_HOST'] ?? 'localhost';
 $isLocal  = in_array($host, ['localhost', '127.0.0.1', '::1'], true);
-$subfolder = $isLocal ? '/php-structure' : '';
+
+// PHP built-in server serves from /public — no subfolder needed
+$isBuiltInServer = PHP_SAPI === 'cli-server';
+// When using XAMPP, the project subfolder matches the htdocs folder name
+$projectFolder = basename(dirname(__DIR__)); // money-management-system-1
+$subfolder = ($isLocal && !$isBuiltInServer) ? '/' . $projectFolder : '';
 
 define('BASE_URL', rtrim($protocol . $host . $subfolder, '/'));
 
 // ─── App Settings ───────────────────────────────────────────────────────
-define('APP_NAME', 'MyApp');
+define('APP_NAME', 'MasjidPay');
+
+// ─── OTP / SMS ──────────────────────────────────────────────────────────
+// OTP is generated as a cryptographically secure 6‑digit random number via random_int().
+// Remove any OTP_DEV_CODE definition in production — the fallback is always secure.
+define('OTP_EXPIRY_MINUTES', 5);
+define('OTP_MAX_REQUESTS', 3);          // 3 OTP requests → lock 1 minute
+define('OTP_LOCK_SECONDS', 60);
+define('LOGIN_FAIL_MAX', 2);            // 2 failed OTP verifies → next lock
+define('LOGIN_FAIL_LOCK_SECONDS', 300); // 5 minutes
+define('LOGIN_ESCALATED_LOCK_SECONDS', 3600); // 1 hour
 
 // ─── Deployment Secret (used by deploy/migrate.php) ─────────────────────
 // CHANGE THIS to a random string before production deployment.
 define('DEPLOY_SECRET', 'change-this-to-a-secure-random-token');
+
+require_once __DIR__ . '/database.php';
+require_once __DIR__ . '/theme.php';
 
 // ─── Session ────────────────────────────────────────────────────────────
 if (session_status() === PHP_SESSION_NONE) {

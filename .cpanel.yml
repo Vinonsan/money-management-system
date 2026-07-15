@@ -2,8 +2,18 @@
 deployment:
   tasks:
     - export DEPLOYPATH=/home/riversid/masterbrain.site/
-    - /bin/cp -r config $DEPLOYPATH
-    - /bin/cp -r public $DEPLOYPATH
-    - /bin/cp -r src $DEPLOYPATH
-    - /bin/cp -r deploy $DEPLOYPATH
+    - /bin/mkdir -p $DEPLOYPATH
+    # Copy project directories (preserves public/ as a subdirectory)
+    - /bin/cp -R public $DEPLOYPATH
+    - /bin/cp -R config $DEPLOYPATH
+    - /bin/cp -R src $DEPLOYPATH
+    - /bin/cp -R deploy $DEPLOYPATH
+    # Copy root-level files
     - /bin/cp .htaccess $DEPLOYPATH
+    - /bin/cp setup.php $DEPLOYPATH
+    - /bin/cp schema.sql $DEPLOYPATH
+    # Strip deployment-only artifacts from the target
+    - /bin/rm -rf ${DEPLOYPATH}.git
+    - /bin/rm -f ${DEPLOYPATH}.cpanel.yml
+    - /bin/rm -f ${DEPLOYPATH}implementation_plan.md
+    - /bin/rm -f ${DEPLOYPATH}sms_log.txt
