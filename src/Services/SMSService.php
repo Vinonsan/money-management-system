@@ -18,7 +18,7 @@ class SMSService
     {
         $this->userId   = \Models\Setting::get('smslenz_user_id', '');
         $this->apiKey   = \Models\Setting::get('smslenz_api_key', '');
-        $this->senderId = \Models\Setting::get('smslenz_sender_id', 'SMSlenzDEMO');
+        $this->senderId = \Models\Setting::get('smslenz_sender_id', 'ExGenX9920');
     }
 
     /**

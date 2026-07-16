@@ -161,6 +161,7 @@ class AuthController
         $_SESSION['user_name'] = $user['name'];
         $_SESSION['user_role'] = $user['role'];
         $_SESSION['user_phone'] = $user['phone'];
+        $_SESSION['user_location_id'] = $user['location_id'] ? (int) $user['location_id'] : null;
         unset($_SESSION['sa_otp_step'], $_SESSION['sa_otp_phone'], $_SESSION['flash_error'], $_SESSION['flash_success']);
 
         header('Location: ' . BASE_URL . '/super-admin');
@@ -277,6 +278,7 @@ class AuthController
         $_SESSION['user_name'] = $user['name'];
         $_SESSION['user_role'] = $user['role'];
         $_SESSION['user_phone'] = $user['phone'];
+        $_SESSION['user_location_id'] = $user['location_id'] ? (int) $user['location_id'] : null;
         unset($_SESSION['otp_step'], $_SESSION['otp_phone'], $_SESSION['flash_error'], $_SESSION['flash_success']);
 
         // Redirect super_admin to super admin portal

@@ -11,11 +11,7 @@ class SuperAdminController
     {
         $db = Database::connect();
 
-        // Stats
         $totalAdmins = $db->fetch("SELECT COUNT(*) AS cnt FROM users WHERE role = 'admin'")['cnt'] ?? 0;
-        $totalCollectors = $db->fetch("SELECT COUNT(*) AS cnt FROM users WHERE role = 'collector'")['cnt'] ?? 0;
-        $totalMembers = $db->fetch("SELECT COUNT(*) AS cnt FROM users WHERE role = 'collector' AND monthly_amount > 0")['cnt'] ?? 0;
-        $totalCollection = $db->fetch("SELECT COALESCE(SUM(amount), 0) AS total FROM payments")['total'] ?? 0;
 
         // SMS stats
         $smsBalance = Setting::get('sms_balance', '0');
@@ -24,9 +20,6 @@ class SuperAdminController
 
         $this->view('Super Admin Dashboard', 'super_admin/dashboard.php', [
             'totalAdmins' => (int) $totalAdmins,
-            'totalCollectors' => (int) $totalCollectors,
-            'totalMembers' => (int) $totalMembers,
-            'totalCollection' => (float) $totalCollection,
             'smsBalance' => $smsBalance,
             'smsCost' => $smsCost,
             'remainingSms' => (int) $remainingSms,
@@ -42,7 +35,7 @@ class SuperAdminController
         $offset = ($page - 1) * $perPage;
 
         $admins = Database::connect()->fetchAll(
-            "SELECT id, name, email, phone, is_active, created_at FROM users WHERE role = 'admin' ORDER BY created_at DESC LIMIT ? OFFSET ?",
+            "SELECT id, name, business_name, email, phone, is_active, created_at FROM users WHERE role = 'admin' ORDER BY created_at DESC LIMIT ? OFFSET ?",
             [$perPage, $offset]
         );
         $total = Database::connect()->fetch("SELECT COUNT(*) AS cnt FROM users WHERE role = 'admin'")['cnt'] ?? 0;
@@ -61,7 +54,9 @@ class SuperAdminController
         $data = $this->jsonBody();
 
         $name = trim($data['name'] ?? '');
+        $businessName = trim($data['business_name'] ?? '');
         $phone = trim($data['phone'] ?? '');
+        $email = trim($data['email'] ?? '');
         $password = $data['password'] ?? '';
 
         if ($name === '' || $phone === '') {
@@ -76,12 +71,32 @@ class SuperAdminController
         $hash = $password !== '' ? password_hash($password, PASSWORD_DEFAULT) : null;
 
         $db = Database::connect();
-        $db->insert(
-            'INSERT INTO users (name, email, phone, password, role, is_active) VALUES (?, ?, ?, ?, ?, 1)',
-            [$name, $data['email'] ?? null, $phone, $hash, 'admin']
+        $adminId = (int) $db->insert(
+            'INSERT INTO users (name, business_name, phone, email, password, role, is_active) VALUES (?, ?, ?, ?, ?, ?, 1)',
+            [$name, $businessName, $phone, $email, $hash, 'admin']
         );
 
-        $this->jsonSuccess('Admin created successfully.');
+        // Auto-create a location for this admin (isolation)
+        $locName = $businessName ?: $name . "'s Location";
+        $locationId = (int) $db->insert(
+            'INSERT INTO locations (name, is_active) VALUES (?, 1)',
+            [$locName]
+        );
+
+        // Link admin to their location
+        $db->execute('UPDATE users SET location_id = ? WHERE id = ?', [$locationId, $adminId]);
+
+        // Send welcome SMS with login details
+        try {
+            $sms = new \Services\SMSService();
+            $loginUrl = BASE_URL . '/login';
+            $message = "Dear {$name}, your MasjidPay admin account is ready. Phone: {$phone}. Login at: {$loginUrl} - OTP will be sent to your phone.";
+            $sms->send($phone, $message);
+        } catch (\Exception $e) {
+            // SMS failure shouldn't block account creation
+        }
+
+        $this->jsonSuccess('Admin created successfully. Login details sent via SMS.');
     }
 
     public function updateAdmin(): void
@@ -96,7 +111,9 @@ class SuperAdminController
         }
 
         $name = trim($data['name'] ?? '');
+        $businessName = trim($data['business_name'] ?? '');
         $phone = trim($data['phone'] ?? '');
+        $email = trim($data['email'] ?? '');
         $password = $data['password'] ?? '';
 
         if ($name === '' || $phone === '') {
@@ -112,13 +129,13 @@ class SuperAdminController
         if ($password !== '') {
             $hash = password_hash($password, PASSWORD_DEFAULT);
             $db->execute(
-                'UPDATE users SET name = ?, email = ?, phone = ?, password = ? WHERE id = ? AND role = ?',
-                [$name, $data['email'] ?? null, $phone, $hash, $id, 'admin']
+                'UPDATE users SET name = ?, business_name = ?, phone = ?, email = ?, password = ? WHERE id = ? AND role = ?',
+                [$name, $businessName, $phone, $email, $hash, $id, 'admin']
             );
         } else {
             $db->execute(
-                'UPDATE users SET name = ?, email = ?, phone = ? WHERE id = ? AND role = ?',
-                [$name, $data['email'] ?? null, $phone, $id, 'admin']
+                'UPDATE users SET name = ?, business_name = ?, phone = ?, email = ? WHERE id = ? AND role = ?',
+                [$name, $businessName, $phone, $email, $id, 'admin']
             );
         }
 
@@ -152,9 +169,7 @@ class SuperAdminController
     {
         $smsBalance = Setting::get('sms_balance', '0');
         $smsCost = Setting::get('sms_cost_per_message', '0.62');
-        $smsSenderId = Setting::get('smslenz_sender_id', 'SMSlenzDEMO');
-        $smsUserId = Setting::get('smslenz_user_id', '');
-        $smsApiKey = Setting::get('smslenz_api_key', '');
+        $smsSenderId = Setting::get('smslenz_sender_id', 'ExGenX9920');
 
         // Transaction history from settings (simple log)
         $history = Database::connect()->fetchAll(
@@ -177,9 +192,7 @@ class SuperAdminController
         $data = $this->jsonBody();
 
         $smsCost = trim($data['sms_cost_per_message'] ?? '0.62');
-        $smsSenderId = trim($data['smslenz_sender_id'] ?? 'SMSlenzDEMO');
-        $smsUserId = trim($data['smslenz_user_id'] ?? '');
-        $smsApiKey = trim($data['smslenz_api_key'] ?? '');
+        $smsSenderId = trim($data['smslenz_sender_id'] ?? 'ExGenX9920');
 
         if ($smsCost === '' || (float) $smsCost <= 0) {
             $this->jsonError('Valid cost is required.');

@@ -35,8 +35,9 @@ $pageTitle = 'Manage Admins';
                 <thead class="bg-slate-50/50">
                     <tr>
                         <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Name</th>
-                        <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Email</th>
+                        <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Business</th>
                         <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Phone</th>
+                        <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Email</th>
                         <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Status</th>
                         <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Created</th>
                         <th class="px-6 py-4 text-center text-xs font-semibold uppercase tracking-wider text-slate-500">Actions</th>
@@ -54,6 +55,7 @@ $pageTitle = 'Manage Admins';
                             <?php
                             $id = (int) ($admin['id'] ?? 0);
                             $name = htmlspecialchars($admin['name'] ?? '', ENT_QUOTES);
+                            $businessName = htmlspecialchars($admin['business_name'] ?? '', ENT_QUOTES);
                             $email = htmlspecialchars($admin['email'] ?? '', ENT_QUOTES);
                             $phone = htmlspecialchars($admin['phone'] ?? '', ENT_QUOTES);
                             $isActive = !empty($admin['is_active']);
@@ -65,9 +67,14 @@ $pageTitle = 'Manage Admins';
                                     <p class="text-sm font-semibold text-slate-800"><?= $name ?></p>
                                 </td>
                                 <td class="px-6 py-4">
-                                    <p class="text-sm text-slate-600"><?= $email ?: '<span class="text-slate-300 italic">—</span>' ?></p>
+                                    <p class="text-sm text-slate-600"><?= $businessName ?: '<span class="text-slate-300 italic">—</span>' ?></p>
                                 </td>
                                 <td class="px-6 py-4">
+                                    <p class="text-sm text-slate-600"><?= $phone ?></p>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <p class="text-sm text-slate-600"><?= $email ?: '<span class="text-slate-300 italic">—</span>' ?></p>
+                                </td>
                                     <p class="text-sm text-slate-600"><?= $phone ?></p>
                                 </td>
                                 <td class="px-6 py-4">
@@ -129,24 +136,30 @@ $pageTitle = 'Manage Admins';
     echo \Components\Drawer\Drawer::render('admin-drawer', 'Admin Form', '
         <div class="space-y-5">
             <div>
-                <label class="block text-sm font-semibold text-slate-700 mb-1.5">Full Name <span class="text-primary-500">*</span></label>
+                <label class="block text-sm font-semibold text-primary-800 mb-1.5">Full Name <span class="text-primary-500">*</span></label>
                 <input type="text" x-model="form.name"
-                    class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                    class="w-full rounded-lg border border-primary-200 bg-primary-50/30 px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-600/20 focus:bg-white transition"
                     placeholder="e.g. John Doe">
                 <template x-if="errors.name">
                     <p class="mt-1 text-xs text-primary-500" x-text="errors.name"></p>
                 </template>
             </div>
             <div>
-                <label class="block text-sm font-semibold text-slate-700 mb-1.5">Email</label>
+                <label class="block text-sm font-semibold text-primary-800 mb-1.5">Business Name</label>
+                <input type="text" x-model="form.business_name"
+                    class="w-full rounded-lg border border-primary-200 bg-primary-50/30 px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-600/20 focus:bg-white transition"
+                    placeholder="e.g. MasjidPay Owner">
+            </div>
+            <div>
+                <label class="block text-sm font-semibold text-primary-800 mb-1.5">Email</label>
                 <input type="email" x-model="form.email"
-                    class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                    class="w-full rounded-lg border border-primary-200 bg-primary-50/30 px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-600/20 focus:bg-white transition"
                     placeholder="admin@example.com">
             </div>
             <div>
-                <label class="block text-sm font-semibold text-slate-700 mb-1.5">Phone <span class="text-primary-500">*</span></label>
+                <label class="block text-sm font-semibold text-primary-800 mb-1.5">Phone <span class="text-primary-500">*</span></label>
                 <input type="text" x-model="form.phone"
-                    class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                    class="w-full rounded-lg border border-primary-200 bg-primary-50/30 px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-600/20 focus:bg-white transition"
                     placeholder="e.g. +94 77 123 4567">
                 <template x-if="errors.phone">
                     <p class="mt-1 text-xs text-primary-500" x-text="errors.phone"></p>
@@ -196,7 +209,7 @@ function adminManager() {
     return {
         drawer: '',
         modal: '',
-        form: { id: null, name: '', email: '', phone: '', password: '' },
+        form: { id: null, name: '', business_name: '', email: '', phone: '', password: '' },
         errors: {},
         isEditing: false,
         saving: false,
@@ -252,6 +265,7 @@ function adminManager() {
             const payload = {
                 id: this.form.id,
                 name: name,
+                business_name: this.form.business_name.trim() || null,
                 email: this.form.email.trim() || null,
                 phone: phone,
                 password: this.form.password,

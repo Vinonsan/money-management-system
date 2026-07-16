@@ -2,6 +2,7 @@
 namespace Controllers;
 
 use Models\Location;
+use Models\Member;
 use Models\Payment;
 use Models\Setting;
 use Models\User;
@@ -9,46 +10,66 @@ use Models\Ward;
 
 class AdminController
 {
+    /**
+     * Get the current admin's location ID for data isolation.
+     * Super admin sees all (null = no filter).
+     */
+    private function getLocationFilter(): ?int
+    {
+        $role = $_SESSION['user_role'] ?? '';
+        if ($role === 'super_admin') {
+            return null; // super admin sees all
+        }
+        $locId = $_SESSION['user_location_id'] ?? 0;
+        return $locId > 0 ? $locId : null;
+    }
+
     public function index(): void
     {
         $db = \Models\Database::connect();
         $today = date('Y-m-d');
         $firstOfMonth = date('Y-m-01');
+        $locFilter = $this->getLocationFilter();
+        $locJoin = $locFilter ? ' AND m.location_id = ' . (int) $locFilter : '';
+        $locPayJoin = $locFilter ? ' AND m2.location_id = ' . (int) $locFilter : '';
 
-        // Total members (active, with monthly_amount > 0)
-        $totalMembers = $db->fetch('SELECT COUNT(*) AS cnt FROM users WHERE is_active = 1 AND monthly_amount > 0')['cnt'] ?? 0;
+        // Total members
+        $totalMembers = $db->fetch("SELECT COUNT(*) AS cnt FROM members WHERE is_active = 1 AND monthly_amount > 0{$locJoin}")['cnt'] ?? 0;
 
-        // Monthly target = total members * average monthly amount (or sum of all monthly amounts)
-        $monthlyTarget = $db->fetch('SELECT COALESCE(SUM(monthly_amount), 0) AS total FROM users WHERE is_active = 1 AND monthly_amount > 0')['total'] ?? 0;
+        // Monthly target
+        $monthlyTarget = $db->fetch("SELECT COALESCE(SUM(monthly_amount), 0) AS total FROM members WHERE is_active = 1 AND monthly_amount > 0{$locJoin}")['total'] ?? 0;
 
-        // This month collection
+        // This month collection - filter by admin's location members
         $thisMonth = $db->fetch(
-            "SELECT COALESCE(SUM(amount), 0) AS total FROM payments WHERE created_at >= ? AND created_at < ?",
+            "SELECT COALESCE(SUM(p.amount), 0) AS total FROM payments p
+             JOIN members m ON m.id = p.member_id
+             WHERE p.created_at >= ? AND p.created_at < ?{$locJoin}",
             [$firstOfMonth, date('Y-m-01', strtotime('+1 month'))]
         )['total'] ?? 0;
 
         // Yearly collection
         $firstOfYear = date('Y-01-01');
         $thisYear = $db->fetch(
-            "SELECT COALESCE(SUM(amount), 0) AS total FROM payments WHERE created_at >= ? AND created_at < ?",
+            "SELECT COALESCE(SUM(p.amount), 0) AS total FROM payments p
+             JOIN members m ON m.id = p.member_id
+             WHERE p.created_at >= ? AND p.created_at < ?{$locJoin}",
             [$firstOfYear, date('Y-01-01', strtotime('+1 year'))]
         )['total'] ?? 0;
 
-        // Yearly target = monthly target * 12
         $yearlyTarget = $monthlyTarget * 12;
 
-        // Total collection overall
-        $totalCollected = $db->fetch('SELECT COALESCE(SUM(amount), 0) AS total FROM payments')['total'] ?? 0;
+        // Total collection (admin's location only)
+        $totalCollected = $db->fetch("SELECT COALESCE(SUM(p.amount), 0) AS total FROM payments p JOIN members m ON m.id = p.member_id WHERE 1=1{$locJoin}")['total'] ?? 0;
 
         // Unpaid members count
         $unpaidCount = $db->fetch(
-            "SELECT COUNT(*) AS cnt FROM users u WHERE u.is_active = 1 AND u.monthly_amount > 0
-             AND ((SELECT COALESCE(MAX(p.to_month), '0000-00-00') FROM payments p WHERE p.user_id = u.id) < ?
-                  OR (SELECT COUNT(*) FROM payments p WHERE p.user_id = u.id) = 0)",
+            "SELECT COUNT(*) AS cnt FROM members m WHERE m.is_active = 1 AND m.monthly_amount > 0{$locJoin}
+             AND ((SELECT COALESCE(MAX(p.to_month), '0000-00-00') FROM payments p WHERE p.member_id = m.id) < ?
+                  OR (SELECT COUNT(*) FROM payments p WHERE p.member_id = m.id) = 0)",
             [$today]
         )['cnt'] ?? 0;
 
-        // SMS data (optional — may not be configured for regular admins)
+        // SMS data
         $smsBalance    = Setting::get('sms_balance', '0');
         $smsCost       = Setting::get('sms_cost_per_message', '0.62');
         $remainingSms  = (float)$smsCost > 0 ? floor((float)$smsBalance / (float)$smsCost) : 0;
@@ -72,98 +93,15 @@ class AdminController
     public function profile(): void
     {
         $user = User::findById((int) ($_SESSION['user_id'] ?? 0));
-        $avatarUrl = null;
-        if (!empty($user['avatar'])) {
-            $avatarUrl = BASE_URL . '/' . $user['avatar'];
-        }
         $this->view('Profile', 'profile.php', [
             'user' => $user ?? [],
-            'avatarUrl' => $avatarUrl,
-            'uploadError' => $_SESSION['upload_error'] ?? null,
-            'uploadSuccess' => $_SESSION['upload_success'] ?? null,
         ], 'profile');
-        unset($_SESSION['upload_error'], $_SESSION['upload_success']);
     }
 
     public function uploadAvatar(): void
     {
-        $userId = (int) ($_SESSION['user_id'] ?? 0);
-        if ($userId <= 0) {
-            $_SESSION['upload_error'] = 'Please login first.';
-            header('Location: ' . BASE_URL . '/admin/profile');
-            exit;
-        }
-
-        if (!isset($_FILES['avatar']) || $_FILES['avatar']['error'] !== UPLOAD_ERR_OK) {
-            $_SESSION['upload_error'] = 'No file uploaded or upload error.';
-            header('Location: ' . BASE_URL . '/admin/profile');
-            exit;
-        }
-
-        $file = $_FILES['avatar'];
-        $maxSize = 2 * 1024 * 1024; // 2MB
-        $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-
-        // Validate file type
-        $finfo = finfo_open(FILEINFO_MIME_TYPE);
-        $mime = finfo_file($finfo, $file['tmp_name']);
-        finfo_close($finfo);
-
-        if (!in_array($mime, $allowedTypes, true)) {
-            $_SESSION['upload_error'] = 'Only JPG, PNG, GIF &amp; WebP images are allowed.';
-            header('Location: ' . BASE_URL . '/admin/profile');
-            exit;
-        }
-
-        if ($file['size'] > $maxSize) {
-            $_SESSION['upload_error'] = 'Image must be less than 2MB.';
-            header('Location: ' . BASE_URL . '/admin/profile');
-            exit;
-        }
-
-        // Generate unique filename
-        $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
-        $filename = 'avatar_' . $userId . '_' . time() . '.' . $ext;
-        $uploadDir = __DIR__ . '/../../public/assets/uploads/avatars/';
-
-        if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0755, true);
-        }
-
-        $destPath = $uploadDir . $filename;
-
-        if (!move_uploaded_file($file['tmp_name'], $destPath)) {
-            $_SESSION['upload_error'] = 'Failed to save image. Please try again.';
-            header('Location: ' . BASE_URL . '/admin/profile');
-            exit;
-        }
-
-        // Delete old avatar if exists (handle both old public/ prefix and new path)
-        $user = User::findById($userId);
-        if (!empty($user['avatar'])) {
-            $oldPath = $user['avatar'];
-            if (str_starts_with($oldPath, 'public/')) {
-                $oldPath = substr($oldPath, 7);
-            }
-            $oldFile = __DIR__ . '/../../public/' . $oldPath;
-            if (file_exists($oldFile)) {
-                @unlink($oldFile);
-            }
-        }
-
-        // Save relative path - find user by phone from session for reliability
-        $phone = $_SESSION['user_phone'] ?? '';
-        if ($phone) {
-            $userByPhone = User::findByPhone($phone);
-            if ($userByPhone) {
-                $userId = (int) $userByPhone['id'];
-            }
-        }
-        $relativePath = 'assets/uploads/avatars/' . $filename;
-        User::updateAvatar($userId, $relativePath);
-        User::updateAvatar($userId, $relativePath);
-
-        $_SESSION['upload_success'] = 'Profile picture updated successfully.';
+        // Avatar upload disabled - users table simplified
+        $_SESSION['upload_error'] = 'Profile image upload is not available.';
         header('Location: ' . BASE_URL . '/admin/profile');
         exit;
     }
@@ -386,10 +324,10 @@ class AdminController
     }
 
     // ──────────────────────────────────────────────
-    //  Users
+    //  Members
     // ──────────────────────────────────────────────
 
-    public function usersList(): void
+    public function membersList(): void
     {
         $page = max(1, (int) ($_GET['page'] ?? 1));
         $perPage = max(1, min(100, (int) ($_GET['per_page'] ?? 10)));
@@ -398,10 +336,10 @@ class AdminController
         $wardId = max(0, (int) ($_GET['ward_id'] ?? 0));
         $sortField = (string) ($_GET['sort'] ?? 'created_at');
         $sortDir = (string) ($_GET['dir'] ?? 'desc');
-        $total = User::count($search, $locationId, $wardId);
+        $total = Member::count($search, $locationId, $wardId);
 
-        $this->view('Users', 'users.php', [
-            'users' => User::getAll($page, $perPage, $search, $sortField, $sortDir, $locationId, $wardId),
+        $this->view('Members', 'users.php', [
+            'members' => Member::getAll($page, $perPage, $search, $sortField, $sortDir, $locationId, $wardId),
             'total' => $total,
             'page' => $page,
             'perPage' => $perPage,
@@ -415,7 +353,7 @@ class AdminController
         ], 'users.list');
     }
 
-    public function createUser(): void
+    public function createMember(): void
     {
         $this->requireJson();
         $data = $this->jsonBody();
@@ -430,13 +368,13 @@ class AdminController
             $this->jsonError('Enter a valid phone number.');
             return;
         }
-        if (User::phoneExists($phone)) {
+        if (Member::phoneExists($phone)) {
             $this->jsonError('This phone number is already in use.');
             return;
         }
 
         try {
-            User::create([
+            Member::create([
                 'name' => $name,
                 'email' => !empty($data['email']) ? trim($data['email']) : null,
                 'phone' => $phone,
@@ -447,20 +385,20 @@ class AdminController
                 'ward_id' => !empty($data['ward_id']) ? (int) $data['ward_id'] : null,
                 'monthly_amount' => !empty($data['monthly_amount']) ? (float) $data['monthly_amount'] : 0,
             ]);
-            $this->jsonSuccess('User created.');
+            $this->jsonSuccess('Member created.');
         } catch (\Exception $e) {
-            $this->jsonError('Failed to create user: ' . $e->getMessage());
+            $this->jsonError('Failed to create member: ' . $e->getMessage());
         }
     }
 
-    public function updateUser(): void
+    public function updateMember(): void
     {
         $this->requireJson();
         $data = $this->jsonBody();
 
         $id = (int) ($data['id'] ?? 0);
         if ($id <= 0) {
-            $this->jsonError('Invalid user ID.');
+            $this->jsonError('Invalid member ID.');
             return;
         }
 
@@ -475,13 +413,13 @@ class AdminController
             $this->jsonError('Enter a valid phone number.');
             return;
         }
-        if (User::phoneExistsExclude($phone, $id)) {
+        if (Member::phoneExistsExclude($phone, $id)) {
             $this->jsonError('This phone number is already in use by another user.');
             return;
         }
 
         try {
-            User::update($id, [
+            Member::update($id, [
                 'name' => $name,
                 'email' => !empty($data['email']) ? trim($data['email']) : null,
                 'phone' => $phone,
@@ -492,26 +430,26 @@ class AdminController
                 'ward_id' => !empty($data['ward_id']) ? (int) $data['ward_id'] : null,
                 'monthly_amount' => !empty($data['monthly_amount']) ? (float) $data['monthly_amount'] : 0,
             ]);
-            $this->jsonSuccess('User updated.');
+            $this->jsonSuccess('Member updated.');
         } catch (\Exception $e) {
-            $this->jsonError('Failed to update user: ' . $e->getMessage());
+            $this->jsonError('Failed to update member: ' . $e->getMessage());
         }
     }
 
-    public function deleteUser(): void
+    public function deleteMember(): void
     {
         $this->requireJson();
         $data = $this->jsonBody();
 
         $id = (int) ($data['id'] ?? 0);
         if ($id <= 0) {
-            $this->jsonError('Invalid user ID.');
+            $this->jsonError('Invalid member ID.');
             return;
         }
 
         try {
-            User::delete($id);
-            $this->jsonSuccess('User deleted.');
+            Member::delete($id);
+            $this->jsonSuccess('Member deleted.');
         } catch (\Exception $e) {
             $this->jsonError('Failed to delete user: ' . $e->getMessage());
         }
@@ -565,9 +503,9 @@ class AdminController
         try {
             $db = \Models\Database::connect();
             $dueMessages = $db->fetchAll(
-                "SELECT sm.id, sm.user_id, sm.message, u.phone
+                "SELECT sm.id, sm.member_id, sm.message, m.phone
                  FROM scheduled_messages sm
-                 JOIN users u ON u.id = sm.user_id
+                 JOIN users u ON m.id = sm.member_id
                  WHERE sm.status = 'pending' AND sm.scheduled_date <= CURDATE()"
             );
 
@@ -615,20 +553,20 @@ class AdminController
         $today = date('Y-m-d');
         $startDate = \Models\Setting::get('collection_start_date', $today);
 
-        $conditions = ['(u.monthly_amount > 0)'];
+        $conditions = ['(m.monthly_amount > 0)'];
         $params = [];
 
         if ($search !== '') {
-            $conditions[] = '(u.name LIKE ? OR u.card_number LIKE ?)';
+            $conditions[] = '(m.name LIKE ? OR m.card_number LIKE ?)';
             $params[] = "%{$search}%";
             $params[] = "%{$search}%";
         }
         if ($locationId > 0) {
-            $conditions[] = 'u.location_id = ?';
+            $conditions[] = 'm.location_id = ?';
             $params[] = $locationId;
         }
         if ($wardId > 0) {
-            $conditions[] = 'u.ward_id = ?';
+            $conditions[] = 'm.ward_id = ?';
             $params[] = $wardId;
         }
 
@@ -636,16 +574,16 @@ class AdminController
 
         // Unpaid = last_paid_to < today OR never paid
         $users = $db->fetchAll(
-            "SELECT u.id, u.name, u.phone, u.monthly_amount
-             FROM users u
-             LEFT JOIN locations l ON l.id = u.location_id
-             LEFT JOIN wards w ON w.id = u.ward_id
+            "SELECT m.id, m.name, m.phone, m.monthly_amount
+             FROM members m
+             LEFT JOIN locations l ON l.id = m.location_id
+             LEFT JOIN wards w ON w.id = m.ward_id
              WHERE {$where}
                AND (
-                   (SELECT COALESCE(MAX(p.to_month), '0000-00-00') FROM payments p WHERE p.user_id = u.id) < ?
-                   OR (SELECT COUNT(*) FROM payments p WHERE p.user_id = u.id) = 0
+                   (SELECT COALESCE(MAX(p.to_month), '0000-00-00') FROM payments p WHERE p.member_id = m.id) < ?
+                   OR (SELECT COUNT(*) FROM payments p WHERE p.member_id = m.id) = 0
                )
-             ORDER BY u.name",
+             ORDER BY m.name",
             array_merge($params, [$today])
         );
 
@@ -671,7 +609,7 @@ class AdminController
             );
 
             $db->execute(
-                'INSERT INTO scheduled_messages (user_id, scheduled_date, scheduled_time, message, type, status) VALUES (?, ?, ?, ?, ?, ?)',
+                'INSERT INTO scheduled_messages (member_id, scheduled_date, scheduled_time, message, type, status) VALUES (?, ?, ?, ?, ?, ?)',
                 [(int) $u['id'], $scheduleDate, $scheduleTime !== '' ? $scheduleTime : null, $msg, 'due', 'pending']
             );
             $scheduled++;
@@ -690,9 +628,9 @@ class AdminController
         //   - scheduled_date < CURDATE(), OR
         //   - scheduled_date = CURDATE() AND (scheduled_time IS NULL OR scheduled_time <= CURTIME())
         $dueMessages = $db->fetchAll(
-            "SELECT sm.id, sm.user_id, sm.message, sm.scheduled_date, sm.scheduled_time, u.phone
+            "SELECT sm.id, sm.member_id, sm.message, sm.scheduled_date, sm.scheduled_time, m.phone
              FROM scheduled_messages sm
-             JOIN users u ON u.id = sm.user_id
+             JOIN users u ON m.id = sm.member_id
              WHERE sm.status = 'pending'
                AND (
                    sm.scheduled_date < CURDATE()
@@ -727,7 +665,7 @@ class AdminController
         $this->jsonSuccess("Processed: {$sent} sent, {$failed} failed.");
     }
 
-    public function searchUser(): void
+    public function searchMember(): void
     {
         $this->requireJson();
         $data = $this->jsonBody();
@@ -739,34 +677,34 @@ class AdminController
         }
 
         $users = \Models\Database::connect()->fetchAll(
-            "SELECT u.id, u.name, u.phone, u.card_number, u.monthly_amount, u.is_active,
+            "SELECT m.id, m.name, m.phone, m.card_number, m.monthly_amount, m.is_active,
                     l.name AS location_name, w.ward_number
-             FROM users u
-             LEFT JOIN locations l ON l.id = u.location_id
-             LEFT JOIN wards w ON w.id = u.ward_id
-             WHERE u.name LIKE ? OR u.card_number LIKE ?
+             FROM members m
+             LEFT JOIN locations l ON l.id = m.location_id
+             LEFT JOIN wards w ON w.id = m.ward_id
+             WHERE m.name LIKE ? OR m.card_number LIKE ?
              LIMIT 20",
             ['%' . $query . '%', '%' . $query . '%']
         );
 
         header('Content-Type: application/json');
-        echo json_encode(['success' => true, 'users' => $users]);
+        echo json_encode(['success' => true, 'members' => $users]);
         exit;
     }
 
-    public function getUserPaymentInfo(): void
+    public function getMemberPaymentInfo(): void
     {
         $this->requireJson();
         $data = $this->jsonBody();
-        $userId = (int) ($data['user_id'] ?? 0);
+        $memberId = (int) ($data['member_id'] ?? 0);
 
-        if ($userId <= 0) {
-            $this->jsonError('Invalid user.');
+        if ($memberId <= 0) {
+            $this->jsonError('Invalid member.');
             return;
         }
 
-        $summary = Payment::getUserPaymentSummary($userId);
-        $history = Payment::getByUser($userId);
+        $summary = Payment::getMemberPaymentSummary($memberId);
+        $history = Payment::getByMember($memberId);
 
         header('Content-Type: application/json');
         echo json_encode(['success' => true, 'data' => $summary, 'history' => $history]);
@@ -778,15 +716,15 @@ class AdminController
         $this->requireJson();
         $data = $this->jsonBody();
 
-        $userId = (int) ($data['user_id'] ?? 0);
+        $memberId = (int) ($data['member_id'] ?? 0);
         $amount = (float) ($data['amount'] ?? 0);
 
-        if ($userId <= 0 || $amount <= 0) {
-            $this->jsonError('Invalid user or amount.');
+        if ($memberId <= 0 || $amount <= 0) {
+            $this->jsonError('Invalid member or amount.');
             return;
         }
 
-        $calc = Payment::calculatePayment($userId, $amount);
+        $calc = Payment::calculatePayment($memberId, $amount);
 
         header('Content-Type: application/json');
         echo json_encode(['success' => true, 'calculation' => $calc]);
@@ -798,23 +736,23 @@ class AdminController
         $this->requireJson();
         $data = $this->jsonBody();
 
-        $userId = (int) ($data['user_id'] ?? 0);
+        $memberId = (int) ($data['member_id'] ?? 0);
         $amount = (float) ($data['amount'] ?? 0);
 
-        if ($userId <= 0 || $amount <= 0) {
-            $this->jsonError('Invalid user or amount.');
+        if ($memberId <= 0 || $amount <= 0) {
+            $this->jsonError('Invalid member or amount.');
             return;
         }
 
-        $calc = Payment::calculatePayment($userId, $amount);
+        $calc = Payment::calculatePayment($memberId, $amount);
         if (!$calc['from']) {
-            $this->jsonError('Cannot calculate payment months. Check user monthly amount.');
+            $this->jsonError('Cannot calculate payment months. Check member monthly amount.');
             return;
         }
 
         try {
             Payment::create([
-                'user_id'        => $userId,
+                'member_id'        => $memberId,
                 'amount'         => $amount,
                 'months_covered' => $calc['months'],
                 'extra_amount'   => $calc['extra'],
@@ -825,8 +763,8 @@ class AdminController
 
             // Send confirmation SMS
             $user = \Models\Database::connect()->fetch(
-                'SELECT id, name, phone, monthly_amount FROM users WHERE id = ?',
-                [$userId]
+                'SELECT id, name, phone, monthly_amount FROM members WHERE id = ?',
+                [$memberId]
             );
             if ($user && !empty($user['phone'])) {
                 $phone = preg_replace('/[^0-9]/', '', $user['phone']);
@@ -844,8 +782,8 @@ class AdminController
                         : date('M Y');
                     // Total paid so far
                     $totalPaid = \Models\Database::connect()->fetch(
-                        'SELECT COALESCE(SUM(amount), 0) AS total FROM payments WHERE user_id = ?',
-                        [$userId]
+                        'SELECT COALESCE(SUM(amount), 0) AS total FROM payments WHERE member_id = ?',
+                        [$memberId]
                     )['total'] ?? 0;
 
                     $template = Setting::get('msg_confirmation', 'Dear [Name], Rs.[Amount] paid for [Period]. Next due: [NextDue]. Total paid: Rs.[TotalPaid]. Thank you!');
@@ -988,7 +926,7 @@ class AdminController
             }
         }
         if ($adminId <= 0) {
-            $adminId = (int) ($_SESSION['user_id'] ?? 0);
+            $adminId = (int) ($_SESSION['member_id'] ?? 0);
         }
 
         $smsBalance = \Models\Setting::get('sms_balance', '0');
@@ -1028,7 +966,7 @@ class AdminController
             }
         }
         if ($adminId <= 0) {
-            $adminId = (int) ($_SESSION['user_id'] ?? 0);
+            $adminId = (int) ($_SESSION['member_id'] ?? 0);
         }
 
         $amount  = (float) ($_POST['amount'] ?? 0);

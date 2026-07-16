@@ -116,22 +116,22 @@ $columns = [
     <div class="flex flex-col justify-between gap-4 rounded-2xl border border-slate-200/80 bg-white/60 p-6 shadow-sm backdrop-blur-md sm:flex-row sm:items-center">
         <div>
             <div class="flex items-center gap-3">
-                <h1 class="text-2xl font-bold tracking-tight text-slate-900">User Management</h1>
+                <h1 class="text-2xl font-bold tracking-tight text-slate-900">Member Management</h1>
                 <span class="rounded-full bg-primary-50 px-3 py-1 text-sm font-bold text-primary-700"><?= (int) $total ?> Users</span>
             </div>
-            <p class="mt-1 text-sm font-medium text-slate-500">Add and manage registered users.</p>
+            <p class="mt-1 text-sm font-medium text-slate-500">Add and manage registered members.</p>
         </div>
-        <button type="button" @click="drawerData = {}; drawerMode = 'add'; drawer = 'user-drawer'"
+        <button type="button" @click="drawerData = {}; drawerMode = 'add'; drawer = 'member-drawer'"
             class="inline-flex items-center justify-center gap-2 rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-primary-600/20 transition-all hover:bg-primary-700">
             <svg class="h-4 w-4 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
-            Add User
+            Add Member
         </button>
     </div>
 
     <div class="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xl shadow-slate-100/50">
         <!-- Filter bar -->
         <div class="flex flex-wrap items-center gap-3 border-b border-slate-100 bg-slate-50/30 px-6 py-4"
-             x-data="userFilters('<?= $searchVal ?>', <?= $locationId ?>, <?= $wardId ?>)">
+             x-data="memberFilters('<?= $searchVal ?>', <?= $locationId ?>, <?= $wardId ?>)">
 
             <div class="relative min-w-[180px] max-w-xs flex-1">
                 <svg class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -177,7 +177,7 @@ $columns = [
             'sortDir' => $sortDir,
             'baseUrl' => '/admin/users',
             'searchable' => false,
-            'emptyMessage' => 'No users found. Click "Add User" to create one.',
+            'emptyMessage' => 'No members found. Click "Add Member" to create one.',
         ]);
         ?>
     </div>
@@ -193,18 +193,18 @@ function getAlpine() {
 function openDrawer(mode, data) {
     const app = getAlpine();
     // Clear errors
-    app.userErrors = {};
+    app.memberErrors = {};
     app.drawerData = data;
     app.drawerMode = mode;
-    app.drawer = 'user-drawer';
+    app.drawer = 'member-drawer';
 }
 function openDeleteModal(id, name) {
     const app = getAlpine();
     app.modalData = { id: id, name: name };
-    app.modal = 'delete-user';
+    app.modal = 'delete-member';
 }
 
-function userFilters(initialSearch, initialLoc, initialWard) {
+function memberFilters(initialSearch, initialLoc, initialWard) {
     return {
         search: initialSearch,
         locationId: initialLoc,
@@ -222,27 +222,27 @@ function userFilters(initialSearch, initialLoc, initialWard) {
     };
 }
 
-function submitUser() {
+function submitMember() {
     const data = Alpine.$data(document.querySelector('[x-data]'));
-    data.userErrors = {};
+    data.memberErrors = {};
 
     const name = (data.drawerData.name || '').trim();
     const phone = (data.drawerData.phone || '').trim();
     let hasError = false;
 
     if (!name) {
-        data.userErrors['name'] = 'Name is required.';
+        data.memberErrors['name'] = 'Name is required.';
         hasError = true;
     }
     if (!phone) {
-        data.userErrors['phone'] = 'Phone number is required.';
+        data.memberErrors['phone'] = 'Phone number is required.';
         hasError = true;
     } else if (!/^[+0-9][+0-9()\- ]{6,19}$/.test(phone)) {
-        data.userErrors['phone'] = 'Enter a valid phone number.';
+        data.memberErrors['phone'] = 'Enter a valid phone number.';
         hasError = true;
     }
     if (!data.drawerData.ward_id) {
-        data.userErrors['ward_id'] = 'Please select a ward.';
+        data.memberErrors['ward_id'] = 'Please select a ward.';
         hasError = true;
     }
 
@@ -275,8 +275,8 @@ function submitUser() {
             setTimeout(() => window.location.reload(), 1500);
         } else {
             const err = (response.error || '').toLowerCase();
-            if (err.includes('name')) data.userErrors['name'] = response.error;
-            else if (err.includes('phone')) data.userErrors['phone'] = response.error;
+            if (err.includes('name')) data.memberErrors['name'] = response.error;
+            else if (err.includes('phone')) data.memberErrors['phone'] = response.error;
             else showToast(response.error || 'Unable to save user.', 'error');
         }
     })
@@ -294,7 +294,7 @@ function onWardChange() {
     }
 }
 
-function deleteUser() {
+function deleteMember() {
     const data = Alpine.$data(document.querySelector('[x-data]'));
     const id = data.modalData?.id;
     if (!id) return;
@@ -318,7 +318,7 @@ function deleteUser() {
 </script>
 
 <?php
-echo Modal::confirm('delete-user', 'Delete User', [
+echo Modal::confirm('delete-member', 'Delete Member', [
     'body' => <<<HTML
     <div class="flex items-start gap-4 p-2">
         <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600 border border-rose-100">
@@ -336,12 +336,12 @@ echo Modal::confirm('delete-user', 'Delete User', [
     HTML,
     'confirmText' => 'Yes, Delete',
     'confirmVariant' => 'danger',
-    'confirmAction' => 'deleteUser()',
+    'confirmAction' => 'deleteMember()',
     'size' => 'sm',
 ]);
 
 $drawerBody = <<<HTML
-<form id="user-form" @submit.prevent="submitUser()">
+<form id="user-form" @submit.prevent="submitMember()">
     <input type="hidden" name="id" x-model="drawerData.id">
     <div class="space-y-5 py-2">
         <!-- 1. Name -->
@@ -349,8 +349,8 @@ $drawerBody = <<<HTML
             <label class="block mb-1.5 text-sm font-semibold text-primary-800">Full Name <span class="text-rose-500">*</span></label>
             <input type="text" x-model="drawerData.name" :disabled="drawerMode === 'view'" required
                 placeholder="Enter full name"
-                :class="'w-full rounded-lg border bg-primary-50/30 px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 transition focus:outline-none focus:ring-2 focus:bg-white ' + (userErrors?.name ? 'border-red-300 focus:border-red-500 focus:ring-red-500/30' : 'border-primary-200 focus:border-primary-600 focus:ring-primary-600/30')">
-            <p x-show="userErrors?.name" x-text="userErrors.name" class="mt-1 text-xs font-medium text-red-600"></p>
+                :class="'w-full rounded-lg border bg-primary-50/30 px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 transition focus:outline-none focus:ring-2 focus:bg-white ' + (memberErrors?.name ? 'border-red-300 focus:border-red-500 focus:ring-red-500/30' : 'border-primary-200 focus:border-primary-600 focus:ring-primary-600/30')">
+            <p x-show="memberErrors?.name" x-text="memberErrors.name" class="mt-1 text-xs font-medium text-red-600"></p>
         </div>
         <div x-show="drawerMode === 'view'">
 HTML
@@ -386,8 +386,8 @@ HTML
             <label class="block mb-1.5 text-sm font-semibold text-primary-800">Phone Number <span class="text-rose-500">*</span></label>
             <input type="tel" x-model="drawerData.phone" :disabled="drawerMode === 'view'" required
                 placeholder="e.g. 0771234567"
-                :class="'w-full rounded-lg border bg-primary-50/30 px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 transition focus:outline-none focus:ring-2 focus:bg-white ' + (userErrors?.phone ? 'border-red-300 focus:border-red-500 focus:ring-red-500/30' : 'border-primary-200 focus:border-primary-600 focus:ring-primary-600/30')">
-            <p x-show="userErrors?.phone" x-text="userErrors.phone" class="mt-1 text-xs font-medium text-red-600"></p>
+                :class="'w-full rounded-lg border bg-primary-50/30 px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 transition focus:outline-none focus:ring-2 focus:bg-white ' + (memberErrors?.phone ? 'border-red-300 focus:border-red-500 focus:ring-red-500/30' : 'border-primary-200 focus:border-primary-600 focus:ring-primary-600/30')">
+            <p x-show="memberErrors?.phone" x-text="memberErrors.phone" class="mt-1 text-xs font-medium text-red-600"></p>
         </div>
         <div x-show="drawerMode === 'view'">
 HTML
@@ -426,11 +426,11 @@ HTML
         <div x-show="drawerMode !== 'view'">
             <label class="block mb-1.5 text-sm font-semibold text-primary-800">Ward <span class="text-rose-500">*</span></label>
             <select x-model="drawerData.ward_id" @change="onWardChange()" :disabled="drawerMode === 'view'" required
-                :class="'w-full rounded-lg border bg-primary-50/30 px-3 py-2.5 text-sm text-slate-800 transition focus:outline-none focus:ring-2 appearance-none focus:bg-white ' + (userErrors?.ward_id ? 'border-red-300 focus:border-red-500 focus:ring-red-500/30' : 'border-primary-200 focus:border-primary-600 focus:ring-primary-600/30')">
+                :class="'w-full rounded-lg border bg-primary-50/30 px-3 py-2.5 text-sm text-slate-800 transition focus:outline-none focus:ring-2 appearance-none focus:bg-white ' + (memberErrors?.ward_id ? 'border-red-300 focus:border-red-500 focus:ring-red-500/30' : 'border-primary-200 focus:border-primary-600 focus:ring-primary-600/30')">
                 <option value="">Select ward...</option>
                 <?= $wardOptsHtml ?>
             </select>
-            <p x-show="userErrors?.ward_id" x-text="userErrors.ward_id" class="mt-1 text-xs font-medium text-red-600"></p>
+            <p x-show="memberErrors?.ward_id" x-text="memberErrors.ward_id" class="mt-1 text-xs font-medium text-red-600"></p>
         </div>
         <div x-show="drawerMode === 'view'">
 HTML
@@ -497,13 +497,13 @@ HTML;
 $drawerFooter = <<<HTML
 <div class="flex items-center justify-end gap-3 border-t border-slate-100 bg-white px-6 py-4">
     <button type="button" @click="drawer = ''" class="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50">Cancel</button>
-    <button type="button" x-show="drawerMode !== 'view'" @click="submitUser()" class="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-primary-600/20 transition hover:bg-primary-700">
+    <button type="button" x-show="drawerMode !== 'view'" @click="submitMember()" class="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-primary-600/20 transition hover:bg-primary-700">
         <span x-text="drawerMode === 'edit' ? 'Update User' : 'Save User'"></span>
     </button>
 </div>
 HTML;
 
-echo Drawer::render('user-drawer', 'User Details', $drawerBody, [
+echo Drawer::render('member-drawer', 'User Details', $drawerBody, [
     'side' => 'right',
     'size' => 'lg',
     'footer' => $drawerFooter,
