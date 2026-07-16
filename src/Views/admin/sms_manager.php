@@ -63,6 +63,7 @@ $success = $requestSuccess ?? null;
             <h3 class="text-base font-bold text-primary-800">Request Refill</h3>
         </div>
         <form method="post" action="<?= BASE_URL ?>/admin/sms/request-refill" class="max-w-lg space-y-4">
+            <input type="hidden" name="csrf_token" value="<?= e($_SESSION['csrf_token'] ?? '') ?>">
             <div>
                 <label class="block text-sm font-semibold text-primary-800 mb-1.5">Amount (Rs)</label>
                 <input type="number" name="amount" min="1" step="0.01" required

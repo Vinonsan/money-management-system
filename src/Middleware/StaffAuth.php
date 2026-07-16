@@ -11,8 +11,8 @@ class StaffAuth
         }
 
         $role = $_SESSION['user_role'] ?? '';
-        // Admin panel roles (super_admin reserved for future)
-        if (!in_array($role, ['super_admin', 'admin', 'collector'], true)) {
+        // Only super_admin and admin roles have access to admin panel
+        if (!in_array($role, ['super_admin', 'admin'], true)) {
             header('Location: ' . BASE_URL . '/login');
             exit;
         }

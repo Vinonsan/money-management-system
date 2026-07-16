@@ -10,6 +10,24 @@ deploy/token.txt
 .env
 .env.local
 
+# ─── Database Schema / Setup (do NOT deploy to production) ──────────────
+schema.sql
+schema1.sql
+setup.php
+migrate_users_to_members.php
+
+# ─── Tests (development only) ───────────────────────────────────────────
+tests/
+*.test.php
+
+# ─── Documentation (development only) ───────────────────────────────────
+implementation_plan.md
+README.md
+
+# ─── Virtual Environment ────────────────────────────────────────────────
+.venv/
+__pycache__/
+
 # ─── OS Artifacts ─────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
@@ -18,6 +36,9 @@ elevate-dir.cmd
 # ─── IDE ──────────────────────────────────────────────────────────────────
 .vscode/
 .idea/
+
+# ─── cPanel deployment config ────────────────────────────────────────────
+.cpanel.yml
 *.swp
 *.swo
 *~

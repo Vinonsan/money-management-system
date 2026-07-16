@@ -10,6 +10,8 @@ use Models\Ward;
 
 class AdminController
 {
+    private ?array $_jsonCache = null;
+
     /**
      * Get the current admin's location ID for data isolation.
      * Super admin sees all (null = no filter).
@@ -375,6 +377,12 @@ class AdminController
         }
 
         try {
+            // Enforce location isolation: use admin's location if not super_admin
+            $locFilter = $this->getLocationFilter();
+            $locationId = $locFilter !== null
+                ? $locFilter
+                : (!empty($data['location_id']) ? (int) $data['location_id'] : null);
+
             Member::create([
                 'name' => $name,
                 'email' => !empty($data['email']) ? trim($data['email']) : null,
@@ -382,7 +390,7 @@ class AdminController
                 'card_number' => !empty($data['card_number']) ? (int) $data['card_number'] : null,
                 'road_number' => !empty($data['road_number']) ? trim($data['road_number']) : null,
                 'street' => !empty($data['street']) ? trim($data['street']) : null,
-                'location_id' => !empty($data['location_id']) ? (int) $data['location_id'] : null,
+                'location_id' => $locationId,
                 'ward_id' => !empty($data['ward_id']) ? (int) $data['ward_id'] : null,
                 'monthly_amount' => !empty($data['monthly_amount']) ? (float) $data['monthly_amount'] : 0,
             ]);
@@ -420,6 +428,16 @@ class AdminController
         }
 
         try {
+            // Enforce location isolation: verify member belongs to admin's location
+            $locFilter = $this->getLocationFilter();
+            if ($locFilter !== null) {
+                $existing = Member::findById($id);
+                if (!$existing || (int) ($existing['location_id'] ?? 0) !== $locFilter) {
+                    $this->jsonError('Member not found or access denied.');
+                    return;
+                }
+            }
+
             Member::update($id, [
                 'name' => $name,
                 'email' => !empty($data['email']) ? trim($data['email']) : null,
@@ -427,7 +445,7 @@ class AdminController
                 'card_number' => !empty($data['card_number']) ? (int) $data['card_number'] : null,
                 'road_number' => !empty($data['road_number']) ? trim($data['road_number']) : null,
                 'street' => !empty($data['street']) ? trim($data['street']) : null,
-                'location_id' => !empty($data['location_id']) ? (int) $data['location_id'] : null,
+                'location_id' => $locFilter ?? (!empty($data['location_id']) ? (int) $data['location_id'] : null),
                 'ward_id' => !empty($data['ward_id']) ? (int) $data['ward_id'] : null,
                 'monthly_amount' => !empty($data['monthly_amount']) ? (float) $data['monthly_amount'] : 0,
             ]);
@@ -446,6 +464,16 @@ class AdminController
         if ($id <= 0) {
             $this->jsonError('Invalid member ID.');
             return;
+        }
+
+        // Enforce location isolation
+        $locFilter = $this->getLocationFilter();
+        if ($locFilter !== null) {
+            $existing = Member::findById($id);
+            if (!$existing || (int) ($existing['location_id'] ?? 0) !== $locFilter) {
+                $this->jsonError('Member not found or access denied.');
+                return;
+            }
         }
 
         try {
@@ -957,6 +985,14 @@ class AdminController
             exit;
         }
 
+        // CSRF validation for form POST
+        $token = $_POST['csrf_token'] ?? '';
+        if (empty($token) || !hash_equals($_SESSION['csrf_token'] ?? '', $token)) {
+            $_SESSION['refill_error'] = 'Invalid request. Please try again.';
+            header('Location: ' . BASE_URL . '/admin/sms');
+            exit;
+        }
+
         // Use phone-based lookup for reliable user ID
         $adminId = 0;
         $phone = $_SESSION['user_phone'] ?? '';
@@ -1006,13 +1042,31 @@ class AdminController
             $this->jsonError('Method not allowed.');
             exit;
         }
+        // Parse body once and cache it
+        $this->_jsonCache = $this->parseJsonBody();
+        // CSRF validation for JSON endpoints
+        $token = $this->_jsonCache['_csrf'] ?? '';
+        if (empty($token) || !hash_equals($_SESSION['csrf_token'] ?? '', $token)) {
+            http_response_code(403);
+            $this->jsonError('Invalid or missing CSRF token.');
+            exit;
+        }
     }
 
-    private function jsonBody(): array
+    private function parseJsonBody(): array
     {
         $raw = file_get_contents('php://input');
         $data = json_decode($raw, true);
         return is_array($data) ? $data : [];
+    }
+
+    private function jsonBody(): array
+    {
+        // Return cached body (populated by requireJson)
+        if ($this->_jsonCache !== null) {
+            return $this->_jsonCache;
+        }
+        return $this->parseJsonBody();
     }
 
     private function jsonSuccess(string $message): void

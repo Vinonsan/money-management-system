@@ -18,7 +18,7 @@ class SMSService
     {
         $this->userId   = \Models\Setting::get('smslenz_user_id', '');
         $this->apiKey   = \Models\Setting::get('smslenz_api_key', '');
-        $this->senderId = \Models\Setting::get('smslenz_sender_id', 'ExGenX9920');
+        $this->senderId = \Models\Setting::get('smslenz_sender_id', '');
     }
 
     /**
@@ -35,16 +35,6 @@ class SMSService
     public function sendOtp(string $phone, string $otp): bool
     {
         $message = "Your OTP is: {$otp}. Valid for " . OTP_EXPIRY_MINUTES . " minutes.";
-
-        // Also log for development reference
-        $line = sprintf(
-            "[%s] OTP to %s: %s%s",
-            date('Y-m-d H:i:s'),
-            $phone,
-            $otp,
-            PHP_EOL
-        );
-        @file_put_contents(__DIR__ . '/../../sms_log.txt', $line, FILE_APPEND);
 
         return $this->send($phone, $message);
     }
@@ -73,17 +63,7 @@ class SMSService
         // Normalize phone to international format (+94XXXXXXXXX)
         $phone = $this->normalizePhone($phone);
 
-        // Log locally regardless of API success
-        $line = sprintf(
-            "[%s] SMS to %s: %s%s",
-            date('Y-m-d H:i:s'),
-            $phone,
-            $message,
-            PHP_EOL
-        );
-        @file_put_contents(__DIR__ . '/../../sms_log.txt', $line, FILE_APPEND);
-
-        // If not configured, just log (no real send)
+        // If not configured, skip sending
         if (!$this->isConfigured()) {
             return true;
         }

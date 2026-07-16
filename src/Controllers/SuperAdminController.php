@@ -7,6 +7,7 @@ use Models\Database;
 
 class SuperAdminController
 {
+    private ?array $_jsonCache = null;
     public function index(): void
     {
         $db = Database::connect();
@@ -309,13 +310,31 @@ class SuperAdminController
             $this->jsonError('Method not allowed.');
             exit;
         }
+        // Parse body once and cache it
+        $this->_jsonCache = $this->parseJsonBody();
+        // CSRF validation for JSON endpoints
+        $token = $this->_jsonCache['_csrf'] ?? '';
+        if (empty($token) || !hash_equals($_SESSION['csrf_token'] ?? '', $token)) {
+            http_response_code(403);
+            $this->jsonError('Invalid or missing CSRF token.');
+            exit;
+        }
     }
 
-    private function jsonBody(): array
+    private function parseJsonBody(): array
     {
         $raw = file_get_contents('php://input');
         $data = json_decode($raw, true);
         return is_array($data) ? $data : [];
+    }
+
+    private function jsonBody(): array
+    {
+        // Return cached body (populated by requireJson)
+        if ($this->_jsonCache !== null) {
+            return $this->_jsonCache;
+        }
+        return $this->parseJsonBody();
     }
 
     private function jsonSuccess(string $message): void

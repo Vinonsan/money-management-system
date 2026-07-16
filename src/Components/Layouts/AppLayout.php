@@ -8,6 +8,13 @@ final class AppLayout
 {
     public static function render(string $title, string $contentView, array $data = [], string $activeNav = ''): void
     {
+        // Auth token verification: redirect to login if not authenticated (skip for public pages)
+        $isPublicPage = str_contains($contentView, '/public/') || str_contains($contentView, 'public' . DIRECTORY_SEPARATOR);
+        if (!$isPublicPage && empty($_SESSION['user_id'])) {
+            header('Location: ' . BASE_URL . '/login');
+            exit;
+        }
+
         extract($data);
         $isLoggedIn = !empty($_SESSION['user_id']);
         $isSuperAdmin = str_starts_with($activeNav, 'super_admin');

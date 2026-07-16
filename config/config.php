@@ -30,8 +30,9 @@ define('BASE_URL', rtrim($protocol . $host . $subfolder, '/'));
 // ─── App Settings ───────────────────────────────────────────────────────
 define('APP_NAME', 'MasjidPay');
 
-// ─── OTP / SMS (SMS API later; fixed OTP for now) ───────────────────────
-define('OTP_DEV_CODE', '111111');
+// ─── OTP / SMS ────────────────────────────────────────────────────────
+// OTP_DEV_CODE is intentionally removed in production.
+// Actual OTP uses cryptographically secure random_int() via SMSService::generateOtp().
 define('OTP_EXPIRY_MINUTES', 5);
 define('OTP_MAX_REQUESTS', 3);          // 3 OTP requests → lock 1 minute
 define('OTP_LOCK_SECONDS', 60);
@@ -40,18 +41,20 @@ define('LOGIN_FAIL_LOCK_SECONDS', 300); // 5 minutes
 define('LOGIN_ESCALATED_LOCK_SECONDS', 3600); // 1 hour
 
 // ─── Deployment Secret (used by deploy/migrate.php) ─────────────────────
-// CHANGE THIS to a random string before production deployment.
-define('DEPLOY_SECRET', 'change-this-to-a-secure-random-token');
+// Auto-generated random token at runtime if not set via environment.
+define('DEPLOY_SECRET', getenv('DEPLOY_SECRET') ?: bin2hex(random_bytes(32)));
 
 require_once __DIR__ . '/database.php';
 require_once __DIR__ . '/theme.php';
 
 // ─── Session ────────────────────────────────────────────────────────────
 if (session_status() === PHP_SESSION_NONE) {
+    $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
     session_start([
         'cookie_lifetime' => 0,
         'cookie_httponly' => true,
         'cookie_samesite' => 'Strict',
+        'cookie_secure'   => $isHttps,
     ]);
 }
 if (empty($_SESSION['csrf_token'])) {
