@@ -44,7 +44,19 @@ foreach ($wards as $w) {
 $wardLocJson = json_encode($wardLocMap, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 $locNamesJson = json_encode($locOptions, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
-// ─── Pre-build ward options HTML for heredoc ──────────────────────────
+// ─── Build wards JSON for Alpine autocomplete ────────────────────────
+$wardJsonData = [];
+foreach ($wards as $w) {
+    $wardJsonData[] = [
+        'id' => (int) ($w['id'] ?? 0),
+        'ward_number' => (int) ($w['ward_number'] ?? 0),
+        'location_names' => htmlspecialchars($w['location_names'] ?? '', ENT_QUOTES),
+        'location_ids' => $w['location_ids'] ?? '',
+    ];
+}
+$wardJson = json_encode($wardJsonData, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+// ─── Pre-build ward options HTML for heredoc (fallback) ──────────────
 $wardOptsHtml = '';
 foreach ($wardOpts as $id => $label) {
     $wardOptsHtml .= '<option value="' . $id . '">' . $label . '</option>';
@@ -176,7 +188,7 @@ $columns = [
             'search' => $search,
             'sortField' => $sortField,
             'sortDir' => $sortDir,
-            'baseUrl' => '/admin/users',
+            'baseUrl' => '/admin/members',
             'searchable' => false,
             'emptyMessage' => 'No members found. Click "Add Member" to create one.',
         ]);
@@ -188,19 +200,22 @@ $columns = [
 const wardLocMap = <?= $wardLocJson ?>;
 const locNames = <?= $locNamesJson ?>;
 const rawLocs = <?= $locJson ?>;
+const rawWards = <?= $wardJson ?>;
 window.wardLocMap = wardLocMap;
 window.rawLocs = rawLocs;
+window.rawWards = rawWards;
 
 function getAlpine() {
     return Alpine.$data(document.querySelector('[x-data]'));
 }
 function openDrawer(mode, data) {
     const app = getAlpine();
-    // Clear errors
+    // Clear errors and reset ward
     app.memberErrors = {};
     app.drawerData = data;
     app.drawerMode = mode;
     app.drawer = 'member-drawer';
+    // Reset location when ward changes (handled by onWardChange on select)
 }
 function openDeleteModal(id, name) {
     const app = getAlpine();
@@ -218,10 +233,10 @@ function memberFilters(initialSearch, initialLoc, initialWard) {
             if (this.search) params.set('search', this.search);
             if (this.locationId > 0) params.set('location_id', this.locationId);
             if (this.wardId > 0) params.set('ward_id', this.wardId);
-            window.location.href = '/admin/users' + (params.toString() ? '?' + params.toString() : '');
+            window.location.href = '/admin/members' + (params.toString() ? '?' + params.toString() : '');
         },
         reset() {
-            window.location.href = '/admin/users';
+            window.location.href = '/admin/members';
         }
     };
 }
@@ -265,7 +280,7 @@ function submitMember() {
 
     const baseUrl = '<?= BASE_URL ?>';
     const isEdit = !!formData.id;
-    const url = baseUrl + (isEdit ? '/admin/users/update' : '/admin/users/create');
+    const url = baseUrl + (isEdit ? '/admin/members/update' : '/admin/members/create');
 
     fetch(url, {
         method: 'POST',
@@ -303,7 +318,7 @@ function deleteMember() {
     const id = data.modalData?.id;
     if (!id) return;
 
-    fetch(BASE_URL + '/admin/users/delete', {
+    fetch(BASE_URL + '/admin/members/delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
         body: JSON.stringify({ id, _csrf: '<?= e($_SESSION['csrf_token'] ?? '') ?>' }),
@@ -350,10 +365,14 @@ $drawerBody = <<<HTML
     <div class="space-y-5 py-2">
         <!-- 1. Name -->
         <div x-show="drawerMode !== 'view'">
-            <label class="block mb-1.5 text-sm font-semibold text-primary-800">Full Name <span class="text-rose-500">*</span></label>
-            <input type="text" x-model="drawerData.name" :disabled="drawerMode === 'view'" required
-                placeholder="Enter full name"
-                :class="'w-full rounded-lg border bg-primary-50/30 px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 transition focus:outline-none focus:ring-2 focus:bg-white ' + (memberErrors?.name ? 'border-red-300 focus:border-red-500 focus:ring-red-500/30' : 'border-primary-200 focus:border-primary-600 focus:ring-primary-600/30')">
+HTML
+. Input::render('name', [
+    'label' => 'Full Name <span class="text-rose-500">*</span>',
+    'required' => true,
+    'placeholder' => 'Enter full name',
+    'attrs' => ['x-model' => 'drawerData.name', ':disabled' => "drawerMode === 'view'"],
+]) .
+<<<HTML
             <p x-show="memberErrors?.name" x-text="memberErrors.name" class="mt-1 text-xs font-medium text-red-600"></p>
         </div>
         <div x-show="drawerMode === 'view'">
@@ -369,10 +388,14 @@ HTML
 
         <!-- 2. Monthly Amount -->
         <div x-show="drawerMode !== 'view'">
-            <label class="block mb-1.5 text-sm font-semibold text-primary-800">Monthly Amount (Rs)</label>
-            <input type="number" x-model="drawerData.monthly_amount" :disabled="drawerMode === 'view'"
-                placeholder="e.g. 500.00" min="0" step="0.01"
-                :class="'w-full rounded-lg border bg-primary-50/30 px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 transition focus:outline-none focus:ring-2 focus:bg-white border-primary-200 focus:border-primary-600 focus:ring-primary-600/30'">
+HTML
+. Input::render('monthly_amount', [
+    'label' => 'Monthly Amount (Rs)',
+    'type' => 'number',
+    'placeholder' => 'e.g. 500.00',
+    'attrs' => ['x-model' => 'drawerData.monthly_amount', ':disabled' => "drawerMode === 'view'", 'min' => '0', 'step' => '0.01'],
+]) .
+<<<HTML
         </div>
         <div x-show="drawerMode === 'view'">
 HTML
@@ -387,10 +410,15 @@ HTML
 
         <!-- 3. Phone -->
         <div x-show="drawerMode !== 'view'">
-            <label class="block mb-1.5 text-sm font-semibold text-primary-800">Phone Number <span class="text-rose-500">*</span></label>
-            <input type="tel" x-model="drawerData.phone" :disabled="drawerMode === 'view'" required
-                placeholder="e.g. 0771234567"
-                :class="'w-full rounded-lg border bg-primary-50/30 px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 transition focus:outline-none focus:ring-2 focus:bg-white ' + (memberErrors?.phone ? 'border-red-300 focus:border-red-500 focus:ring-red-500/30' : 'border-primary-200 focus:border-primary-600 focus:ring-primary-600/30')">
+HTML
+. Input::render('phone', [
+    'label' => 'Phone Number <span class="text-rose-500">*</span>',
+    'type' => 'tel',
+    'required' => true,
+    'placeholder' => 'e.g. 0771234567',
+    'attrs' => ['x-model' => 'drawerData.phone', ':disabled' => "drawerMode === 'view'"],
+]) .
+<<<HTML
             <p x-show="memberErrors?.phone" x-text="memberErrors.phone" class="mt-1 text-xs font-medium text-red-600"></p>
         </div>
         <div x-show="drawerMode === 'view'">
