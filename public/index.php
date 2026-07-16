@@ -75,6 +75,9 @@ $routes = [
     // Admin SMS Management
     'admin/sms'                       => ['Controller' => 'AdminController', 'Action' => 'smsManager', 'Middleware' => 'StaffAuth'],
     'admin/sms/request-refill'        => ['Controller' => 'AdminController', 'Action' => 'requestRefill', 'Middleware' => 'StaffAuth'],
+
+    // Schedule Report
+    'admin/schedule-report'           => ['Controller' => 'AdminController', 'Action' => 'scheduleReport', 'Middleware' => 'StaffAuth'],
 ];
 
 if (array_key_exists($route, $routes)) {

@@ -23,7 +23,8 @@ class AdminController
             return null; // super admin sees all
         }
         $locId = $_SESSION['user_location_id'] ?? 0;
-        return $locId > 0 ? $locId : null;
+        // If admin has no location assigned, use -1 so queries return empty
+        return $locId > 0 ? (int) $locId : -1;
     }
 
     public function index(): void
@@ -122,8 +123,10 @@ class AdminController
         $sortField = $_GET['sort'] ?? 'id';
         $sortDir  = $_GET['dir'] ?? 'asc';
 
-        $locations = Location::getAll($page, $perPage, $search, $sortField, $sortDir, $filterBy);
-        $total     = Location::count($search, $filterBy);
+        // Enforce location isolation: non-super-admin only sees their own location
+        $locFilter = $this->getLocationFilter();
+        $locations = Location::getAll($page, $perPage, $search, $sortField, $sortDir, $filterBy, $locFilter);
+        $total     = Location::count($search, $filterBy, $locFilter);
 
         $this->view('Location', 'locations.php', [
             'locations'  => $locations,
@@ -226,10 +229,11 @@ class AdminController
     {
         $page    = max(1, (int) ($_GET['page'] ?? 1));
         $perPage = 50;
+        $locFilter = $this->getLocationFilter();
 
-        $wards = Ward::getAll($page, $perPage);
-        $total = Ward::count();
-        $locations = Location::allActive();
+        $wards = Ward::getAll($page, $perPage, $locFilter);
+        $total = Ward::count($locFilter);
+        $locations = Location::allActive($locFilter);
 
         $this->view('Ward', 'wards.php', [
             'wards'     => $wards,
@@ -339,10 +343,11 @@ class AdminController
         $wardId = max(0, (int) ($_GET['ward_id'] ?? 0));
         $sortField = (string) ($_GET['sort'] ?? 'created_at');
         $sortDir = (string) ($_GET['dir'] ?? 'desc');
-        $total = Member::count($search, $locationId, $wardId);
+        $locFilter = $this->getLocationFilter();
+        $total = Member::count($search, $locationId, $wardId, $locFilter);
 
         $this->view('Members', 'users.php', [
-            'members' => Member::getAll($page, $perPage, $search, $sortField, $sortDir, $locationId, $wardId),
+            'members' => Member::getAll($page, $perPage, $search, $sortField, $sortDir, $locationId, $wardId, $locFilter),
             'total' => $total,
             'page' => $page,
             'perPage' => $perPage,
@@ -351,8 +356,8 @@ class AdminController
             'wardId' => $wardId,
             'sortField' => $sortField,
             'sortDir' => $sortDir,
-            'locations' => Location::allActive(),
-            'wards' => Ward::allActive(),
+            'locations' => Location::allActive($locFilter),
+            'wards' => Ward::allActive($locFilter),
         ], 'users.list');
     }
 
@@ -490,9 +495,10 @@ class AdminController
 
     public function paymentUpdate(): void
     {
+        $locFilter = $this->getLocationFilter();
         $this->view('Payments', 'payments.php', [
-            'locations' => Location::allActive(),
-            'wards'     => Ward::allActive(),
+            'locations' => Location::allActive($locFilter),
+            'wards'     => Ward::allActive($locFilter),
         ], 'payments.update');
     }
 
@@ -509,7 +515,8 @@ class AdminController
         $perPage = max(1, min(100, (int) ($_GET['per_page'] ?? 50)));
         $sortField = (string) ($_GET['sort'] ?? 'name');
         $sortDir = (string) ($_GET['dir'] ?? 'asc');
-        $result = Payment::getMembers($search, $locationId, $wardId, $status, $page, $perPage);
+        $locFilter = $this->getLocationFilter();
+        $result = Payment::getMembers($search, $locationId, $wardId, $status, $page, $perPage, $locFilter);
 
         $this->view('Members', 'payments_members.php', [
             'members'    => $result['rows'],
@@ -522,8 +529,8 @@ class AdminController
             'status'     => $status,
             'sortField'  => $sortField,
             'sortDir'    => $sortDir,
-            'locations'  => Location::allActive(),
-            'wards'     => Ward::allActive(),
+            'locations'  => Location::allActive($locFilter),
+            'wards'     => Ward::allActive($locFilter),
         ], 'payments.members');
     }
 
@@ -531,11 +538,15 @@ class AdminController
     {
         try {
             $db = \Models\Database::connect();
+            $locFilter = $this->getLocationFilter();
+            $locJoin = $locFilter !== null ? ' AND m.location_id = ?' : '';
+            $params = $locFilter !== null ? [$locFilter] : [];
             $dueMessages = $db->fetchAll(
                 "SELECT sm.id, sm.member_id, sm.message, m.phone
                  FROM scheduled_messages sm
                  JOIN members m ON m.id = sm.member_id
-                 WHERE sm.status = 'pending' AND sm.scheduled_date <= CURDATE()"
+                 WHERE sm.status = 'pending' AND sm.scheduled_date <= CURDATE(){$locJoin}",
+                $params
             );
 
             foreach ($dueMessages as $m) {
@@ -584,6 +595,13 @@ class AdminController
 
         $conditions = ['(m.monthly_amount > 0)'];
         $params = [];
+
+        // Enforce location isolation for non-super-admin
+        $locFilter = $this->getLocationFilter();
+        if ($locFilter !== null) {
+            $conditions[] = 'm.location_id = ?';
+            $params[] = $locFilter;
+        }
 
         if ($search !== '') {
             $conditions[] = '(m.name LIKE ? OR m.card_number LIKE ?)';
@@ -652,6 +670,9 @@ class AdminController
     {
         $this->requireJson();
         $db = \Models\Database::connect();
+        $locFilter = $this->getLocationFilter();
+        $locJoin = $locFilter !== null ? ' AND m.location_id = ?' : '';
+        $locParams = $locFilter !== null ? [$locFilter] : [];
 
         // Fetch pending messages where:
         //   - scheduled_date < CURDATE(), OR
@@ -664,11 +685,13 @@ class AdminController
                AND (
                    sm.scheduled_date < CURDATE()
                    OR (sm.scheduled_date = CURDATE() AND (sm.scheduled_time IS NULL OR sm.scheduled_time <= CURTIME()))
-               )"
+               ){$locJoin}",
+            $locParams
         );
 
         $sent = 0;
         $failed = 0;
+        $autoScheduled = 0;
         foreach ($dueMessages as $m) {
             $phone = preg_replace('/[^0-9]/', '', $m['phone'] ?? '');
             if ($phone === '') {
@@ -685,13 +708,100 @@ class AdminController
                     [(int) $m['id']]
                 );
                 $sent++;
+
+                // Auto-schedule for next month (recurring)
+                $nextDate = date('Y-m-d', strtotime($m['scheduled_date'] . ' +1 month'));
+                $member = $db->fetch('SELECT id, monthly_amount FROM members WHERE id = ?', [(int) $m['member_id']]);
+                if ($member) {
+                    $dueMonth = date('F Y', strtotime($nextDate));
+                    $template = Setting::get('msg_due', 'Dear [Name], your contribution of Rs.[Amount] for [Month] is due. Pay before [Date].');
+                    $memberInfo = $db->fetch('SELECT name, monthly_amount FROM members WHERE id = ?', [(int) $m['member_id']]);
+                    if ($memberInfo) {
+                        $newMsg = str_replace(
+                            ['[Name]', '[Amount]', '[MonthlyAmount]', '[Date]', '[Month]'],
+                            [$memberInfo['name'], number_format((float) ($memberInfo['monthly_amount'] ?? 0), 2), number_format((float) ($memberInfo['monthly_amount'] ?? 0), 2), $nextDate, $dueMonth],
+                            $template
+                        );
+                        $db->execute(
+                            'INSERT INTO scheduled_messages (member_id, scheduled_date, scheduled_time, message, type, status) VALUES (?, ?, ?, ?, ?, ?)',
+                            [(int) $m['member_id'], $nextDate, $m['scheduled_time'] ?? null, $newMsg, 'due', 'pending']
+                        );
+                        $autoScheduled++;
+                    }
+                }
             } catch (\Exception $e) {
                 $db->execute("UPDATE scheduled_messages SET status = 'failed' WHERE id = ?", [(int) $m['id']]);
                 $failed++;
             }
         }
 
-        $this->jsonSuccess("Processed: {$sent} sent, {$failed} failed.");
+        $this->jsonSuccess("Sent: {$sent}, Failed: {$failed}, Auto-scheduled for next month: {$autoScheduled}.");
+    }
+
+    // ─── Schedule Report ──────────────────────────
+
+    public function scheduleReport(): void
+    {
+        $db = \Models\Database::connect();
+        $locFilter = $this->getLocationFilter();
+
+        // Stats
+        $totalScheduled = $db->fetch(
+            "SELECT COUNT(*) AS cnt FROM scheduled_messages sm
+             JOIN members m ON m.id = sm.member_id
+             WHERE 1=1" . ($locFilter !== null ? ' AND m.location_id = ?' : ''),
+            $locFilter !== null ? [$locFilter] : []
+        )['cnt'] ?? 0;
+
+        $sentToday = $db->fetch(
+            "SELECT COUNT(*) AS cnt FROM scheduled_messages sm
+             JOIN members m ON m.id = sm.member_id
+             WHERE DATE(sm.sent_at) = CURDATE()" . ($locFilter !== null ? ' AND m.location_id = ?' : ''),
+            $locFilter !== null ? [$locFilter] : []
+        )['cnt'] ?? 0;
+
+        $pendingCount = $db->fetch(
+            "SELECT COUNT(*) AS cnt FROM scheduled_messages sm
+             JOIN members m ON m.id = sm.member_id
+             WHERE sm.status = 'pending'" . ($locFilter !== null ? ' AND m.location_id = ?' : ''),
+            $locFilter !== null ? [$locFilter] : []
+        )['cnt'] ?? 0;
+
+        $failedCount = $db->fetch(
+            "SELECT COUNT(*) AS cnt FROM scheduled_messages sm
+             JOIN members m ON m.id = sm.member_id
+             WHERE sm.status = 'failed'" . ($locFilter !== null ? ' AND m.location_id = ?' : ''),
+            $locFilter !== null ? [$locFilter] : []
+        )['cnt'] ?? 0;
+
+        // Recent activity
+        $recentMessages = $db->fetchAll(
+            "SELECT sm.*, m.name AS member_name, m.phone AS member_phone
+             FROM scheduled_messages sm
+             JOIN members m ON m.id = sm.member_id
+             WHERE 1=1" . ($locFilter !== null ? ' AND m.location_id = ?' : '') . "
+             ORDER BY sm.created_at DESC LIMIT 50",
+            $locFilter !== null ? [$locFilter] : []
+        );
+
+        // Upcoming schedules
+        $upcomingMessages = $db->fetchAll(
+            "SELECT sm.*, m.name AS member_name, m.phone AS member_phone
+             FROM scheduled_messages sm
+             JOIN members m ON m.id = sm.member_id
+             WHERE sm.status = 'pending' AND sm.scheduled_date >= CURDATE()" . ($locFilter !== null ? ' AND m.location_id = ?' : '') . "
+             ORDER BY sm.scheduled_date ASC LIMIT 20",
+            $locFilter !== null ? [$locFilter] : []
+        );
+
+        $this->view('Schedule Report', 'schedule_report.php', [
+            'totalScheduled'  => $totalScheduled,
+            'sentToday'       => $sentToday,
+            'pendingCount'    => $pendingCount,
+            'failedCount'     => $failedCount,
+            'recentMessages'  => $recentMessages,
+            'upcomingMessages' => $upcomingMessages,
+        ], 'payments.schedule');
     }
 
     public function searchMember(): void
@@ -705,15 +815,22 @@ class AdminController
             return;
         }
 
+        $locFilter = $this->getLocationFilter();
+        $locJoin = $locFilter !== null ? ' AND m.location_id = ?' : '';
+        $params = ['%' . $query . '%', '%' . $query . '%'];
+        if ($locFilter !== null) {
+            $params[] = $locFilter;
+        }
+
         $users = \Models\Database::connect()->fetchAll(
             "SELECT m.id, m.name, m.phone, m.card_number, m.monthly_amount, m.is_active,
                     l.name AS location_name, w.ward_number
              FROM members m
              LEFT JOIN locations l ON l.id = m.location_id
              LEFT JOIN wards w ON w.id = m.ward_id
-             WHERE m.name LIKE ? OR m.card_number LIKE ?
+             WHERE (m.name LIKE ? OR m.card_number LIKE ?){$locJoin}
              LIMIT 20",
-            ['%' . $query . '%', '%' . $query . '%']
+            $params
         );
 
         header('Content-Type: application/json');
@@ -730,6 +847,19 @@ class AdminController
         if ($memberId <= 0) {
             $this->jsonError('Invalid member.');
             return;
+        }
+
+        // Enforce location isolation
+        $locFilter = $this->getLocationFilter();
+        if ($locFilter !== null) {
+            $member = \Models\Database::connect()->fetch(
+                'SELECT id FROM members WHERE id = ? AND location_id = ?',
+                [$memberId, $locFilter]
+            );
+            if (!$member) {
+                $this->jsonError('Member not found.');
+                return;
+            }
         }
 
         $summary = Payment::getMemberPaymentSummary($memberId);
@@ -753,6 +883,19 @@ class AdminController
             return;
         }
 
+        // Enforce location isolation
+        $locFilter = $this->getLocationFilter();
+        if ($locFilter !== null) {
+            $member = \Models\Database::connect()->fetch(
+                'SELECT id FROM members WHERE id = ? AND location_id = ?',
+                [$memberId, $locFilter]
+            );
+            if (!$member) {
+                $this->jsonError('Member not found.');
+                return;
+            }
+        }
+
         $calc = Payment::calculatePayment($memberId, $amount);
 
         header('Content-Type: application/json');
@@ -771,6 +914,19 @@ class AdminController
         if ($memberId <= 0 || $amount <= 0) {
             $this->jsonError('Invalid member or amount.');
             return;
+        }
+
+        // Enforce location isolation
+        $locFilter = $this->getLocationFilter();
+        if ($locFilter !== null) {
+            $member = \Models\Database::connect()->fetch(
+                'SELECT id FROM members WHERE id = ? AND location_id = ?',
+                [$memberId, $locFilter]
+            );
+            if (!$member) {
+                $this->jsonError('Member not found.');
+                return;
+            }
         }
 
         $calc = Payment::calculatePayment($memberId, $amount);

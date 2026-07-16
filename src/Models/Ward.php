@@ -3,28 +3,42 @@ namespace Models;
 
 class Ward
 {
-    public static function getAll(int $page = 1, int $perPage = 50): array
+    public static function getAll(int $page = 1, int $perPage = 50, ?int $locationFilter = null): array
     {
         $db = Database::connect();
         $offset = ($page - 1) * $perPage;
+        $where = '';
+        $params = [];
+
+        if ($locationFilter !== null) {
+            $where = 'WHERE wl.location_id = ?';
+            $params[] = $locationFilter;
+        }
 
         return $db->fetchAll(
-            'SELECT w.*, 
-                    GROUP_CONCAT(DISTINCT l.name ORDER BY l.name SEPARATOR ", ") AS location_names,
+            "SELECT w.*, 
+                    GROUP_CONCAT(DISTINCT l.name ORDER BY l.name SEPARATOR ', ') AS location_names,
                     GROUP_CONCAT(DISTINCT wl.location_id ORDER BY wl.location_id) AS location_ids
              FROM wards w
              LEFT JOIN ward_locations wl ON wl.ward_id = w.id
              LEFT JOIN locations l ON l.id = wl.location_id
+             {$where}
              GROUP BY w.id
              ORDER BY w.created_at DESC
-             LIMIT ? OFFSET ?',
-            [$perPage, $offset]
+             LIMIT ? OFFSET ?",
+            array_merge($params, [$perPage, $offset])
         );
     }
 
-    public static function count(): int
+    public static function count(?int $locationFilter = null): int
     {
-        $result = Database::connect()->fetch('SELECT COUNT(*) AS cnt FROM wards');
+        $where = '';
+        $params = [];
+        if ($locationFilter !== null) {
+            $where = 'INNER JOIN ward_locations wl ON wl.ward_id = w.id AND wl.location_id = ?';
+            $params[] = $locationFilter;
+        }
+        $result = Database::connect()->fetch("SELECT COUNT(*) AS cnt FROM wards w {$where}", $params);
         return (int) ($result['cnt'] ?? 0);
     }
 
@@ -43,19 +57,25 @@ class Ward
         );
     }
 
-    public static function allActive(): array
+    public static function allActive(?int $locationFilter = null): array
     {
-        return Database::connect()->fetchAll(
-            'SELECT w.*, 
+        $sql = 'SELECT w.*, 
                     GROUP_CONCAT(DISTINCT l.name ORDER BY l.name SEPARATOR ", ") AS location_names,
                     GROUP_CONCAT(DISTINCT wl.location_id ORDER BY wl.location_id) AS location_ids
              FROM wards w
              LEFT JOIN ward_locations wl ON wl.ward_id = w.id
              LEFT JOIN locations l ON l.id = wl.location_id
-             WHERE w.is_active = 1
-             GROUP BY w.id
-             ORDER BY w.ward_number ASC'
-        );
+             WHERE w.is_active = 1';
+        $params = [];
+
+        if ($locationFilter !== null) {
+            $sql .= ' AND wl.location_id = ?';
+            $params[] = $locationFilter;
+        }
+
+        $sql .= ' GROUP BY w.id ORDER BY w.ward_number ASC';
+
+        return Database::connect()->fetchAll($sql, $params);
     }
 
     public static function getByLocation(int $locationId): array

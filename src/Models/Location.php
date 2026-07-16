@@ -3,7 +3,7 @@ namespace Models;
 
 class Location
 {
-    public static function getAll(int $page = 1, int $perPage = 10, string $search = '', string $sortField = 'id', string $sortDir = 'asc', string $filterBy = ''): array
+    public static function getAll(int $page = 1, int $perPage = 10, string $search = '', string $sortField = 'id', string $sortDir = 'asc', string $filterBy = '', ?int $locationFilter = null): array
     {
         $db = Database::connect();
         $allowedSort = ['id', 'name', 'city', 'is_active', 'created_at'];
@@ -11,19 +11,27 @@ class Location
         $sortDir = strtolower($sortDir) === 'desc' ? 'DESC' : 'ASC';
         $offset = ($page - 1) * $perPage;
 
-        $where = '';
+        $conditions = [];
         $params = [];
+
+        if ($locationFilter !== null) {
+            $conditions[] = 'id = ?';
+            $params[] = $locationFilter;
+        }
+
         if ($search !== '') {
             $allowedFilters = ['id', 'name', 'city', 'address'];
             if ($filterBy !== '' && in_array($filterBy, $allowedFilters)) {
-                $where = 'WHERE ' . $filterBy . ' LIKE ?';
-                $params = ['%' . $search . '%'];
+                $conditions[] = $filterBy . ' LIKE ?';
+                $params[] = '%' . $search . '%';
             } else {
-                $where = 'WHERE (name LIKE ? OR city LIKE ? OR address LIKE ?)';
+                $conditions[] = '(name LIKE ? OR city LIKE ? OR address LIKE ?)';
                 $like = '%' . $search . '%';
-                $params = [$like, $like, $like];
+                $params = array_merge($params, [$like, $like, $like]);
             }
         }
+
+        $where = $conditions ? 'WHERE ' . implode(' AND ', $conditions) : '';
 
         $rows = $db->fetchAll(
             "SELECT * FROM locations {$where} ORDER BY {$sortField} {$sortDir} LIMIT ? OFFSET ?",
@@ -33,23 +41,31 @@ class Location
         return $rows;
     }
 
-    public static function count(string $search = '', string $filterBy = ''): int
+    public static function count(string $search = '', string $filterBy = '', ?int $locationFilter = null): int
     {
         $db = Database::connect();
 
-        $where = '';
+        $conditions = [];
         $params = [];
+
+        if ($locationFilter !== null) {
+            $conditions[] = 'id = ?';
+            $params[] = $locationFilter;
+        }
+
         if ($search !== '') {
             $allowedFilters = ['id', 'name', 'city', 'address'];
             if ($filterBy !== '' && in_array($filterBy, $allowedFilters)) {
-                $where = 'WHERE ' . $filterBy . ' LIKE ?';
-                $params = ['%' . $search . '%'];
+                $conditions[] = $filterBy . ' LIKE ?';
+                $params[] = '%' . $search . '%';
             } else {
-                $where = 'WHERE (name LIKE ? OR city LIKE ? OR address LIKE ?)';
+                $conditions[] = '(name LIKE ? OR city LIKE ? OR address LIKE ?)';
                 $like = '%' . $search . '%';
-                $params = [$like, $like, $like];
+                $params = array_merge($params, [$like, $like, $like]);
             }
         }
+
+        $where = $conditions ? 'WHERE ' . implode(' AND ', $conditions) : '';
 
         $result = $db->fetch("SELECT COUNT(*) AS cnt FROM locations {$where}", $params);
         return (int) ($result['cnt'] ?? 0);
@@ -105,8 +121,14 @@ class Location
         return Database::connect()->execute('DELETE FROM locations WHERE id = ?', [$id]);
     }
 
-    public static function allActive(): array
+    public static function allActive(?int $locationFilter = null): array
     {
+        if ($locationFilter !== null) {
+            return Database::connect()->fetchAll(
+                'SELECT id, name FROM locations WHERE id = ? AND is_active = 1 ORDER BY name ASC',
+                [$locationFilter]
+            );
+        }
         return Database::connect()->fetchAll(
             'SELECT id, name FROM locations WHERE is_active = 1 ORDER BY name ASC'
         );

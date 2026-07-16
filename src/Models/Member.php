@@ -3,7 +3,7 @@ namespace Models;
 
 class Member
 {
-    public static function getAll(int $page = 1, int $perPage = 10, string $search = '', string $sortField = 'created_at', string $sortDir = 'desc', int $locationId = 0, int $wardId = 0): array
+    public static function getAll(int $page = 1, int $perPage = 10, string $search = '', string $sortField = 'created_at', string $sortDir = 'desc', int $locationId = 0, int $wardId = 0, ?int $locationFilter = null): array
     {
         $allowedSort = ['name', 'phone', 'monthly_amount', 'location_id', 'ward_id', 'is_active', 'created_at'];
         $sortField = in_array($sortField, $allowedSort, true) ? $sortField : 'created_at';
@@ -11,6 +11,12 @@ class Member
         $offset = ($page - 1) * $perPage;
         $conditions = [];
         $params = [];
+
+        // Enforce location isolation
+        if ($locationFilter !== null) {
+            $conditions[] = 'm.location_id = ?';
+            $params[] = $locationFilter;
+        }
 
         if ($search !== '') {
             $conditions[] = '(m.name LIKE ? OR m.phone LIKE ? OR m.card_number LIKE ?)';
@@ -41,10 +47,17 @@ class Member
         );
     }
 
-    public static function count(string $search = '', int $locationId = 0, int $wardId = 0): int
+    public static function count(string $search = '', int $locationId = 0, int $wardId = 0, ?int $locationFilter = null): int
     {
         $conditions = [];
         $params = [];
+
+        // Enforce location isolation
+        if ($locationFilter !== null) {
+            $conditions[] = 'm.location_id = ?';
+            $params[] = $locationFilter;
+        }
+
         if ($search !== '') {
             $conditions[] = '(m.name LIKE ? OR m.phone LIKE ? OR m.card_number LIKE ?)';
             $like = '%' . $search . '%';

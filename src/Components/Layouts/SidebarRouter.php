@@ -37,6 +37,7 @@ final class SidebarRouter
                 'children' => [
                     'update'  => ['label' => 'Update',     'href' => BASE_URL . '/admin/payments/update'],
                     'members' => ['label' => 'Members',    'href' => BASE_URL . '/admin/payments/members'],
+                    'schedule' => ['label' => 'Schedule Report', 'href' => BASE_URL . '/admin/schedule-report'],
                 ],
             ],
             'locations' => [
