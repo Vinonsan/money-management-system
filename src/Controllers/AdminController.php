@@ -73,11 +73,12 @@ class AdminController
             [$today]
         )['cnt'] ?? 0;
 
-        // SMS data
-        $smsBalance    = Setting::get('sms_balance', '0');
+        // SMS data (per-admin balance)
+        $adminId = (int) ($_SESSION['user_id'] ?? 0);
+        $smsBalance    = \Services\SMSService::getBalance($adminId);
         $smsCost       = Setting::get('sms_cost_per_message', '0.62');
-        $remainingSms  = (float)$smsCost > 0 ? floor((float)$smsBalance / (float)$smsCost) : 0;
-        $smsConfigured = (float)$smsBalance > 0;
+        $remainingSms  = (float)$smsCost > 0 ? floor($smsBalance / (float)$smsCost) : 0;
+        $smsConfigured = $smsBalance > 0;
 
         $this->view('Dashboard', 'dashboard.php', [
             'totalMembers'   => (int) $totalMembers,
@@ -557,7 +558,7 @@ class AdminController
                 }
 
                 try {
-                    $sms = new \Services\SMSService();
+                    $sms = new \Services\SMSService((int) ($_SESSION['user_id'] ?? 0));
                     $sms->send($phone, $m['message']);
                     $db->execute(
                         "UPDATE scheduled_messages SET status = 'sent', sent_at = NOW() WHERE id = ?",
@@ -701,7 +702,7 @@ class AdminController
             }
 
             try {
-                $sms = new \Services\SMSService();
+                $sms = new \Services\SMSService((int) ($_SESSION['user_id'] ?? 0));
                 $sms->send($phone, $m['message']);
                 $db->execute(
                     "UPDATE scheduled_messages SET status = 'sent', sent_at = NOW() WHERE id = ?",
@@ -988,7 +989,7 @@ class AdminController
                         $template
                     );
                     try {
-                        $sms = new \Services\SMSService();
+                        $sms = new \Services\SMSService((int) ($_SESSION['user_id'] ?? 0));
                         $sms->send($phone, $msg);
                         $smsSent = true;
                     } catch (\Exception $e) {
@@ -1114,9 +1115,9 @@ class AdminController
             $adminId = (int) ($_SESSION['member_id'] ?? 0);
         }
 
-        $smsBalance = \Models\Setting::get('sms_balance', '0');
+        $smsBalance = \Services\SMSService::getBalance((int) ($_SESSION['user_id'] ?? 0));
         $smsCost = \Models\Setting::get('sms_cost_per_message', '0.62');
-        $remainingSms = (float)$smsCost > 0 ? floor((float)$smsBalance / (float)$smsCost) : 0;
+        $remainingSms = (float)$smsCost > 0 ? floor($smsBalance / (float)$smsCost) : 0;
 
         $requests = $db->fetchAll(
             'SELECT * FROM refill_requests WHERE admin_id = ? ORDER BY created_at DESC LIMIT 20',

@@ -15,9 +15,9 @@ class SuperAdminController
         $totalAdmins = $db->fetch("SELECT COUNT(*) AS cnt FROM users WHERE role = 'admin'")['cnt'] ?? 0;
 
         // SMS stats
-        $smsBalance = Setting::get('sms_balance', '0');
+        $smsBalance = \Services\SMSService::getBalance((int) ($_SESSION['user_id'] ?? 0));
         $smsCost = Setting::get('sms_cost_per_message', '0.62');
-        $remainingSms = (float)$smsCost > 0 ? floor((float)$smsBalance / (float)$smsCost) : 0;
+        $remainingSms = (float)$smsCost > 0 ? floor($smsBalance / (float)$smsCost) : 0;
 
         $this->view('Super Admin Dashboard', 'super_admin/dashboard.php', [
             'totalAdmins' => (int) $totalAdmins,
@@ -89,7 +89,7 @@ class SuperAdminController
 
         // Send welcome SMS with login details
         try {
-            $sms = new \Services\SMSService();
+            $sms = new \Services\SMSService((int) ($_SESSION['user_id'] ?? 0));
             $loginUrl = BASE_URL . '/login';
             $message = "Dear {$name}, your MasjidPay admin account is ready. Phone: {$phone}. Login at: {$loginUrl} - OTP will be sent to your phone.";
             $sms->send($phone, $message);
@@ -168,7 +168,7 @@ class SuperAdminController
 
     public function smsConfig(): void
     {
-        $smsBalance = Setting::get('sms_balance', '0');
+        $smsBalance = \Services\SMSService::getBalance((int) ($_SESSION['user_id'] ?? 0));
         $smsCost = Setting::get('sms_cost_per_message', '0.62');
         $smsSenderId = Setting::get('smslenz_sender_id', 'ExGenX9920');
         $smsUserId  = Setting::get('smslenz_user_id', '');
@@ -222,13 +222,14 @@ class SuperAdminController
             return;
         }
 
-        $current = (float) Setting::get('sms_balance', '0');
+        $adminId = (int) ($_SESSION['user_id'] ?? 0);
+        $current = \Services\SMSService::getBalance($adminId);
         $newBalance = $current + $amount;
-        Setting::set('sms_balance', (string) $newBalance);
+        \Services\SMSService::setBalance($newBalance, $adminId);
 
         // Log transaction
         $txnId = 'sms_txn_' . date('Ymd_His') . '_' . bin2hex(random_bytes(4));
-        Setting::set($txnId, 'Refill: +' . number_format($amount, 2) . ' | Balance: ' . number_format($newBalance, 2));
+        \Models\Setting::set($txnId, 'Refill: +' . number_format($amount, 2) . ' | Balance: ' . number_format($newBalance, 2));
 
         $this->jsonSuccess('SMS balance refilled. New balance: Rs. ' . number_format($newBalance, 2));
     }
@@ -275,11 +276,14 @@ class SuperAdminController
 
         if ($action === 'approve') {
             $amount = (float) ($req['amount'] ?? 0);
-            $current = (float) Setting::get('sms_balance', '0');
-            Setting::set('sms_balance', (string) ($current + $amount));
+            $reqAdminId = (int) ($req['admin_id'] ?? 0);
+            // Add to the requesting admin's balance
+            $current = \Services\SMSService::getBalance($reqAdminId);
+            $newBalance = $current + $amount;
+            \Services\SMSService::setBalance($newBalance, $reqAdminId);
 
             $txnId = 'sms_txn_' . date('Ymd_His') . '_' . bin2hex(random_bytes(4));
-            Setting::set($txnId, 'Refill (request #' . $id . '): +' . number_format($amount, 2) . ' | Balance: ' . number_format($current + $amount, 2));
+            \Models\Setting::set($txnId, 'Refill (request #' . $id . ' - admin ' . $reqAdminId . '): +' . number_format($amount, 2) . ' | Balance: ' . number_format($newBalance, 2));
 
             $db->execute(
                 'UPDATE refill_requests SET status = ?, approved_by = ? WHERE id = ?',

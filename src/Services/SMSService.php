@@ -13,12 +13,38 @@ class SMSService
     private string $userId;
     private string $apiKey;
     private string $senderId;
+    private ?int $adminId = null;
 
-    public function __construct()
+    public function __construct(?int $adminId = null)
     {
         $this->userId   = \Models\Setting::get('smslenz_user_id', '');
         $this->apiKey   = \Models\Setting::get('smslenz_api_key', '');
         $this->senderId = \Models\Setting::get('smslenz_sender_id', '');
+        $this->adminId  = $adminId;
+    }
+
+    /**
+     * Get the admin-specific SMS balance key in settings table.
+     */
+    public static function balanceKey(?int $adminId = null): string
+    {
+        return $adminId ? 'sms_balance_admin_' . $adminId : 'sms_balance';
+    }
+
+    /**
+     * Get SMS balance for a specific admin (or global if no admin).
+     */
+    public static function getBalance(?int $adminId = null): float
+    {
+        return (float) \Models\Setting::get(self::balanceKey($adminId), '0');
+    }
+
+    /**
+     * Set SMS balance for a specific admin (or global if no admin).
+     */
+    public static function setBalance(float $amount, ?int $adminId = null): void
+    {
+        \Models\Setting::set(self::balanceKey($adminId), (string) $amount);
     }
 
     /**
@@ -223,9 +249,9 @@ class SMSService
     {
         try {
             $cost = (float) (\Models\Setting::get('sms_cost_per_message', '0.62'));
-            $balance = (float) (\Models\Setting::get('sms_balance', '0'));
+            $balance = self::getBalance($this->adminId);
             $newBalance = max(0, $balance - $cost);
-            \Models\Setting::set('sms_balance', (string) $newBalance);
+            self::setBalance($newBalance, $this->adminId);
         } catch (\Exception $e) {
             // Don't block SMS if balance deduction fails
         }
