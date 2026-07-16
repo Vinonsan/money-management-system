@@ -22,7 +22,6 @@ $routes = [
     // Admin (Protected)
     'admin'         => ['Controller' => 'AdminController', 'Action' => 'index', 'Middleware' => 'StaffAuth'],
     'admin/profile'       => ['Controller' => 'AdminController', 'Action' => 'profile', 'Middleware' => 'StaffAuth'],
-    'admin/profile/upload-avatar' => ['Controller' => 'AdminController', 'Action' => 'uploadAvatar', 'Middleware' => 'StaffAuth'],
 
     // Location Management
     'admin/locations'          => ['Controller' => 'AdminController', 'Action' => 'locations', 'Middleware' => 'StaffAuth'],
@@ -35,18 +34,18 @@ $routes = [
     'admin/wards/delete'   => ['Controller' => 'AdminController', 'Action' => 'deleteWard', 'Middleware' => 'StaffAuth'],
 
     // Users
-    'admin/users'          => ['Controller' => 'AdminController', 'Action' => 'usersList', 'Middleware' => 'StaffAuth'],
-    'admin/users/create'   => ['Controller' => 'AdminController', 'Action' => 'createUser', 'Middleware' => 'StaffAuth'],
-    'admin/users/update'   => ['Controller' => 'AdminController', 'Action' => 'updateUser', 'Middleware' => 'StaffAuth'],
-    'admin/users/delete'         => ['Controller' => 'AdminController', 'Action' => 'deleteUser', 'Middleware' => 'StaffAuth'],
+    'admin/members'        => ['Controller' => 'AdminController', 'Action' => 'membersList', 'Middleware' => 'StaffAuth'],
+    'admin/members/create' => ['Controller' => 'AdminController', 'Action' => 'createMember', 'Middleware' => 'StaffAuth'],
+    'admin/members/update' => ['Controller' => 'AdminController', 'Action' => 'updateMember', 'Middleware' => 'StaffAuth'],
+    'admin/members/delete' => ['Controller' => 'AdminController', 'Action' => 'deleteMember', 'Middleware' => 'StaffAuth'],
 
     // Payments
     'admin/payments/update'              => ['Controller' => 'AdminController', 'Action' => 'paymentUpdate', 'Middleware' => 'StaffAuth'],
     'admin/payments/members'             => ['Controller' => 'AdminController', 'Action' => 'paymentMembers', 'Middleware' => 'StaffAuth'],
     'admin/payments/schedule-message'    => ['Controller' => 'AdminController', 'Action' => 'scheduleMessage', 'Middleware' => 'StaffAuth'],
     'admin/payments/process-scheduled'   => ['Controller' => 'AdminController', 'Action' => 'processScheduledMessages', 'Middleware' => 'StaffAuth'],
-    'admin/payments/search-user'         => ['Controller' => 'AdminController', 'Action' => 'searchUser', 'Middleware' => 'StaffAuth'],
-    'admin/payments/user-info'           => ['Controller' => 'AdminController', 'Action' => 'getUserPaymentInfo', 'Middleware' => 'StaffAuth'],
+    'admin/payments/search-member'         => ['Controller' => 'AdminController', 'Action' => 'searchMember', 'Middleware' => 'StaffAuth'],
+    'admin/payments/member-info'           => ['Controller' => 'AdminController', 'Action' => 'getMemberPaymentInfo', 'Middleware' => 'StaffAuth'],
     'admin/payments/calculate'           => ['Controller' => 'AdminController', 'Action' => 'calculatePayment', 'Middleware' => 'StaffAuth'],
     'admin/payments/create'              => ['Controller' => 'AdminController', 'Action' => 'createPayment', 'Middleware' => 'StaffAuth'],
 

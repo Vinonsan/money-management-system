@@ -22,17 +22,9 @@ final class Navbar
         $userId = (int) ($_SESSION['user_id'] ?? 0);
         if ($userId > 0) {
             $row = \Models\Database::connect()->fetch(
-                'SELECT avatar FROM users WHERE id = ?',
+                'SELECT id FROM users WHERE id = ?',
                 [$userId]
             );
-            if (!empty($row['avatar'])) {
-                $avatarUrl = htmlspecialchars(BASE_URL . '/' . $row['avatar'], ENT_QUOTES, 'UTF-8');
-                $avatarContent = <<<HTML
-                <img src="{$avatarUrl}" alt="Avatar" class="h-full w-full object-cover">
-                HTML;
-                $hasAvatar = true;
-                $avatarBgClass = '';
-            }
         }
 
         return <<<HTML

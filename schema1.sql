@@ -20,22 +20,34 @@ CREATE TABLE IF NOT EXISTS _schema_migrations (
 CREATE TABLE IF NOT EXISTS users (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
-    email VARCHAR(255) DEFAULT NULL,
+    business_name VARCHAR(255) DEFAULT NULL,
     phone VARCHAR(20) NOT NULL UNIQUE,
+    email VARCHAR(255) DEFAULT NULL,
+    password VARCHAR(255) DEFAULT NULL,
+    role ENUM('super_admin', 'admin') NOT NULL DEFAULT 'admin',
+    location_id INT UNSIGNED DEFAULT NULL COMMENT 'Admin\'s assigned location for isolation',
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─── Members (collectors / collection targets) ─────────────────────────
+CREATE TABLE IF NOT EXISTS members (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) DEFAULT NULL,
+    phone VARCHAR(20) NOT NULL,
     card_number INT UNSIGNED DEFAULT NULL,
     road_number VARCHAR(100) DEFAULT NULL,
     street VARCHAR(255) DEFAULT NULL,
     location_id INT UNSIGNED DEFAULT NULL,
     ward_id INT UNSIGNED DEFAULT NULL,
     monthly_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-    password VARCHAR(255) DEFAULT NULL,
-    role ENUM('super_admin', 'admin', 'collector') NOT NULL DEFAULT 'collector',
-    avatar VARCHAR(255) DEFAULT NULL COMMENT 'Profile image path',
     is_active TINYINT(1) NOT NULL DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_user_location (location_id),
-    INDEX idx_user_ward (ward_id)
+    INDEX idx_member_location (location_id),
+    INDEX idx_member_ward (ward_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ─── OTP codes (login) ──────────────────────────────────────────────────
@@ -94,7 +106,7 @@ CREATE TABLE IF NOT EXISTS ward_locations (
 -- ─── Payments ───────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS payments (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    user_id INT UNSIGNED NOT NULL,
+    member_id INT UNSIGNED NOT NULL,
     amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     months_covered INT UNSIGNED NOT NULL DEFAULT 0,
     extra_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
@@ -102,8 +114,9 @@ CREATE TABLE IF NOT EXISTS payments (
     to_month DATE DEFAULT NULL,
     notes TEXT DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_payment_user (user_id),
-    INDEX idx_payment_date (created_at)
+    INDEX idx_payment_member (member_id),
+    INDEX idx_payment_date (created_at),
+    FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ─── System Settings (key-value store) ────────────────────────────────────
@@ -132,7 +145,7 @@ CREATE TABLE IF NOT EXISTS refill_requests (
 -- ─── Scheduled Messages ─────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS scheduled_messages (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT(10) UNSIGNED NOT NULL,
+    member_id INT UNSIGNED NOT NULL,
     scheduled_date DATE NOT NULL,
     scheduled_time TIME DEFAULT NULL COMMENT 'Optional time of day to send',
     message TEXT NOT NULL,
@@ -142,22 +155,32 @@ CREATE TABLE IF NOT EXISTS scheduled_messages (
     sent_at TIMESTAMP NULL DEFAULT NULL,
     INDEX idx_scheduled_date (scheduled_date),
     INDEX idx_status (status),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ─── Seed data ──────────────────────────────────────────────────────────
-INSERT INTO users (name, email, phone, role, is_active)
-VALUES ('vinonsan', 'vinonsan.99@gmail.com', '0754476969', 'admin', 1)
+INSERT INTO users (name, business_name, phone, email, role, is_active)
+VALUES ('vinonsan', 'MasjidPay Owner', '0754476969', 'vinonsan.99@gmail.com', 'super_admin', 1)
 ON DUPLICATE KEY UPDATE
     name = VALUES(name),
+    business_name = VALUES(business_name),
     email = VALUES(email),
     role = VALUES(role),
     is_active = 1;
 
-INSERT INTO users (name, email, phone, role, is_active)
-VALUES ('vinonsan', 'vinonsan.superadmin@gmail.com', '0758311995', 'super_admin', 1)
-ON DUPLICATE KEY UPDATE
-    name = VALUES(name),
-    email = VALUES(email),
-    role = VALUES(role),
-    is_active = 1;
+-- ─── Sample members ──────────────────────────────────────────────────
+INSERT INTO members (name, email, phone, monthly_amount, is_active)
+VALUES ('Sample Member', 'member1@example.com', '0770000001', 500.00, 1)
+ON DUPLICATE KEY UPDATE name = VALUES(name);
+
+-- ─── Default SMS settings ────────────────────────────────────────────
+INSERT INTO settings (key_name, value) VALUES ('smslenz_user_id', '2127')
+ON DUPLICATE KEY UPDATE value = VALUES(value);
+INSERT INTO settings (key_name, value) VALUES ('smslenz_api_key', 'bf7a3a89-0a35-4054-b69f-1c5d6faf94bd')
+ON DUPLICATE KEY UPDATE value = VALUES(value);
+INSERT INTO settings (key_name, value) VALUES ('smslenz_sender_id', 'ExGenX9920')
+ON DUPLICATE KEY UPDATE value = VALUES(value);
+INSERT INTO settings (key_name, value) VALUES ('sms_balance', '5.00')
+ON DUPLICATE KEY UPDATE value = VALUES(value);
+INSERT INTO settings (key_name, value) VALUES ('sms_cost_per_message', '0.62')
+ON DUPLICATE KEY UPDATE value = VALUES(value);

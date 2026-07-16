@@ -17,7 +17,7 @@ $pageTitle = 'Payments';
     <div class="flex flex-col justify-between gap-4 rounded-2xl border border-slate-200/80 bg-white/60 p-6 shadow-sm backdrop-blur-md sm:flex-row sm:items-center">
         <div>
             <h1 class="text-2xl font-bold tracking-tight text-slate-900"><?= e($pageTitle) ?></h1>
-            <p class="mt-1 text-sm font-medium text-slate-500">Record and manage user payments.</p>
+            <p class="mt-1 text-sm font-medium text-slate-500">Record and manage member payments.</p>
         </div>
     </div>
 
@@ -27,8 +27,8 @@ $pageTitle = 'Payments';
             <svg class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
             </svg>
-            <input type="text" x-model="searchQuery" @input.debounce.400ms="searchUsers()"
-                @keydown.enter.prevent="searchUsers()"
+            <input type="text" x-model="searchQuery" @input.debounce.400ms="searchMembers()"
+                @keydown.enter.prevent="searchMembers()"
                 placeholder="Search by name or card number..."
                 class="w-full rounded-lg border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm text-slate-700 placeholder-slate-400 transition-all focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/10">
         </div>
@@ -37,9 +37,9 @@ $pageTitle = 'Payments';
         <div x-show="searchResults.length > 0" class="mt-3">
             <div class="space-y-1.5 max-h-60 overflow-y-auto">
                 <template x-for="u in searchResults" :key="u.id">
-                    <div @click="selectUser(u)"
+                    <div @click="selectMember(u)"
                         class="flex items-center justify-between gap-4 p-3 rounded-xl border border-slate-200 cursor-pointer transition hover:border-primary-300 hover:bg-primary-50/50"
-                        :class="selectedUser?.id === u.id ? 'border-primary-400 bg-primary-50 ring-2 ring-primary-200' : ''">
+                        :class="selectedMember?.id === u.id ? 'border-primary-400 bg-primary-50 ring-2 ring-primary-200' : ''">
                         <div class="min-w-0 flex-1">
                             <p class="text-sm font-semibold text-slate-800" x-text="u.name"></p>
                             <p class="text-xs text-slate-500">
@@ -58,19 +58,19 @@ $pageTitle = 'Payments';
             </div>
         </div>
 
-        <div x-show="searchResults.length === 0 && searched && !selectedUser" class="mt-3 text-center py-4 text-sm text-slate-400">
-            No users found.
+        <div x-show="searchResults.length === 0 && searched && !selectedMember" class="mt-3 text-center py-4 text-sm text-slate-400">
+            No members found.
         </div>
     </div>
 
     <!-- Payment Info & Form -->
-    <div x-show="selectedUser" x-cloak class="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+    <div x-show="selectedMember" x-cloak class="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
 
         <!-- User summary -->
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
             <div class="rounded-xl bg-slate-50 p-3 border border-slate-100">
                 <p class="text-xs text-slate-500 font-medium">Monthly Amount</p>
-                <p class="text-lg font-bold text-slate-800" x-text="'Rs. ' + parseFloat(selectedUser?.monthly_amount || 0).toFixed(2)"></p>
+                <p class="text-lg font-bold text-slate-800" x-text="'Rs. ' + parseFloat(selectedMember?.monthly_amount || 0).toFixed(2)"></p>
             </div>
             <div class="rounded-xl bg-slate-50 p-3 border border-slate-100">
                 <p class="text-xs text-slate-500 font-medium">Last Paid</p>
@@ -126,7 +126,7 @@ $pageTitle = 'Payments';
     </div>
 
     <!-- Payment History -->
-    <div x-show="selectedUser" x-cloak class="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
+    <div x-show="selectedMember" x-cloak class="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
         <div class="px-6 py-4 border-b border-slate-100">
             <h3 class="text-base font-bold text-slate-900">Payment History</h3>
         </div>
@@ -192,29 +192,29 @@ function paymentManager() {
         searchQuery: '',
         searched: false,
         searchResults: [],
-        selectedUser: null,
+        selectedMember: null,
         paymentInfo: null,
         paymentAmount: '',
         calculation: null,
         paymentHistory: [],
 
-        searchUsers() {
+        searchMembers() {
             if (!this.searchQuery.trim()) return;
             this.searched = true;
-            fetch(BASE_URL + '/admin/payments/search-user', {
+            fetch(BASE_URL + '/admin/payments/search-member', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ query: this.searchQuery, _csrf: '<?= e($_SESSION['csrf_token'] ?? '') ?>' }),
             })
             .then(r => r.json())
             .then(r => {
-                if (r.success) this.searchResults = r.users || [];
+                if (r.success) this.searchResults = r.members || [];
             })
             .catch(() => {});
         },
 
-        selectUser(user) {
-            this.selectedUser = user;
+        selectMember(user) {
+            this.selectedMember = user;
             this.searchResults = [];
             this.searched = false;
             this.paymentAmount = '';
@@ -225,11 +225,11 @@ function paymentManager() {
         },
 
         loadPaymentInfo() {
-            if (!this.selectedUser) return;
-            fetch(BASE_URL + '/admin/payments/user-info', {
+            if (!this.selectedMember) return;
+            fetch(BASE_URL + '/admin/payments/member-info', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: this.selectedUser.id, _csrf: '<?= e($_SESSION['csrf_token'] ?? '') ?>' }),
+                body: JSON.stringify({ member_id: this.selectedMember.id, _csrf: '<?= e($_SESSION['csrf_token'] ?? '') ?>' }),
             })
             .then(r => r.json())
             .then(r => {
@@ -242,13 +242,13 @@ function paymentManager() {
         },
 
         loadPaymentHistory() {
-            if (!this.selectedUser) return;
-            // Payment history comes from the same user-info endpoint now
+            if (!this.selectedMember) return;
+            // Payment history comes from the same member-info endpoint now
             this.loadPaymentInfo();
         },
 
         calculate() {
-            if (!this.selectedUser || !this.paymentAmount || parseFloat(this.paymentAmount) <= 0) {
+            if (!this.selectedMember || !this.paymentAmount || parseFloat(this.paymentAmount) <= 0) {
                 this.calculation = null;
                 return;
             }
@@ -256,7 +256,7 @@ function paymentManager() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    user_id: this.selectedUser.id,
+                    member_id: this.selectedMember.id,
                     amount: parseFloat(this.paymentAmount),
                     _csrf: '<?= e($_SESSION['csrf_token'] ?? '') ?>',
                 }),
@@ -267,7 +267,7 @@ function paymentManager() {
         },
 
         submitPayment() {
-            if (!this.selectedUser || !this.calculation) return;
+            if (!this.selectedMember || !this.calculation) return;
             const amount = parseFloat(this.paymentAmount);
             if (!amount || amount <= 0) { showToast('Enter a valid amount.', 'warning'); return; }
 
@@ -275,7 +275,7 @@ function paymentManager() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    user_id: this.selectedUser.id,
+                    member_id: this.selectedMember.id,
                     amount: amount,
                     _csrf: '<?= e($_SESSION['csrf_token'] ?? '') ?>',
                 }),
@@ -296,7 +296,7 @@ function paymentManager() {
         },
 
         resetForm() {
-            this.selectedUser = null;
+            this.selectedMember = null;
             this.searchResults = [];
             this.searched = false;
             this.searchQuery = '';
