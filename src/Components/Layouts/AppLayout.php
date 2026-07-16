@@ -85,6 +85,11 @@ final class AppLayout
         nameError: '',
         wardError: '',
         userErrors: {},
+        get filteredLocs() {
+            if (!this.drawerData?.ward_id) return window.rawLocs || [];
+            const ids = window.wardLocMap?.[this.drawerData.ward_id] || [];
+            return (window.rawLocs || []).filter(loc => ids.includes(loc.id));
+        },
         toggle() {
             this.collapsed = !this.collapsed;
             localStorage.setItem('mp_sidebar', this.collapsed ? '1' : '0');

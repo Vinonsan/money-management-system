@@ -49,11 +49,12 @@ $wardOptsHtml = '';
 foreach ($wardOpts as $id => $label) {
     $wardOptsHtml .= '<option value="' . $id . '">' . $label . '</option>';
 }
-// ─── Pre-build location options HTML for heredoc ──────────────────────
-$locOptsHtml = '';
+// ─── Build locations JSON for Alpine filtering ───────────────────────
+$locJsonData = [];
 foreach ($locOptions as $id => $name) {
-    $locOptsHtml .= '<option value="' . $id . '" x-show="wardLocMap[drawerData.ward_id]?.includes(' . $id . ')">' . $name . '</option>';
+    $locJsonData[] = ['id' => $id, 'name' => $name];
 }
+$locJson = json_encode($locJsonData, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
 // ─── Shared Icon SVGs ─────────────────────────────────────────────────
 $iconEye   = '<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>';
@@ -186,6 +187,9 @@ $columns = [
 <script>
 const wardLocMap = <?= $wardLocJson ?>;
 const locNames = <?= $locNamesJson ?>;
+const rawLocs = <?= $locJson ?>;
+window.wardLocMap = wardLocMap;
+window.rawLocs = rawLocs;
 
 function getAlpine() {
     return Alpine.$data(document.querySelector('[x-data]'));
@@ -449,7 +453,9 @@ HTML
             <select x-model="drawerData.location_id" :disabled="drawerMode === 'view'"
                 :class="'w-full rounded-lg border bg-primary-50/30 px-3 py-2.5 text-sm text-slate-800 transition focus:outline-none focus:ring-2 appearance-none focus:bg-white border-primary-200 focus:border-primary-600 focus:ring-primary-600/30'">
                 <option value="">Select location...</option>
-                <?= $locOptsHtml ?>
+                <template x-for="loc in filteredLocs" :key="loc.id">
+                    <option :value="loc.id" x-text="loc.name"></option>
+                </template>
             </select>
         </div>
         <div x-show="drawerMode === 'view'">
