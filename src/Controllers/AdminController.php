@@ -31,13 +31,14 @@ class AdminController
         $firstOfMonth = date('Y-m-01');
         $locFilter = $this->getLocationFilter();
         $locJoin = $locFilter ? ' AND m.location_id = ' . (int) $locFilter : '';
+        $locJoinSimple = $locFilter ? ' AND location_id = ' . (int) $locFilter : '';
         $locPayJoin = $locFilter ? ' AND m2.location_id = ' . (int) $locFilter : '';
 
         // Total members
-        $totalMembers = $db->fetch("SELECT COUNT(*) AS cnt FROM members WHERE is_active = 1 AND monthly_amount > 0{$locJoin}")['cnt'] ?? 0;
+        $totalMembers = $db->fetch("SELECT COUNT(*) AS cnt FROM members WHERE is_active = 1 AND monthly_amount > 0{$locJoinSimple}")['cnt'] ?? 0;
 
         // Monthly target
-        $monthlyTarget = $db->fetch("SELECT COALESCE(SUM(monthly_amount), 0) AS total FROM members WHERE is_active = 1 AND monthly_amount > 0{$locJoin}")['total'] ?? 0;
+        $monthlyTarget = $db->fetch("SELECT COALESCE(SUM(monthly_amount), 0) AS total FROM members WHERE is_active = 1 AND monthly_amount > 0{$locJoinSimple}")['total'] ?? 0;
 
         // This month collection - filter by admin's location members
         $thisMonth = $db->fetch(
@@ -505,7 +506,7 @@ class AdminController
             $dueMessages = $db->fetchAll(
                 "SELECT sm.id, sm.member_id, sm.message, m.phone
                  FROM scheduled_messages sm
-                 JOIN users u ON m.id = sm.member_id
+                 JOIN members m ON m.id = sm.member_id
                  WHERE sm.status = 'pending' AND sm.scheduled_date <= CURDATE()"
             );
 
@@ -630,7 +631,7 @@ class AdminController
         $dueMessages = $db->fetchAll(
             "SELECT sm.id, sm.member_id, sm.message, sm.scheduled_date, sm.scheduled_time, m.phone
              FROM scheduled_messages sm
-             JOIN users u ON m.id = sm.member_id
+             JOIN members m ON m.id = sm.member_id
              WHERE sm.status = 'pending'
                AND (
                    sm.scheduled_date < CURDATE()
@@ -1028,11 +1029,22 @@ class AdminController
         exit;
     }
 
-    private function locationIds(mixed $locationIds): array
+    private function jsonError(string $message): void
     {
         header('Content-Type: application/json');
         http_response_code(400);
         echo json_encode(['success' => false, 'error' => $message]);
         exit;
+    }
+
+    private function locationIds(mixed $locationIds): array
+    {
+        if (is_array($locationIds)) {
+            return array_map('intval', $locationIds);
+        }
+        if (is_string($locationIds)) {
+            return array_map('intval', explode(',', $locationIds));
+        }
+        return [];
     }
 }

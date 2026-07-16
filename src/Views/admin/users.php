@@ -168,7 +168,7 @@ $columns = [
         <?php
         echo DataTable::render([
             'columns' => $columns,
-            'rows' => $users,
+            'rows' => $members,
             'total' => $total,
             'page' => $page,
             'perPage' => $perPage,

@@ -184,3 +184,71 @@ INSERT INTO settings (key_name, value) VALUES ('sms_balance', '5.00')
 ON DUPLICATE KEY UPDATE value = VALUES(value);
 INSERT INTO settings (key_name, value) VALUES ('sms_cost_per_message', '0.62')
 ON DUPLICATE KEY UPDATE value = VALUES(value);
+
+-- ─── Safe migrations for existing tables (ignore if columns already exist) ─
+-- These only run when deploying on a server that already has tables.
+
+-- Members: add missing columns
+SET @db = (SELECT DATABASE());
+SET @col = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'members' AND COLUMN_NAME = 'location_id');
+SET @sql = IF(@col = 0, 'ALTER TABLE members ADD COLUMN location_id INT UNSIGNED DEFAULT NULL AFTER phone, ADD INDEX idx_member_location (location_id)', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'members' AND COLUMN_NAME = 'ward_id');
+SET @sql = IF(@col = 0, 'ALTER TABLE members ADD COLUMN ward_id INT UNSIGNED DEFAULT NULL AFTER location_id, ADD INDEX idx_member_ward (ward_id)', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'members' AND COLUMN_NAME = 'card_number');
+SET @sql = IF(@col = 0, 'ALTER TABLE members ADD COLUMN card_number INT UNSIGNED DEFAULT NULL AFTER phone', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'members' AND COLUMN_NAME = 'road_number');
+SET @sql = IF(@col = 0, 'ALTER TABLE members ADD COLUMN road_number VARCHAR(100) DEFAULT NULL AFTER card_number', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'members' AND COLUMN_NAME = 'street');
+SET @sql = IF(@col = 0, 'ALTER TABLE members ADD COLUMN street VARCHAR(255) DEFAULT NULL AFTER road_number', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Users: add missing columns
+SET @col = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'users' AND COLUMN_NAME = 'business_name');
+SET @sql = IF(@col = 0, 'ALTER TABLE users ADD COLUMN business_name VARCHAR(255) DEFAULT NULL AFTER name', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'users' AND COLUMN_NAME = 'location_id');
+SET @sql = IF(@col = 0, 'ALTER TABLE users ADD COLUMN location_id INT UNSIGNED DEFAULT NULL AFTER role, ADD INDEX idx_user_location (location_id)', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Users: fix role ENUM (remove old 'collector' if present)
+SET @enum = (SELECT COLUMN_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'users' AND COLUMN_NAME = 'role');
+SET @sql = IF(@enum IS NOT NULL AND @enum NOT LIKE '%admin%', 'ALTER TABLE users MODIFY COLUMN role ENUM(\'super_admin\', \'admin\') NOT NULL DEFAULT \'admin\'', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Users: drop UNIQUE on email if exists
+SET @idx = (SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'users' AND INDEX_NAME = 'email' AND NON_UNIQUE = 0);
+SET @sql = IF(@idx > 0, 'ALTER TABLE users DROP INDEX email', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Payments: add member_id if missing, drop user_id
+SET @col = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'payments' AND COLUMN_NAME = 'member_id');
+SET @sql = IF(@col = 0, 'ALTER TABLE payments ADD COLUMN member_id INT UNSIGNED DEFAULT NULL AFTER id, ADD INDEX idx_payment_member (member_id)', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'payments' AND COLUMN_NAME = 'user_id');
+SET @sql = IF(@col > 0, 'ALTER TABLE payments DROP COLUMN user_id', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Payments: make member_id NOT NULL after migration
+SET @col = (SELECT IS_NULLABLE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'payments' AND COLUMN_NAME = 'member_id');
+SET @sql = IF(@col = 'YES', 'ALTER TABLE payments MODIFY COLUMN member_id INT UNSIGNED NOT NULL', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Scheduled messages: add member_id if missing
+SET @col = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'scheduled_messages' AND COLUMN_NAME = 'member_id');
+SET @sql = IF(@col = 0, 'ALTER TABLE scheduled_messages ADD COLUMN member_id INT UNSIGNED DEFAULT NULL AFTER id, ADD INDEX idx_sched_member (member_id)', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Re-create foreign keys if missing
+SET @fk = (SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'payments' AND CONSTRAINT_TYPE = 'FOREIGN KEY');
+SET @sql = IF(@fk = 0, 'ALTER TABLE payments ADD FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
