@@ -6,8 +6,24 @@ date_default_timezone_set('Asia/Colombo');
 // ─── Environment Detection ──────────────────────────────────────────────
 $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
 $host     = $_SERVER['HTTP_HOST'] ?? 'localhost';
-$isLocal  = in_array($host, ['localhost', '127.0.0.1', '::1'], true);
-$subfolder = $isLocal ? '/masjidpay' : '';
+
+// Auto-detect subfolder from document root vs script path
+$subfolder = '';
+$docRoot   = str_replace('\\', '/', $_SERVER['DOCUMENT_ROOT'] ?? '');
+$scriptDir = dirname(str_replace('\\', '/', $_SERVER['SCRIPT_FILENAME'] ?? ''));
+if (str_starts_with($scriptDir, $docRoot)) {
+    $relPath = substr($scriptDir, strlen(rtrim($docRoot, '/')));
+    $relPath = explode('/', trim($relPath, '/'));
+    // Walk up from the deepest dir until we find config.php
+    $subfolder = '';
+    for ($i = count($relPath); $i >= 0; $i--) {
+        $candidate = '/' . implode('/', array_slice($relPath, 0, $i));
+        if (!empty($candidate) && file_exists($docRoot . $candidate . '/config/config.php')) {
+            $subfolder = $candidate;
+            break;
+        }
+    }
+}
 
 define('BASE_URL', rtrim($protocol . $host . $subfolder, '/'));
 

@@ -170,6 +170,8 @@ class SuperAdminController
         $smsBalance = Setting::get('sms_balance', '0');
         $smsCost = Setting::get('sms_cost_per_message', '0.62');
         $smsSenderId = Setting::get('smslenz_sender_id', 'ExGenX9920');
+        $smsUserId  = Setting::get('smslenz_user_id', '');
+        $smsApiKey  = Setting::get('smslenz_api_key', '');
 
         // Transaction history from settings (simple log)
         $history = Database::connect()->fetchAll(
@@ -191,8 +193,10 @@ class SuperAdminController
         $this->requireJson();
         $data = $this->jsonBody();
 
-        $smsCost = trim($data['sms_cost_per_message'] ?? '0.62');
+        $smsCost     = trim($data['sms_cost_per_message'] ?? '0.62');
         $smsSenderId = trim($data['smslenz_sender_id'] ?? 'ExGenX9920');
+        $smsUserId   = trim($data['smslenz_user_id'] ?? '');
+        $smsApiKey   = trim($data['smslenz_api_key'] ?? '');
 
         if ($smsCost === '' || (float) $smsCost <= 0) {
             $this->jsonError('Valid cost is required.');
