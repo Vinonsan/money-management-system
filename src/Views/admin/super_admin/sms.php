@@ -3,6 +3,8 @@
  * @var string $smsBalance  Current SMS balance
  * @var string $smsCost     Cost per SMS message
  * @var string $smsSenderId SMSLenz sender ID
+ * @var string $smsUserId   SMSLenz user ID
+ * @var string $smsApiKey   SMSLenz API key
  * @var array  $history     Transaction history log
  */
 $pageTitle = 'SMS Management';
@@ -116,6 +118,18 @@ $pageTitle = 'SMS Management';
                 </template>
             </div>
             <div>
+                <label class="block text-sm font-semibold text-primary-800 mb-1.5">SMSlenz User ID</label>
+                <input type="text" x-model="smsUserId"
+                    class="w-full rounded-lg border border-primary-200 bg-primary-50/30 px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:bg-white transition"
+                    placeholder="e.g. 2127">
+            </div>
+            <div>
+                <label class="block text-sm font-semibold text-primary-800 mb-1.5">SMSlenz API Key</label>
+                <input type="text" x-model="smsApiKey"
+                    class="w-full rounded-lg border border-primary-200 bg-primary-50/30 px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:bg-white transition"
+                    placeholder="e.g. bf7a3a89-...">
+            </div>
+            <div>
                 <label class="block text-sm font-semibold text-primary-800 mb-1.5">Sender ID</label>
                 <input type="text" x-model="senderId"
                     class="w-full rounded-lg border border-primary-200 bg-primary-50/30 px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:bg-white transition"
@@ -124,7 +138,7 @@ $pageTitle = 'SMS Management';
                     <svg class="h-3.5 w-3.5 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
                     </svg>
-                    <span>If SMS not sending, check your approved Sender ID on <a href="https://smslenz.lk" target="_blank" class="underline font-semibold hover:text-primary-800">smslenz.lk</a>.</span>
+                    <span>Get these from your <a href="https://smslenz.lk" target="_blank" class="underline font-semibold hover:text-primary-800">SMSlenz dashboard</a> → API Settings.</span>
                 </p>
             </div>
             <div class="flex items-center justify-end pt-2">
@@ -207,6 +221,8 @@ function smsManager() {
         // Config
         smsCost: '<?= e($smsCost) ?>',
         senderId: '<?= e($smsSenderId) ?>',
+        smsUserId: '<?= e($smsUserId) ?>',
+        smsApiKey: '<?= e($smsApiKey) ?>',
         configError: '',
         configSaving: false,
 
@@ -264,6 +280,8 @@ function smsManager() {
                 body: JSON.stringify({
                     sms_cost_per_message: this.smsCost,
                     smslenz_sender_id: this.senderId,
+                    smslenz_user_id: this.smsUserId,
+                    smslenz_api_key: this.smsApiKey,
                     _csrf: '<?= e($_SESSION['csrf_token'] ?? '') ?>',
                 }),
             })

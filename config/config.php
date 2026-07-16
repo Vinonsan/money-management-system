@@ -7,21 +7,15 @@ date_default_timezone_set('Asia/Colombo');
 $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
 $host     = $_SERVER['HTTP_HOST'] ?? 'localhost';
 $isLocal  = in_array($host, ['localhost', '127.0.0.1', '::1'], true);
-
-// PHP built-in server serves from /public — no subfolder needed
-$isBuiltInServer = PHP_SAPI === 'cli-server';
-// When using XAMPP, the project subfolder matches the htdocs folder name
-$projectFolder = basename(dirname(__DIR__)); // money-management-system-1
-$subfolder = ($isLocal && !$isBuiltInServer) ? '/' . $projectFolder : '';
+$subfolder = $isLocal ? '/masjidpay' : '';
 
 define('BASE_URL', rtrim($protocol . $host . $subfolder, '/'));
 
 // ─── App Settings ───────────────────────────────────────────────────────
 define('APP_NAME', 'MasjidPay');
 
-// ─── OTP / SMS ──────────────────────────────────────────────────────────
-// OTP is generated as a cryptographically secure 6‑digit random number via random_int().
-// Remove any OTP_DEV_CODE definition in production — the fallback is always secure.
+// ─── OTP / SMS (SMS API later; fixed OTP for now) ───────────────────────
+define('OTP_DEV_CODE', '111111');
 define('OTP_EXPIRY_MINUTES', 5);
 define('OTP_MAX_REQUESTS', 3);          // 3 OTP requests → lock 1 minute
 define('OTP_LOCK_SECONDS', 60);

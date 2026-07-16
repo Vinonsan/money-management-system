@@ -1,15 +1,11 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
+    RewriteBase /
 
-    # ─── Document Root: /public/ ─────────────────────────────────────────
-    # This .htaccess lives inside the document root (cPanel configured).
-    # No "public/" prefix needed — we are already inside public/.
+    # Check if the requested file/folder physically exists
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
 
-    # Serve existing files and directories directly (assets, etc.)
-    RewriteCond %{REQUEST_FILENAME} -f [OR]
-    RewriteCond %{REQUEST_FILENAME} -d
-    RewriteRule ^ - [L]
-
-    # Route everything else to the front controller
+    # Redirect all clean URLs to index.php with ?route=
     RewriteRule ^(.*)$ index.php?route=$1 [QSA,L]
 </IfModule>
