@@ -369,12 +369,30 @@ $role = $_SESSION['user_role'] ?? '';
         $sortField = (string) ($_GET['sort'] ?? 'created_at');
         $sortDir = (string) ($_GET['dir'] ?? 'desc');
         $role = $_SESSION['user_role'] ?? '';
+
+        // Data isolation: non-super-admin sees only members in their own locations
+        $createdLocationIds = null;
+        if ($role !== 'super_admin') {
+            $userId = (int) ($_SESSION['user_id'] ?? 0);
+            $locRows = \Models\Database::connect()->fetchAll(
+                'SELECT id FROM locations WHERE created_by = ?',
+                [$userId]
+            );
+            if (!empty($locRows)) {
+                $createdLocationIds = array_column($locRows, 'id');
+            } else {
+                // No locations created — force empty result
+                $createdLocationIds = [-1];
+            }
+        }
+
+        $total = Member::count($search, $locationId, $wardId, $createdLocationIds);
+
+        // Filter locations/wards by creator for isolation in member form
         $createdBy = $role !== 'super_admin' ? (int) ($_SESSION['user_id'] ?? 0) : null;
-        $locFilter = $this->getLocationFilter();
-        $total = Member::count($search, $locationId, $wardId, $locFilter);
 
         $this->view('Members', 'users.php', [
-            'members' => Member::getAll($page, $perPage, $search, $sortField, $sortDir, $locationId, $wardId, $locFilter),
+            'members' => Member::getAll($page, $perPage, $search, $sortField, $sortDir, $locationId, $wardId, $createdLocationIds),
             'total' => $total,
             'page' => $page,
             'perPage' => $perPage,
@@ -384,7 +402,7 @@ $role = $_SESSION['user_role'] ?? '';
             'sortField' => $sortField,
             'sortDir' => $sortDir,
             'locations' => Location::allActive(null, $createdBy),
-            'wards' => Ward::allActive(null, $createdBy),
+            'wards' => Ward::allActive(),
         ], 'users.list');
     }
 
@@ -409,11 +427,7 @@ $role = $_SESSION['user_role'] ?? '';
         }
 
         try {
-// Enforce location isolation: use admin's assigned location if not super_admin
-            $locFilter = $this->getLocationFilter();
-            $locationId = $locFilter !== null
-                ? $locFilter
-                : (!empty($data['location_id']) ? (int) $data['location_id'] : null);
+            $locationId = !empty($data['location_id']) ? (int) $data['location_id'] : null;
 
             Member::create([
                 'name' => $name,
@@ -477,7 +491,7 @@ $role = $_SESSION['user_role'] ?? '';
                 'card_number' => !empty($data['card_number']) ? (int) $data['card_number'] : null,
                 'road_number' => !empty($data['road_number']) ? trim($data['road_number']) : null,
                 'street' => !empty($data['street']) ? trim($data['street']) : null,
-                'location_id' => $locFilter ?? (!empty($data['location_id']) ? (int) $data['location_id'] : null),
+                'location_id' => !empty($data['location_id']) ? (int) $data['location_id'] : null,
                 'ward_id' => !empty($data['ward_id']) ? (int) $data['ward_id'] : null,
                 'monthly_amount' => !empty($data['monthly_amount']) ? (float) $data['monthly_amount'] : 0,
             ]);

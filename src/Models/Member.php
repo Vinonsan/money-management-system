@@ -3,7 +3,7 @@ namespace Models;
 
 class Member
 {
-    public static function getAll(int $page = 1, int $perPage = 10, string $search = '', string $sortField = 'created_at', string $sortDir = 'desc', int $locationId = 0, int $wardId = 0, ?int $locationFilter = null): array
+    public static function getAll(int $page = 1, int $perPage = 10, string $search = '', string $sortField = 'created_at', string $sortDir = 'desc', int $locationId = 0, int $wardId = 0, ?array $locationIds = null): array
     {
         $allowedSort = ['name', 'phone', 'monthly_amount', 'location_id', 'ward_id', 'is_active', 'created_at'];
         $sortField = in_array($sortField, $allowedSort, true) ? $sortField : 'created_at';
@@ -12,10 +12,11 @@ class Member
         $conditions = [];
         $params = [];
 
-        // Enforce location isolation
-        if ($locationFilter !== null) {
-            $conditions[] = 'm.location_id = ?';
-            $params[] = $locationFilter;
+        // Enforce location isolation: filter by admin's created locations
+        if (!empty($locationIds)) {
+            $placeholders = implode(',', array_fill(0, count($locationIds), '?'));
+            $conditions[] = "m.location_id IN ({$placeholders})";
+            $params = array_merge($params, $locationIds);
         }
 
         if ($search !== '') {
@@ -48,15 +49,16 @@ class Member
         );
     }
 
-    public static function count(string $search = '', int $locationId = 0, int $wardId = 0, ?int $locationFilter = null): int
+    public static function count(string $search = '', int $locationId = 0, int $wardId = 0, ?array $locationIds = null): int
     {
         $conditions = [];
         $params = [];
 
-        // Enforce location isolation
-        if ($locationFilter !== null) {
-            $conditions[] = 'm.location_id = ?';
-            $params[] = $locationFilter;
+        // Enforce location isolation: filter by admin's created locations
+        if (!empty($locationIds)) {
+            $placeholders = implode(',', array_fill(0, count($locationIds), '?'));
+            $conditions[] = "m.location_id IN ({$placeholders})";
+            $params = array_merge($params, $locationIds);
         }
 
         if ($search !== '') {
