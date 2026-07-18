@@ -132,16 +132,17 @@ class Payment
     /**
      * Get all members with payment status.
      */
-    public static function getMembers(string $search = '', int $locationId = 0, int $wardId = 0, string $status = 'unpaid', int $page = 1, int $perPage = 50, ?int $locationFilter = null): array
+    public static function getMembers(string $search = '', int $locationId = 0, int $wardId = 0, string $status = 'unpaid', int $page = 1, int $perPage = 50, ?array $locationIds = null): array
     {
         $today = date('Y-m-d');
         $conditions = ['(m.monthly_amount > 0)'];
         $params = [];
 
-        // Enforce location isolation
-        if ($locationFilter !== null) {
-            $conditions[] = 'm.location_id = ?';
-            $params[] = $locationFilter;
+        // Enforce location isolation by admin's created locations
+        if (!empty($locationIds)) {
+            $placeholders = implode(',', array_fill(0, count($locationIds), '?'));
+            $conditions[] = "m.location_id IN ({$placeholders})";
+            $params = array_merge($params, $locationIds);
         }
 
         if ($search !== '') {

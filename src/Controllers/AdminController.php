@@ -558,10 +558,25 @@ $role = $_SESSION['user_role'] ?? '';
         $perPage = max(1, min(100, (int) ($_GET['per_page'] ?? 50)));
         $sortField = (string) ($_GET['sort'] ?? 'name');
         $sortDir = (string) ($_GET['dir'] ?? 'asc');
-        $locFilter = $this->getLocationFilter();
         $role = $_SESSION['user_role'] ?? '';
+
+        // Data isolation: non-super-admin sees only members in their own locations
+        $createdLocationIds = null;
+        if ($role !== 'super_admin') {
+            $userId = (int) ($_SESSION['user_id'] ?? 0);
+            $locRows = \Models\Database::connect()->fetchAll(
+                'SELECT id FROM locations WHERE created_by = ?',
+                [$userId]
+            );
+            if (!empty($locRows)) {
+                $createdLocationIds = array_column($locRows, 'id');
+            } else {
+                $createdLocationIds = [-1];
+            }
+        }
+
         $createdBy = $role !== 'super_admin' ? (int) ($_SESSION['user_id'] ?? 0) : null;
-        $result = Payment::getMembers($search, $locationId, $wardId, $status, $page, $perPage, $locFilter);
+        $result = Payment::getMembers($search, $locationId, $wardId, $status, $page, $perPage, $createdLocationIds);
 
         $this->view('Members', 'payments_members.php', [
             'members'    => $result['rows'],
