@@ -16,6 +16,9 @@ schema1.sql
 setup.php
 migrate_users_to_members.php
 
+# ─── Production DB credentials fallback ─────────────────────────────────
+config/db.php
+
 # ─── Tests (development only) ───────────────────────────────────────────
 tests/
 *.test.php

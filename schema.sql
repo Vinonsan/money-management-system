@@ -78,8 +78,10 @@ CREATE TABLE IF NOT EXISTS locations (
     address TEXT DEFAULT NULL,
     city VARCHAR(100) DEFAULT NULL,
     is_active TINYINT(1) NOT NULL DEFAULT 1,
+    created_by INT UNSIGNED DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_location_created_by (created_by)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ─── Wards ──────────────────────────────────────────────────────────────
@@ -158,19 +160,15 @@ CREATE TABLE IF NOT EXISTS scheduled_messages (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ─── Seed data ──────────────────────────────────────────────────────────
+-- Only super admin is seeded. Admins & members must be added via UI.
 INSERT INTO users (name, business_name, phone, email, role, is_active)
-VALUES ('vinonsan', 'MasjidPay Owner', '0754476969', 'vinonsan.99@gmail.com', 'super_admin', 1)
+VALUES ('vinonsan', 'MasjidPay Owner', '0758311995', 'vinonsan.99@gmail.com', 'super_admin', 1)
 ON DUPLICATE KEY UPDATE
     name = VALUES(name),
     business_name = VALUES(business_name),
     email = VALUES(email),
     role = VALUES(role),
     is_active = 1;
-
--- ─── Sample members ──────────────────────────────────────────────────
-INSERT INTO members (name, email, phone, monthly_amount, is_active)
-VALUES ('Sample Member', 'member1@example.com', '0770000001', 500.00, 1)
-ON DUPLICATE KEY UPDATE name = VALUES(name);
 
 -- ─── Default SMS settings ────────────────────────────────────────────
 INSERT INTO settings (key_name, value) VALUES ('smslenz_user_id', '2127')
@@ -186,6 +184,12 @@ ON DUPLICATE KEY UPDATE value = VALUES(value);
 
 -- ─── Safe migrations for existing tables (ignore if columns already exist) ─
 -- These only run when deploying on a server that already has tables.
+
+-- Locations: add created_by column
+SET @db = (SELECT DATABASE());
+SET @col = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'locations' AND COLUMN_NAME = 'created_by');
+SET @sql = IF(@col = 0, 'ALTER TABLE locations ADD COLUMN created_by INT UNSIGNED DEFAULT NULL AFTER is_active, ADD INDEX idx_location_created_by (created_by)', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- Members: add missing columns
 SET @db = (SELECT DATABASE());
