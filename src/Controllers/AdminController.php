@@ -370,12 +370,12 @@ $role = $_SESSION['user_role'] ?? '';
         $sortDir = (string) ($_GET['dir'] ?? 'desc');
         $role = $_SESSION['user_role'] ?? '';
 
-        // Data isolation: non-super-admin sees only members in their own locations
+        // Data isolation: non-super-admin sees only members in their own + legacy locations
         $createdLocationIds = null;
         if ($role !== 'super_admin') {
             $userId = (int) ($_SESSION['user_id'] ?? 0);
             $locRows = \Models\Database::connect()->fetchAll(
-                'SELECT id FROM locations WHERE created_by = ?',
+                'SELECT id FROM locations WHERE created_by = ? OR created_by IS NULL',
                 [$userId]
             );
             if (!empty($locRows)) {
@@ -474,11 +474,21 @@ $role = $_SESSION['user_role'] ?? '';
         }
 
         try {
-            // Enforce location isolation: verify member belongs to admin's location
-            $locFilter = $this->getLocationFilter();
-            if ($locFilter !== null) {
-                $existing = Member::findById($id);
-                if (!$existing || (int) ($existing['location_id'] ?? 0) !== $locFilter) {
+            // Enforce location isolation: verify member belongs to admin's locations
+            $role = $_SESSION['user_role'] ?? '';
+            if ($role !== 'super_admin') {
+                $userId = (int) ($_SESSION['user_id'] ?? 0);
+                $locRows = \Models\Database::connect()->fetchAll(
+                    'SELECT id FROM locations WHERE created_by = ? OR created_by IS NULL',
+                    [$userId]
+                );
+                $locIds = !empty($locRows) ? array_column($locRows, 'id') : [-1];
+                $placeholders = implode(',', array_fill(0, count($locIds), '?'));
+                $existing = \Models\Database::connect()->fetch(
+                    "SELECT id FROM members WHERE id = ? AND location_id IN ({$placeholders})",
+                    array_merge([$id], $locIds)
+                );
+                if (!$existing) {
                     $this->jsonError('Member not found or access denied.');
                     return;
                 }
@@ -513,10 +523,20 @@ $role = $_SESSION['user_role'] ?? '';
         }
 
         // Enforce location isolation
-        $locFilter = $this->getLocationFilter();
-        if ($locFilter !== null) {
-            $existing = Member::findById($id);
-            if (!$existing || (int) ($existing['location_id'] ?? 0) !== $locFilter) {
+        $role = $_SESSION['user_role'] ?? '';
+        if ($role !== 'super_admin') {
+            $userId = (int) ($_SESSION['user_id'] ?? 0);
+            $locRows = \Models\Database::connect()->fetchAll(
+                'SELECT id FROM locations WHERE created_by = ? OR created_by IS NULL',
+                [$userId]
+            );
+            $locIds = !empty($locRows) ? array_column($locRows, 'id') : [-1];
+            $placeholders = implode(',', array_fill(0, count($locIds), '?'));
+            $existing = \Models\Database::connect()->fetch(
+                "SELECT id FROM members WHERE id = ? AND location_id IN ({$placeholders})",
+                array_merge([$id], $locIds)
+            );
+            if (!$existing) {
                 $this->jsonError('Member not found or access denied.');
                 return;
             }
@@ -560,12 +580,12 @@ $role = $_SESSION['user_role'] ?? '';
         $sortDir = (string) ($_GET['dir'] ?? 'asc');
         $role = $_SESSION['user_role'] ?? '';
 
-        // Data isolation: non-super-admin sees only members in their own locations
+        // Data isolation: non-super-admin sees only members in their own + legacy locations
         $createdLocationIds = null;
         if ($role !== 'super_admin') {
             $userId = (int) ($_SESSION['user_id'] ?? 0);
             $locRows = \Models\Database::connect()->fetchAll(
-                'SELECT id FROM locations WHERE created_by = ?',
+                'SELECT id FROM locations WHERE created_by = ? OR created_by IS NULL',
                 [$userId]
             );
             if (!empty($locRows)) {
@@ -940,11 +960,11 @@ $role = $_SESSION['user_role'] ?? '';
         $role = $_SESSION['user_role'] ?? '';
         $params = ['%' . $query . '%', '%' . $query . '%'];
 
-        // Data isolation: non-super-admin searches only in their own locations
+        // Data isolation: non-super-admin searches only in their own + legacy locations
         if ($role !== 'super_admin') {
             $userId = (int) ($_SESSION['user_id'] ?? 0);
             $locRows = \Models\Database::connect()->fetchAll(
-                'SELECT id FROM locations WHERE created_by = ?',
+                'SELECT id FROM locations WHERE created_by = ? OR created_by IS NULL',
                 [$userId]
             );
             if (!empty($locRows)) {
@@ -991,7 +1011,7 @@ $role = $_SESSION['user_role'] ?? '';
         if ($role !== 'super_admin') {
             $userId = (int) ($_SESSION['user_id'] ?? 0);
             $locRows = \Models\Database::connect()->fetchAll(
-                'SELECT id FROM locations WHERE created_by = ?',
+                'SELECT id FROM locations WHERE created_by = ? OR created_by IS NULL',
                 [$userId]
             );
             if (!empty($locRows)) {
@@ -1036,7 +1056,7 @@ $role = $_SESSION['user_role'] ?? '';
         if ($role !== 'super_admin') {
             $userId = (int) ($_SESSION['user_id'] ?? 0);
             $locRows = \Models\Database::connect()->fetchAll(
-                'SELECT id FROM locations WHERE created_by = ?',
+                'SELECT id FROM locations WHERE created_by = ? OR created_by IS NULL',
                 [$userId]
             );
             if (!empty($locRows)) {
@@ -1082,7 +1102,7 @@ $role = $_SESSION['user_role'] ?? '';
         if ($role !== 'super_admin') {
             $userId = (int) ($_SESSION['user_id'] ?? 0);
             $locRows = \Models\Database::connect()->fetchAll(
-                'SELECT id FROM locations WHERE created_by = ?',
+                'SELECT id FROM locations WHERE created_by = ? OR created_by IS NULL',
                 [$userId]
             );
             if (!empty($locRows)) {
@@ -1962,22 +1982,34 @@ $role = $_SESSION['user_role'] ?? '';
         if ($phone === '' || !preg_match('/^[+0-9][+0-9()\- ]{6,19}$/', $phone)) {
             return ['success' => false, 'error' => "Valid phone number is required for '{$name}'."];
         }
-        if (Member::phoneExists($phone)) {
-            return ['success' => false, 'error' => "Phone {$phone} already exists for '{$name}'."];
+
+        // ── Check phone uniqueness within admin's scope ──
+        $existingMember = \Models\Database::connect()->fetch(
+            'SELECT m.id FROM members m
+             LEFT JOIN locations l ON l.id = m.location_id
+             WHERE m.phone = ? AND (l.created_by = ? OR l.created_by IS NULL OR m.location_id IS NULL)
+             LIMIT 1',
+            [$phone, $userId]
+        );
+        if ($existingMember) {
+            return ['success' => false, 'error' => "Phone {$phone} already used."];
         }
 
-        // Resolve location_name — auto-create if missing
+        // ── Resolve location_name ──────────────────────────────────
         $locationId = null;
         $locationName = trim((string) ($row['location_name'] ?? ''));
+        $createdBy = $role !== 'super_admin' ? $userId : null;
+
         if ($locationName !== '') {
+            // Look up location by name (scoped to admin's locations + legacy)
             $loc = \Models\Database::connect()->fetch(
-                'SELECT id FROM locations WHERE name = ? LIMIT 1',
-                [$locationName]
+                'SELECT id FROM locations WHERE name = ? AND (created_by = ? OR created_by IS NULL) LIMIT 1',
+                [$locationName, $userId]
             );
             if ($loc) {
                 $locationId = (int) $loc['id'];
             } else {
-                $createdBy = $role !== 'super_admin' ? $userId : null;
+                // Auto-create the location
                 $newLocId = Location::create([
                     'name'       => $locationName,
                     'address'    => '',
@@ -1989,19 +2021,10 @@ $role = $_SESSION['user_role'] ?? '';
             }
         }
 
-        // Enforce admin location isolation for non-super-admin
-        if ($role !== 'super_admin') {
-            $userLocId = $_SESSION['user_location_id'] ?? 0;
-            if ($userLocId > 0) {
-                $locationId = (int) $userLocId;
-            }
-        }
-
-        // Resolve ward_number — auto-create if missing
+        // ── Resolve ward_number ────────────────────────────────────
         $wardId = null;
         $wardNumber = trim((string) ($row['ward_number'] ?? ''));
         if ($wardNumber !== '') {
-            // Handle Excel-style decimals e.g. "1.0"
             $cleanWard = preg_replace('/[^0-9]/', '', $wardNumber);
             if ($cleanWard !== '') {
                 $cleanWard = (int) $cleanWard;
@@ -2011,6 +2034,19 @@ $role = $_SESSION['user_role'] ?? '';
                 );
                 if ($wd) {
                     $wardId = (int) $wd['id'];
+                    // Auto-assign location from ward's links if member has no location yet
+                    if ($locationId === null) {
+                        $wardLoc = \Models\Database::connect()->fetch(
+                            'SELECT wl.location_id FROM ward_locations wl
+                             JOIN locations l ON l.id = wl.location_id
+                             WHERE wl.ward_id = ? AND (l.created_by = ? OR l.created_by IS NULL)
+                             LIMIT 1',
+                            [$wardId, $userId]
+                        );
+                        if ($wardLoc) {
+                            $locationId = (int) $wardLoc['location_id'];
+                        }
+                    }
                 } else {
                     // Auto-create ward
                     $newWardId = Ward::create([
@@ -2019,7 +2055,7 @@ $role = $_SESSION['user_role'] ?? '';
                     ]);
                     $wardId = (int) $newWardId;
 
-                    // Link ward to member's location if available
+                    // Link ward to member's location
                     if ($locationId !== null) {
                         Ward::syncLocations($wardId, [$locationId]);
                     }
