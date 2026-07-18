@@ -33,9 +33,9 @@ final class AppLayout
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= e($title) ?> | <?= APP_NAME ?></title>
-    <link rel="icon" type="image/png" href="<?= BASE_URL ?>/assets/img/logo.png">
-    <link rel="icon" type="image/svg+xml" href="<?= BASE_URL ?>/assets/img/favicon.svg">
-    <link rel="apple-touch-icon" href="<?= BASE_URL ?>/assets/img/logo.png">
+    <link rel="icon" type="image/png" href="<?= BASE_URL ?>/public/assets/img/logo.png">
+    <link rel="icon" type="image/svg+xml" href="<?= BASE_URL ?>/public/assets/img/favicon.svg">
+    <link rel="apple-touch-icon" href="<?= BASE_URL ?>/public/assets/img/logo.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = { theme: { extend: <?= $tailwindConfig ?> } };
@@ -124,7 +124,7 @@ final class AppLayout
     <header class="border-b border-slate-200 bg-white">
         <div class="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
             <a href="<?= BASE_URL ?>/" class="flex items-center gap-2">
-                <img src="<?= BASE_URL ?>/assets/img/logo.png" alt="<?= APP_NAME ?>" class="h-8 w-auto">
+                <img src="<?= BASE_URL ?>/public/assets/img/logo.png" alt="<?= APP_NAME ?>" class="h-8 w-auto">
                 <span class="text-xl font-bold text-primary-600"><?= APP_NAME ?></span>
             </a>
             <a href="<?= BASE_URL ?>/login" class="rounded-lg bg-primary-500 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-600 transition">Login</a>

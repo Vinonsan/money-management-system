@@ -14,7 +14,7 @@ final class Sidebar
     public static function render(string $activeNav = ''): string
     {
         $appName = APP_NAME;
-        $logoSrc = BASE_URL . '/assets/img/logo.png';
+        $logoSrc = BASE_URL . '/public/assets/img/logo.png';
 
         $itemsHtml = '';
         $currentRole = $_SESSION['user_role'] ?? '';
