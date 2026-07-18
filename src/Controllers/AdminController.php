@@ -206,6 +206,7 @@ class AdminController
                 'address'   => trim($data['address'] ?? ''),
                 'city'      => trim($data['city'] ?? ''),
                 'is_active' => !empty($data['is_active']) ? 1 : 0,
+                'created_by' => $createdByCheck,
             ]);
             $this->jsonSuccess('Location updated.');
         } catch (\Exception $e) {
@@ -224,8 +225,11 @@ class AdminController
             return;
         }
 
+        $role = $_SESSION['user_role'] ?? '';
+        $createdBy = $role !== 'super_admin' ? (int) ($_SESSION['user_id'] ?? 0) : null;
+
         try {
-            Location::delete($id);
+            Location::delete($id, $createdBy);
             $this->jsonSuccess('Location deleted.');
         } catch (\Exception $e) {
             $this->jsonError('Failed to delete location: ' . $e->getMessage());
@@ -282,7 +286,7 @@ $role = $_SESSION['user_role'] ?? '';
                 'ward_number' => (int) $data['ward_number'],
                 'is_active'   => !empty($data['is_active']) ? 1 : 0,
             ]);
-            Ward::syncLocations((int) $wardId, $locationIds);
+            Ward::syncLocations((int) $wardId, $locationIds, $createdByCheck);
             $this->jsonSuccess('Ward created.');
         } catch (\Exception $e) {
             $this->jsonError('Failed to create ward: ' . $e->getMessage());
@@ -319,8 +323,9 @@ $role = $_SESSION['user_role'] ?? '';
             Ward::update($id, [
                 'ward_number' => (int) $data['ward_number'],
                 'is_active'   => !empty($data['is_active']) ? 1 : 0,
+                'created_by'  => $createdByCheck,
             ]);
-            Ward::syncLocations($id, $locationIds);
+            Ward::syncLocations($id, $locationIds, $createdByCheck);
             $this->jsonSuccess('Ward updated.');
         } catch (\Exception $e) {
             $this->jsonError('Failed to update ward: ' . $e->getMessage());
@@ -338,8 +343,11 @@ $role = $_SESSION['user_role'] ?? '';
             return;
         }
 
+        $role = $_SESSION['user_role'] ?? '';
+        $createdByCheck = $role !== 'super_admin' ? (int) ($_SESSION['user_id'] ?? 0) : null;
+
         try {
-            Ward::delete($id);
+            Ward::delete($id, $createdByCheck);
             $this->jsonSuccess('Ward deleted.');
         } catch (\Exception $e) {
             $this->jsonError('Failed to delete ward: ' . $e->getMessage());
@@ -635,7 +643,7 @@ $role = $_SESSION['user_role'] ?? '';
         // Build query to get all matching unpaid members
         $db = \Models\Database::connect();
         $today = date('Y-m-d');
-        $startDate = \Models\Setting::get('collection_start_date', $today);
+        $startDate = \Models\Setting::getCollectionStartDate((int) ($_SESSION['user_id'] ?? 0));
 
         $conditions = ['(m.monthly_amount > 0)'];
         $params = [];
@@ -701,7 +709,7 @@ $role = $_SESSION['user_role'] ?? '';
             if ($lastPaidDate !== '0000-00-00') {
                 $unpaidStart = date('Y-m-01', strtotime($lastPaidDate . ' +1 month'));
             } else {
-                $startSetting = \Models\Setting::get('collection_start_date', date('Y-m-d'));
+                $startSetting = \Models\Setting::getCollectionStartDate((int) ($_SESSION['user_id'] ?? 0));
                 $unpaidStart = date('Y-m-01', strtotime($startSetting));
             }
 
@@ -1110,7 +1118,10 @@ $role = $_SESSION['user_role'] ?? '';
 
     public function systemConfig(): void
     {
-        $startDate = Setting::get('collection_start_date', date('Y-m-d'));
+        // Read per-admin collection start date, fallback to global setting
+        $userId = (int) ($_SESSION['user_id'] ?? 0);
+        $user = User::findById($userId);
+        $startDate = $user['collection_start_date'] ?? Setting::get('collection_start_date', date('Y-m-d'));
 
         $this->view('System Config', 'system_config.php', [
             'startDate' => $startDate,
@@ -1129,7 +1140,12 @@ $role = $_SESSION['user_role'] ?? '';
         }
 
         try {
-            Setting::set('collection_start_date', $startDate);
+            // Save per-admin collection start date to users table
+            $userId = (int) ($_SESSION['user_id'] ?? 0);
+            \Models\Database::connect()->execute(
+                'UPDATE users SET collection_start_date = ? WHERE id = ?',
+                [$startDate, $userId]
+            );
             $this->jsonSuccess('Configuration saved.');
         } catch (\Exception $e) {
             $this->jsonError('Failed to save: ' . $e->getMessage());
@@ -1629,7 +1645,7 @@ $role = $_SESSION['user_role'] ?? '';
         )['total'] ?? 0;
 
         // ── Available years for filter ──────────────────────
-        $startYear = (int) date('Y', strtotime(Setting::get('collection_start_date', date('Y-m-d'))));
+        $startYear = (int) date('Y', strtotime(Setting::getCollectionStartDate((int) ($_SESSION['user_id'] ?? 0))));
         $currentYear = (int) date('Y');
         $availYears = $db->fetchAll(
             "SELECT DISTINCT y FROM (
@@ -1651,7 +1667,7 @@ $role = $_SESSION['user_role'] ?? '';
             'ytdTotal'   => $ytdTotal,
             'availYears' => $availYears,
             'locations'  => Location::allActive(null, $createdBy),
-            'wards'      => Ward::allActive(null),
+            'wards'      => Ward::allActive(null, $createdBy),
             'locationId' => $locationId,
             'wardId'     => $wardId,
         ], 'reports');
@@ -1663,9 +1679,12 @@ $role = $_SESSION['user_role'] ?? '';
 
     public function bulkImport(): void
     {
+        $role = $_SESSION['user_role'] ?? '';
+        $createdBy = $role !== 'super_admin' ? (int) ($_SESSION['user_id'] ?? 0) : null;
+
         $this->view('Bulk Import', 'bulk_import.php', [
-            'locations' => Location::allActive(),
-            'wards'     => Ward::allActive(),
+            'locations' => Location::allActive(null, $createdBy),
+            'wards'     => Ward::allActive(null, $createdBy),
         ], 'locations.bulk-import');
     }
 
@@ -1783,7 +1802,7 @@ $role = $_SESSION['user_role'] ?? '';
         return ['success' => true];
     }
 
-    private function importWardRow(array $row): array
+    private function importWardRow(array $row, string $role, int $userId): array
     {
         $wardNumber = trim((string) ($row['ward_number'] ?? ''));
         // Handle Excel-exported numbers like "1.0" or "1,0" (European locale)
@@ -1793,7 +1812,9 @@ $role = $_SESSION['user_role'] ?? '';
         // Cast through float to handle decimals (e.g. "1.0" → (int)1.0 → 1)
         $wardNumber = (int) (float) str_replace(',', '.', $wardNumber);
 
-        if (Ward::numberExists($wardNumber)) {
+        $createdBy = $role !== 'super_admin' ? $userId : null;
+
+        if (Ward::numberExists($wardNumber, null, $createdBy)) {
             return ['success' => false, 'error' => "Ward number {$wardNumber} already exists."];
         }
 
@@ -1808,20 +1829,17 @@ $role = $_SESSION['user_role'] ?? '';
             'is_active'   => $isActive,
         ]);
 
-        // Parse location_names (comma-separated). If empty, assign to all active locations.
+        // Parse location_names (comma-separated). If empty, assign to admin's active locations.
         $locationIds = [];
         $locationNames = trim((string) ($row['location_names'] ?? ''));
         if ($locationNames !== '') {
             $names = explode(',', $locationNames);
-            $userId = (int) ($_SESSION['user_id'] ?? 0);
-            $role = $_SESSION['user_role'] ?? '';
-            $createdBy = $role !== 'super_admin' ? $userId : null;
 
             foreach ($names as $locName) {
                 $locName = trim($locName);
                 if ($locName === '') continue;
 
-                // Check if location exists
+                // Check if location exists (scoped to admin's locations)
                 $loc = \Models\Database::connect()->fetch(
                     'SELECT id FROM locations WHERE name = ? LIMIT 1',
                     [$locName]
@@ -1844,12 +1862,12 @@ $role = $_SESSION['user_role'] ?? '';
         }
 
         if (!empty($locationIds)) {
-            Ward::syncLocations((int) $wardId, $locationIds);
+            Ward::syncLocations((int) $wardId, $locationIds, $createdBy);
         } else {
-            // No locations specified - assign to all active locations
-            $locations = Location::allActive();
+            // No locations specified - assign to admin's own active locations only
+            $locations = Location::allActive(null, $createdBy);
             if (!empty($locations)) {
-                Ward::syncLocations((int) $wardId, array_column($locations, 'id'));
+                Ward::syncLocations((int) $wardId, array_column($locations, 'id'), $createdBy);
             }
         }
 

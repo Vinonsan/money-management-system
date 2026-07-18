@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(255) DEFAULT NULL,
     role ENUM('super_admin', 'admin') NOT NULL DEFAULT 'admin',
     location_id INT UNSIGNED DEFAULT NULL COMMENT 'Admin\'s assigned location for isolation',
+    collection_start_date DATE DEFAULT NULL COMMENT 'Per-admin collection start date',
     is_active TINYINT(1) NOT NULL DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -90,8 +91,7 @@ CREATE TABLE IF NOT EXISTS wards (
     ward_number INT UNSIGNED NOT NULL,
     is_active TINYINT(1) NOT NULL DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    UNIQUE KEY uq_ward_number (ward_number)
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- A ward can be assigned to multiple locations, and a location can have multiple wards.
@@ -216,6 +216,15 @@ PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 -- Users: add missing columns
 SET @col = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'users' AND COLUMN_NAME = 'business_name');
 SET @sql = IF(@col = 0, 'ALTER TABLE users ADD COLUMN business_name VARCHAR(255) DEFAULT NULL AFTER name', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'users' AND COLUMN_NAME = 'collection_start_date');
+SET @sql = IF(@col = 0, 'ALTER TABLE users ADD COLUMN collection_start_date DATE DEFAULT NULL AFTER location_id', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Wards: drop global unique constraint (ward numbers are per-admin now)
+SET @uq = (SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'wards' AND INDEX_NAME = 'uq_ward_number');
+SET @sql = IF(@uq > 0, 'ALTER TABLE wards DROP INDEX uq_ward_number', 'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 SET @col = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'users' AND COLUMN_NAME = 'location_id');

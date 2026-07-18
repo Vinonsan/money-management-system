@@ -63,7 +63,7 @@ class Ward
         );
     }
 
-    public static function allActive(?int $locationFilter = null): array
+    public static function allActive(?int $locationFilter = null, ?int $createdBy = null): array
     {
         $sql = 'SELECT w.*, 
                     GROUP_CONCAT(DISTINCT l.name ORDER BY l.name SEPARATOR ", ") AS location_names,
@@ -77,6 +77,11 @@ class Ward
         if ($locationFilter !== null) {
             $sql .= ' AND wl.location_id = ?';
             $params[] = $locationFilter;
+        }
+
+        if ($createdBy !== null) {
+            $sql .= ' AND l.created_by = ?';
+            $params[] = $createdBy;
         }
 
         $sql .= ' GROUP BY w.id ORDER BY w.ward_number ASC';
@@ -128,24 +133,51 @@ class Ward
 
     public static function update(int $id, array $data): int
     {
-        return Database::connect()->execute(
-            'UPDATE wards SET ward_number = ?, is_active = ? WHERE id = ?',
-            [
-                (int) $data['ward_number'],
-                !empty($data['is_active']) ? 1 : 0,
-                $id,
-            ]
-        );
+        $sql = 'UPDATE wards SET ward_number = ?, is_active = ? WHERE id = ?';
+        $params = [
+            (int) $data['ward_number'],
+            !empty($data['is_active']) ? 1 : 0,
+            $id,
+        ];
+
+        // Scope by created_by if provided (via locations JOIN)
+        if (!empty($data['created_by'])) {
+            $sql .= ' AND id IN (SELECT ward_id FROM ward_locations wl JOIN locations l ON l.id = wl.location_id WHERE l.created_by = ?)';
+            $params[] = (int) $data['created_by'];
+        }
+
+        return Database::connect()->execute($sql, $params);
     }
 
-    public static function delete(int $id): int
+    public static function delete(int $id, ?int $createdBy = null): int
     {
-        return Database::connect()->execute('DELETE FROM wards WHERE id = ?', [$id]);
+        $sql = 'DELETE FROM wards WHERE id = ?';
+        $params = [$id];
+
+        if ($createdBy !== null) {
+            $sql .= ' AND id IN (SELECT ward_id FROM ward_locations wl JOIN locations l ON l.id = wl.location_id WHERE l.created_by = ?)';
+            $params[] = $createdBy;
+        }
+
+        return Database::connect()->execute($sql, $params);
     }
 
-    public static function syncLocations(int $wardId, array $locationIds): void
+    public static function syncLocations(int $wardId, array $locationIds, ?int $createdBy = null): void
     {
         $db = Database::connect();
+
+        // Verify each location belongs to the admin
+        if ($createdBy !== null) {
+            $validIds = [];
+            foreach (array_unique(array_map('intval', $locationIds)) as $locId) {
+                $loc = $db->fetch('SELECT id FROM locations WHERE id = ? AND created_by = ?', [$locId, $createdBy]);
+                if ($loc) {
+                    $validIds[] = (int) $loc['id'];
+                }
+            }
+            $locationIds = $validIds;
+        }
+
         $db->execute('DELETE FROM ward_locations WHERE ward_id = ?', [$wardId]);
 
         foreach (array_unique(array_map('intval', $locationIds)) as $locationId) {

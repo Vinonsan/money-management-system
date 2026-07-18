@@ -16,7 +16,7 @@ use Components\Base\DataTable;
  */
 
 $pageTitle = 'Members';
-$startDate = \Models\Setting::get('collection_start_date', date('Y-m-d'));
+$startDate = \Models\Setting::getCollectionStartDate((int) ($_SESSION['user_id'] ?? 0));
 $today = date('Y-m-d');
 
 $locOpts = '<option value="0">All Locations</option>';

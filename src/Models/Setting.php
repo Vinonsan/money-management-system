@@ -27,4 +27,29 @@ class Setting
             'SELECT key_name, value, updated_at FROM settings ORDER BY key_name ASC'
         );
     }
+
+    /**
+     * Get the effective collection start date for a user.
+     * Priority: user's own setting > global setting > today.
+     */
+    public static function getCollectionStartDate(?int $userId = null): string
+    {
+        // Check per-user setting first
+        if ($userId !== null && $userId > 0) {
+            $user = Database::connect()->fetch(
+                'SELECT collection_start_date FROM users WHERE id = ?',
+                [$userId]
+            );
+            if (!empty($user['collection_start_date'])) {
+                return $user['collection_start_date'];
+            }
+        }
+        // Fallback to global setting
+        $global = self::get('collection_start_date', '');
+        if ($global !== '') {
+            return $global;
+        }
+        // Final fallback to today
+        return date('Y-m-d');
+    }
 }

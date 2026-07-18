@@ -120,21 +120,35 @@ class Location
 
     public static function update(int $id, array $data): int
     {
-        return Database::connect()->execute(
-            'UPDATE locations SET name = ?, address = ?, city = ?, is_active = ? WHERE id = ?',
-            [
-                $data['name'],
-                $data['address'] ?? null,
-                $data['city'] ?? null,
-                !empty($data['is_active']) ? 1 : 0,
-                $id,
-            ]
-        );
+        $sql = 'UPDATE locations SET name = ?, address = ?, city = ?, is_active = ? WHERE id = ?';
+        $params = [
+            $data['name'],
+            $data['address'] ?? null,
+            $data['city'] ?? null,
+            !empty($data['is_active']) ? 1 : 0,
+            $id,
+        ];
+
+        // Scope to created_by if provided
+        if (!empty($data['created_by'])) {
+            $sql .= ' AND created_by = ?';
+            $params[] = (int) $data['created_by'];
+        }
+
+        return Database::connect()->execute($sql, $params);
     }
 
-    public static function delete(int $id): int
+    public static function delete(int $id, ?int $createdBy = null): int
     {
-        return Database::connect()->execute('DELETE FROM locations WHERE id = ?', [$id]);
+        $sql = 'DELETE FROM locations WHERE id = ?';
+        $params = [$id];
+
+        if ($createdBy !== null) {
+            $sql .= ' AND created_by = ?';
+            $params[] = $createdBy;
+        }
+
+        return Database::connect()->execute($sql, $params);
     }
 
     public static function allActive(?int $locationFilter = null, ?int $createdBy = null): array

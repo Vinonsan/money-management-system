@@ -81,7 +81,7 @@ class Payment
         if ($lastPayment && $lastPayment['to_month']) {
             $start = date('Y-m-d', strtotime($lastPayment['to_month'] . ' +1 month'));
         } else {
-            $start = Setting::get('collection_start_date', date('Y-m-d'));
+            $start = Setting::getCollectionStartDate();
             // Always start from 1st of the month
             $start = date('Y-m-01', strtotime($start));
         }
@@ -115,7 +115,7 @@ class Payment
         if (!$member) return [];
 
         $lastPay = self::getLastPayment($memberId);
-        $startDate = Setting::get('collection_start_date', date('Y-m-d'));
+        $startDate = Setting::getCollectionStartDate();
 
         return [
             'member'          => $member,

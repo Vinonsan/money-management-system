@@ -43,7 +43,7 @@ SET SESSION UNIQUE_CHECKS = 1;
 
 -- ─── Seed: Super Admin only ─────────────────────────────────────────────
 INSERT INTO users (name, business_name, phone, email, role, is_active)
-VALUES ('vinonsan', 'MasjidPay Owner', '0754476969', 'vinonsan.99@gmail.com', 'super_admin', 1);
+VALUES ('vinonsan', 'MasjidPay Owner', '0758311995', 'vinonsan.99@gmail.com', 'super_admin', 1);
 
 -- ─── Default SMS settings ───────────────────────────────────────────────
 INSERT INTO settings (key_name, value) VALUES ('collection_start_date', '2026-01-01');
