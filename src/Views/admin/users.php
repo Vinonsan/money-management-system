@@ -82,7 +82,7 @@ $columns = [
         'format' => fn ($v) => $v ? '<span class="font-mono font-semibold text-slate-700">' . (int) $v . '</span>' : '<span class="text-slate-300 italic">\u2014</span>',
     ],
     [
-        'label' => 'Street',
+        'label' => 'Location',
         'field' => 'location_name',
         'format' => fn ($v) => $v ? htmlspecialchars($v, ENT_QUOTES) : '<span class="text-slate-300 italic">\u2014</span>',
     ],

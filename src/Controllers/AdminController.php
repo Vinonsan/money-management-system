@@ -1952,14 +1952,11 @@ $role = $_SESSION['user_role'] ?? '';
 
         Member::create([
             'name'           => $name,
-            'email'          => trim((string) ($row['email'] ?? '')),
             'phone'          => $phone,
             'card_number'    => trim((string) ($row['card_number'] ?? '')),
-            'road_number'    => trim((string) ($row['road_number'] ?? '')),
-            'street'         => trim((string) ($row['street'] ?? '')),
+            'monthly_amount' => (float) ($row['monthly_amount'] ?? 0),
             'location_id'    => $locationId,
             'ward_id'        => $wardId,
-            'monthly_amount' => (float) ($row['monthly_amount'] ?? 0),
         ]);
 
         return ['success' => true];
