@@ -937,11 +937,26 @@ $role = $_SESSION['user_role'] ?? '';
             return;
         }
 
-        $locFilter = $this->getLocationFilter();
-        $locJoin = $locFilter !== null ? ' AND m.location_id = ?' : '';
+        $role = $_SESSION['user_role'] ?? '';
         $params = ['%' . $query . '%', '%' . $query . '%'];
-        if ($locFilter !== null) {
-            $params[] = $locFilter;
+
+        // Data isolation: non-super-admin searches only in their own locations
+        if ($role !== 'super_admin') {
+            $userId = (int) ($_SESSION['user_id'] ?? 0);
+            $locRows = \Models\Database::connect()->fetchAll(
+                'SELECT id FROM locations WHERE created_by = ?',
+                [$userId]
+            );
+            if (!empty($locRows)) {
+                $locIds = array_column($locRows, 'id');
+                $placeholders = implode(',', array_fill(0, count($locIds), '?'));
+                $locJoin = " AND m.location_id IN ({$placeholders})";
+                $params = array_merge($params, $locIds);
+            } else {
+                $locJoin = ' AND 1=0'; // No locations → no results
+            }
+        } else {
+            $locJoin = '';
         }
 
         $users = \Models\Database::connect()->fetchAll(
@@ -972,12 +987,23 @@ $role = $_SESSION['user_role'] ?? '';
         }
 
         // Enforce location isolation
-        $locFilter = $this->getLocationFilter();
-        if ($locFilter !== null) {
-            $member = \Models\Database::connect()->fetch(
-                'SELECT id FROM members WHERE id = ? AND location_id = ?',
-                [$memberId, $locFilter]
+        $role = $_SESSION['user_role'] ?? '';
+        if ($role !== 'super_admin') {
+            $userId = (int) ($_SESSION['user_id'] ?? 0);
+            $locRows = \Models\Database::connect()->fetchAll(
+                'SELECT id FROM locations WHERE created_by = ?',
+                [$userId]
             );
+            if (!empty($locRows)) {
+                $locIds = array_column($locRows, 'id');
+                $placeholders = implode(',', array_fill(0, count($locIds), '?'));
+                $member = \Models\Database::connect()->fetch(
+                    "SELECT id FROM members WHERE id = ? AND location_id IN ({$placeholders})",
+                    array_merge([$memberId], $locIds)
+                );
+            } else {
+                $member = null;
+            }
             if (!$member) {
                 $this->jsonError('Member not found.');
                 return;
@@ -1006,12 +1032,23 @@ $role = $_SESSION['user_role'] ?? '';
         }
 
         // Enforce location isolation
-        $locFilter = $this->getLocationFilter();
-        if ($locFilter !== null) {
-            $member = \Models\Database::connect()->fetch(
-                'SELECT id FROM members WHERE id = ? AND location_id = ?',
-                [$memberId, $locFilter]
+        $role = $_SESSION['user_role'] ?? '';
+        if ($role !== 'super_admin') {
+            $userId = (int) ($_SESSION['user_id'] ?? 0);
+            $locRows = \Models\Database::connect()->fetchAll(
+                'SELECT id FROM locations WHERE created_by = ?',
+                [$userId]
             );
+            if (!empty($locRows)) {
+                $locIds = array_column($locRows, 'id');
+                $placeholders = implode(',', array_fill(0, count($locIds), '?'));
+                $member = \Models\Database::connect()->fetch(
+                    "SELECT id FROM members WHERE id = ? AND location_id IN ({$placeholders})",
+                    array_merge([$memberId], $locIds)
+                );
+            } else {
+                $member = null;
+            }
             if (!$member) {
                 $this->jsonError('Member not found.');
                 return;
@@ -1041,12 +1078,23 @@ $role = $_SESSION['user_role'] ?? '';
         }
 
         // Enforce location isolation
-        $locFilter = $this->getLocationFilter();
-        if ($locFilter !== null) {
-            $member = \Models\Database::connect()->fetch(
-                'SELECT id FROM members WHERE id = ? AND location_id = ?',
-                [$memberId, $locFilter]
+        $role = $_SESSION['user_role'] ?? '';
+        if ($role !== 'super_admin') {
+            $userId = (int) ($_SESSION['user_id'] ?? 0);
+            $locRows = \Models\Database::connect()->fetchAll(
+                'SELECT id FROM locations WHERE created_by = ?',
+                [$userId]
             );
+            if (!empty($locRows)) {
+                $locIds = array_column($locRows, 'id');
+                $placeholders = implode(',', array_fill(0, count($locIds), '?'));
+                $member = \Models\Database::connect()->fetch(
+                    "SELECT id FROM members WHERE id = ? AND location_id IN ({$placeholders})",
+                    array_merge([$memberId], $locIds)
+                );
+            } else {
+                $member = null;
+            }
             if (!$member) {
                 $this->jsonError('Member not found.');
                 return;
