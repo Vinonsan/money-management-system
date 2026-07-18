@@ -165,15 +165,7 @@ $pageTitle = 'Manage Admins';
                     <p class="mt-1 text-xs text-primary-500" x-text="errors.phone"></p>
                 </template>
             </div>
-            <div>
-                <label class="block text-sm font-semibold text-slate-700 mb-1.5">
-                    Password
-                    <span class="text-xs font-normal text-slate-400" x-text="isEditing ? \'(leave blank to keep current)\' : \'(* required)\'"></span>
-                </label>
-                <input type="password" x-model="form.password"
-                    class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-                    placeholder="Enter password">
-            </div>
+
         </div>
         <div class="mt-6 flex items-center justify-end gap-3 border-t border-slate-100 pt-5">
             <button type="button" @click="drawer = \'\'"
@@ -188,7 +180,7 @@ $pageTitle = 'Manage Admins';
                 </template>
             </button>
         </div>
-    ');
+    ', ['size' => 'lg']);
     ?>
 
     <!-- ─── Delete Confirmation Modal ─────────────────────── -->
@@ -209,7 +201,7 @@ function adminManager() {
     return {
         drawer: '',
         modal: '',
-        form: { id: null, name: '', business_name: '', email: '', phone: '', password: '' },
+        form: { id: null, name: '', business_name: '', email: '', phone: '' },
         errors: {},
         isEditing: false,
         saving: false,
@@ -217,7 +209,7 @@ function adminManager() {
         deleteTarget: null,
 
         openAddDrawer() {
-            this.form = { id: null, name: '', email: '', phone: '', password: '' };
+            this.form = { id: null, name: '', email: '', phone: '' };
             this.errors = {};
             this.isEditing = false;
             this.drawer = 'admin-drawer';
@@ -229,7 +221,7 @@ function adminManager() {
                 name: admin.name || '',
                 email: admin.email || '',
                 phone: admin.phone || '',
-                password: '',
+
             };
             this.errors = {};
             this.isEditing = true;
@@ -252,11 +244,6 @@ function adminManager() {
                 this.errors['phone'] = 'Phone is required.';
                 hasError = true;
             }
-            if (!this.isEditing && !this.form.password) {
-                this.errors['password'] = 'Password is required for new admin.';
-                hasError = true;
-            }
-
             if (hasError) {
                 this.saving = false;
                 return;
@@ -268,7 +255,6 @@ function adminManager() {
                 business_name: this.form.business_name.trim() || null,
                 email: this.form.email.trim() || null,
                 phone: phone,
-                password: this.form.password,
                 _csrf: '<?= e($_SESSION['csrf_token'] ?? '') ?>',
             };
 

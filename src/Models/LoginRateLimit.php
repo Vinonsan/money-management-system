@@ -59,6 +59,20 @@ class LoginRateLimit
         return 'Too many attempts. Try again in ' . $label . '.';
     }
 
+    /** Get lock remaining seconds (0 if not locked). */
+    public static function getLockRemainingSeconds(string $phone): int
+    {
+        $row = self::get($phone);
+        if (empty($row['locked_until'])) {
+            return 0;
+        }
+        $until = strtotime((string) $row['locked_until']);
+        if ($until === false || $until <= time()) {
+            return 0;
+        }
+        return $until - time();
+    }
+
     /** Record OTP request; lock 1 minute after 3 requests. */
     public static function recordOtpRequest(string $phone): ?string
     {

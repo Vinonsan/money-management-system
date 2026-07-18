@@ -111,7 +111,7 @@ $pageTitle = 'SMS Management';
         <form @submit.prevent="saveConfig()" class="max-w-lg space-y-4">
             <div>
                 <label class="block text-sm font-semibold text-primary-800 mb-1.5">Cost Per Message (Rs)</label>
-                <input type="number" x-model="smsCost" min="0.01" step="0.01"
+                <input type="number" x-model="smsCost" min="0.01" step="any"
                     class="w-full rounded-lg border border-primary-200 bg-primary-50/30 px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:bg-white transition">
                 <template x-if="configError">
                     <p class="mt-1 text-xs text-primary-600" x-text="configError"></p>
@@ -219,7 +219,7 @@ function smsManager() {
         refilling: false,
 
         // Config
-        smsCost: '<?= e($smsCost) ?>',
+        smsCost: '<?= e(number_format((float)$smsCost, 2, '.', '')) ?>',
         senderId: '<?= e($smsSenderId) ?>',
         smsUserId: '<?= e($smsUserId) ?>',
         smsApiKey: '<?= e($smsApiKey) ?>',

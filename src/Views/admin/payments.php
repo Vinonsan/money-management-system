@@ -92,7 +92,7 @@ $pageTitle = 'Payments';
             <div>
                 <label class="block text-sm font-semibold text-slate-700 mb-1.5">Amount Received (Rs)</label>
                 <input type="number" x-model="paymentAmount" @input.debounce.500ms="calculate()" @keydown.enter.prevent="calculate()"
-                    min="0" step="0.01" placeholder="e.g. 5000"
+                    min="0" step="any" placeholder="e.g. 5000"
                     class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/10">
             </div>
 

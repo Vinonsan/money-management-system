@@ -67,6 +67,11 @@ final class SidebarRouter
                 'href'  => BASE_URL . '/admin/sms',
                 'icon'  => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>',
             ],
+            'transfer' => [
+                'label' => 'Transfer',
+                'href'  => BASE_URL . '/admin/transfer',
+                'icon'  => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>',
+            ],
             'system_config' => [
                 'label' => 'System Config',
                 'href'  => null,

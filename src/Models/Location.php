@@ -3,7 +3,7 @@ namespace Models;
 
 class Location
 {
-    public static function getAll(int $page = 1, int $perPage = 10, string $search = '', string $sortField = 'id', string $sortDir = 'asc', string $filterBy = '', ?int $locationFilter = null): array
+    public static function getAll(int $page = 1, int $perPage = 10, string $search = '', string $sortField = 'id', string $sortDir = 'asc', string $filterBy = '', ?int $locationFilter = null, ?int $createdBy = null): array
     {
         $db = Database::connect();
         $allowedSort = ['id', 'name', 'city', 'is_active', 'created_at'];
@@ -17,6 +17,11 @@ class Location
         if ($locationFilter !== null) {
             $conditions[] = 'id = ?';
             $params[] = $locationFilter;
+        }
+
+        if ($createdBy !== null) {
+            $conditions[] = 'created_by = ?';
+            $params[] = $createdBy;
         }
 
         if ($search !== '') {
@@ -41,7 +46,7 @@ class Location
         return $rows;
     }
 
-    public static function count(string $search = '', string $filterBy = '', ?int $locationFilter = null): int
+    public static function count(string $search = '', string $filterBy = '', ?int $locationFilter = null, ?int $createdBy = null): int
     {
         $db = Database::connect();
 
@@ -51,6 +56,11 @@ class Location
         if ($locationFilter !== null) {
             $conditions[] = 'id = ?';
             $params[] = $locationFilter;
+        }
+
+        if ($createdBy !== null) {
+            $conditions[] = 'created_by = ?';
+            $params[] = $createdBy;
         }
 
         if ($search !== '') {
@@ -76,10 +86,15 @@ class Location
         return Database::connect()->fetch('SELECT * FROM locations WHERE id = ?', [$id]);
     }
 
-    public static function nameExists(string $name, ?int $excludeId = null): bool
+    public static function nameExists(string $name, ?int $excludeId = null, ?int $createdBy = null): bool
     {
         $sql = 'SELECT id FROM locations WHERE name = ?';
         $params = [$name];
+
+        if ($createdBy !== null) {
+            $sql .= ' AND created_by = ?';
+            $params[] = $createdBy;
+        }
 
         if ($excludeId !== null) {
             $sql .= ' AND id != ?';
@@ -92,12 +107,13 @@ class Location
     public static function create(array $data): string
     {
         return Database::connect()->insert(
-            'INSERT INTO locations (name, address, city, is_active) VALUES (?, ?, ?, ?)',
+            'INSERT INTO locations (name, address, city, is_active, created_by) VALUES (?, ?, ?, ?, ?)',
             [
                 $data['name'],
                 $data['address'] ?? null,
                 $data['city'] ?? null,
                 !empty($data['is_active']) ? 1 : 0,
+                $data['created_by'] ?? null,
             ]
         );
     }
@@ -121,16 +137,25 @@ class Location
         return Database::connect()->execute('DELETE FROM locations WHERE id = ?', [$id]);
     }
 
-    public static function allActive(?int $locationFilter = null): array
+    public static function allActive(?int $locationFilter = null, ?int $createdBy = null): array
     {
+        $conditions = ['is_active = 1'];
+        $params = [];
+
         if ($locationFilter !== null) {
-            return Database::connect()->fetchAll(
-                'SELECT id, name FROM locations WHERE id = ? AND is_active = 1 ORDER BY name ASC',
-                [$locationFilter]
-            );
+            $conditions[] = 'id = ?';
+            $params[] = $locationFilter;
         }
+
+        if ($createdBy !== null) {
+            $conditions[] = 'created_by = ?';
+            $params[] = $createdBy;
+        }
+
+        $where = implode(' AND ', $conditions);
         return Database::connect()->fetchAll(
-            'SELECT id, name FROM locations WHERE is_active = 1 ORDER BY name ASC'
+            "SELECT id, name FROM locations WHERE {$where} ORDER BY name ASC",
+            $params
         );
     }
 }

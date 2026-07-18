@@ -58,23 +58,19 @@ class SuperAdminController
         $businessName = trim($data['business_name'] ?? '');
         $phone = trim($data['phone'] ?? '');
         $email = trim($data['email'] ?? '');
-        $password = $data['password'] ?? '';
+if ($name === '' || $phone === '') {
+        $this->jsonError('Name and phone are required.');
+        return;
+    }
+    if (User::phoneExists($phone)) {
+        $this->jsonError('Phone already in use.');
+        return;
+    }
 
-        if ($name === '' || $phone === '') {
-            $this->jsonError('Name and phone are required.');
-            return;
-        }
-        if (User::phoneExists($phone)) {
-            $this->jsonError('Phone already in use.');
-            return;
-        }
-
-        $hash = $password !== '' ? password_hash($password, PASSWORD_DEFAULT) : null;
-
-        $db = Database::connect();
-        $adminId = (int) $db->insert(
-            'INSERT INTO users (name, business_name, phone, email, password, role, is_active) VALUES (?, ?, ?, ?, ?, ?, 1)',
-            [$name, $businessName, $phone, $email, $hash, 'admin']
+    $db = Database::connect();
+    $adminId = (int) $db->insert(
+        'INSERT INTO users (name, business_name, phone, email, role, is_active) VALUES (?, ?, ?, ?, ?, 1)',
+        [$name, $businessName, $phone, $email, 'admin']
         );
 
         // Auto-create a location for this admin (isolation)
@@ -115,30 +111,20 @@ class SuperAdminController
         $businessName = trim($data['business_name'] ?? '');
         $phone = trim($data['phone'] ?? '');
         $email = trim($data['email'] ?? '');
-        $password = $data['password'] ?? '';
+if ($name === '' || $phone === '') {
+        $this->jsonError('Name and phone are required.');
+        return;
+    }
+    if (User::phoneExistsExclude($phone, $id)) {
+        $this->jsonError('Phone already in use by another user.');
+        return;
+    }
 
-        if ($name === '' || $phone === '') {
-            $this->jsonError('Name and phone are required.');
-            return;
-        }
-        if (User::phoneExistsExclude($phone, $id)) {
-            $this->jsonError('Phone already in use by another user.');
-            return;
-        }
-
-        $db = Database::connect();
-        if ($password !== '') {
-            $hash = password_hash($password, PASSWORD_DEFAULT);
-            $db->execute(
-                'UPDATE users SET name = ?, business_name = ?, phone = ?, email = ?, password = ? WHERE id = ? AND role = ?',
-                [$name, $businessName, $phone, $email, $hash, $id, 'admin']
-            );
-        } else {
-            $db->execute(
-                'UPDATE users SET name = ?, business_name = ?, phone = ?, email = ? WHERE id = ? AND role = ?',
-                [$name, $businessName, $phone, $email, $id, 'admin']
-            );
-        }
+    $db = Database::connect();
+    $db->execute(
+        'UPDATE users SET name = ?, business_name = ?, phone = ?, email = ? WHERE id = ? AND role = ?',
+        [$name, $businessName, $phone, $email, $id, 'admin']
+    );
 
         $this->jsonSuccess('Admin updated successfully.');
     }
@@ -194,7 +180,7 @@ class SuperAdminController
         $this->requireJson();
         $data = $this->jsonBody();
 
-        $smsCost     = trim($data['sms_cost_per_message'] ?? '0.62');
+        $smsCost     = number_format((float) trim($data['sms_cost_per_message'] ?? '0.62'), 2, '.', '');
         $smsSenderId = trim($data['smslenz_sender_id'] ?? 'ExGenX9920');
         $smsUserId   = trim($data['smslenz_user_id'] ?? '');
         $smsApiKey   = trim($data['smslenz_api_key'] ?? '');

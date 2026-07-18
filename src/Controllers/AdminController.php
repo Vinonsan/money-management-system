@@ -124,10 +124,12 @@ class AdminController
         $sortField = $_GET['sort'] ?? 'id';
         $sortDir  = $_GET['dir'] ?? 'asc';
 
-        // Enforce location isolation: non-super-admin only sees their own location
-        $locFilter = $this->getLocationFilter();
-        $locations = Location::getAll($page, $perPage, $search, $sortField, $sortDir, $filterBy, $locFilter);
-        $total     = Location::count($search, $filterBy, $locFilter);
+        // Enforce location isolation: non-super-admin only sees locations they created
+        $role = $_SESSION['user_role'] ?? '';
+        $createdBy = $role !== 'super_admin' ? (int) ($_SESSION['user_id'] ?? 0) : null;
+        $locFilter = null; // Not filtering by assigned location_id
+        $locations = Location::getAll($page, $perPage, $search, $sortField, $sortDir, $filterBy, $locFilter, $createdBy);
+        $total     = Location::count($search, $filterBy, $locFilter, $createdBy);
 
         $this->view('Location', 'locations.php', [
             'locations'  => $locations,
@@ -151,18 +153,23 @@ class AdminController
             $this->jsonError('Location name is required.');
             return;
         }
-        if (Location::nameExists($name)) {
+        $userId = (int) ($_SESSION['user_id'] ?? 0);
+        $role = $_SESSION['user_role'] ?? '';
+        $createdByCheck = $role !== 'super_admin' ? $userId : null;
+        if (Location::nameExists($name, null, $createdByCheck)) {
             $this->jsonError('A location with this name already exists.');
             return;
         }
 
         try {
             Location::create([
-                'name'      => $name,
-                'address'   => trim($data['address'] ?? ''),
-                'city'      => trim($data['city'] ?? ''),
-                'is_active' => !empty($data['is_active']) ? 1 : 0,
+                'name'       => $name,
+                'address'    => trim($data['address'] ?? ''),
+                'city'       => trim($data['city'] ?? ''),
+                'is_active'  => !empty($data['is_active']) ? 1 : 0,
+                'created_by' => $role !== 'super_admin' ? $userId : null,
             ]);
+
             $this->jsonSuccess('Location created.');
         } catch (\Exception $e) {
             $this->jsonError('Failed to create location: ' . $e->getMessage());
@@ -185,7 +192,10 @@ class AdminController
             $this->jsonError('Location name is required.');
             return;
         }
-        if (Location::nameExists($name, $id)) {
+        $userId = (int) ($_SESSION['user_id'] ?? 0);
+        $role = $_SESSION['user_role'] ?? '';
+        $createdByCheck = $role !== 'super_admin' ? $userId : null;
+        if (Location::nameExists($name, $id, $createdByCheck)) {
             $this->jsonError('A location with this name already exists.');
             return;
         }
@@ -230,12 +240,13 @@ class AdminController
     {
         $page    = max(1, (int) ($_GET['page'] ?? 1));
         $perPage = 50;
-        $locFilter = $this->getLocationFilter();
+$role = $_SESSION['user_role'] ?? '';
+    $createdBy = $role !== 'super_admin' ? (int) ($_SESSION['user_id'] ?? 0) : null;
+    $locFilter = null; // don't filter by single location_id
 
-        $wards = Ward::getAll($page, $perPage, $locFilter);
-        $total = Ward::count($locFilter);
-        $locations = Location::allActive($locFilter);
-
+    $wards = Ward::getAll($page, $perPage, $locFilter, $createdBy);
+    $total = Ward::count($locFilter, $createdBy);
+    $locations = Location::allActive(null, $createdBy);
         $this->view('Ward', 'wards.php', [
             'wards'     => $wards,
             'total'     => $total,
@@ -259,7 +270,9 @@ class AdminController
             $this->jsonError('Select at least one location.');
             return;
         }
-        if (Ward::numberExists((int) $data['ward_number'])) {
+        $role = $_SESSION['user_role'] ?? '';
+        $createdByCheck = $role !== 'super_admin' ? (int) ($_SESSION['user_id'] ?? 0) : null;
+        if (Ward::numberExists((int) $data['ward_number'], null, $createdByCheck)) {
             $this->jsonError('This ward number already exists.');
             return;
         }
@@ -295,7 +308,9 @@ class AdminController
             $this->jsonError('Select at least one location.');
             return;
         }
-        if (Ward::numberExists((int) $data['ward_number'], $id)) {
+        $role = $_SESSION['user_role'] ?? '';
+        $createdByCheck = $role !== 'super_admin' ? (int) ($_SESSION['user_id'] ?? 0) : null;
+        if (Ward::numberExists((int) $data['ward_number'], $id, $createdByCheck)) {
             $this->jsonError('This ward number already exists.');
             return;
         }
@@ -340,10 +355,13 @@ class AdminController
         $page = max(1, (int) ($_GET['page'] ?? 1));
         $perPage = max(1, min(100, (int) ($_GET['per_page'] ?? 10)));
         $search = trim((string) ($_GET['search'] ?? ''));
+        $filterBy = trim((string) ($_GET['filter'] ?? ''));
         $locationId = max(0, (int) ($_GET['location_id'] ?? 0));
         $wardId = max(0, (int) ($_GET['ward_id'] ?? 0));
         $sortField = (string) ($_GET['sort'] ?? 'created_at');
         $sortDir = (string) ($_GET['dir'] ?? 'desc');
+        $role = $_SESSION['user_role'] ?? '';
+        $createdBy = $role !== 'super_admin' ? (int) ($_SESSION['user_id'] ?? 0) : null;
         $locFilter = $this->getLocationFilter();
         $total = Member::count($search, $locationId, $wardId, $locFilter);
 
@@ -357,8 +375,8 @@ class AdminController
             'wardId' => $wardId,
             'sortField' => $sortField,
             'sortDir' => $sortDir,
-            'locations' => Location::allActive($locFilter),
-            'wards' => Ward::allActive($locFilter),
+            'locations' => Location::allActive(null, $createdBy),
+            'wards' => Ward::allActive(null, $createdBy),
         ], 'users.list');
     }
 
@@ -383,7 +401,7 @@ class AdminController
         }
 
         try {
-            // Enforce location isolation: use admin's location if not super_admin
+// Enforce location isolation: use admin's assigned location if not super_admin
             $locFilter = $this->getLocationFilter();
             $locationId = $locFilter !== null
                 ? $locFilter
@@ -497,9 +515,11 @@ class AdminController
     public function paymentUpdate(): void
     {
         $locFilter = $this->getLocationFilter();
+        $role = $_SESSION['user_role'] ?? '';
+        $createdBy = $role !== 'super_admin' ? (int) ($_SESSION['user_id'] ?? 0) : null;
         $this->view('Payments', 'payments.php', [
-            'locations' => Location::allActive($locFilter),
-            'wards'     => Ward::allActive($locFilter),
+            'locations' => Location::allActive(null, $createdBy),
+            'wards'     => Ward::allActive(null, $createdBy),
         ], 'payments.update');
     }
 
@@ -517,6 +537,8 @@ class AdminController
         $sortField = (string) ($_GET['sort'] ?? 'name');
         $sortDir = (string) ($_GET['dir'] ?? 'asc');
         $locFilter = $this->getLocationFilter();
+        $role = $_SESSION['user_role'] ?? '';
+        $createdBy = $role !== 'super_admin' ? (int) ($_SESSION['user_id'] ?? 0) : null;
         $result = Payment::getMembers($search, $locationId, $wardId, $status, $page, $perPage, $locFilter);
 
         $this->view('Members', 'payments_members.php', [
@@ -530,8 +552,8 @@ class AdminController
             'status'     => $status,
             'sortField'  => $sortField,
             'sortDir'    => $sortDir,
-            'locations'  => Location::allActive($locFilter),
-            'wards'     => Ward::allActive($locFilter),
+            'locations'  => Location::allActive(null, $createdBy),
+            'wards'     => Ward::allActive(null, $createdBy),
         ], 'payments.members');
     }
 
@@ -543,7 +565,7 @@ class AdminController
             $locJoin = $locFilter !== null ? ' AND m.location_id = ?' : '';
             $params = $locFilter !== null ? [$locFilter] : [];
             $dueMessages = $db->fetchAll(
-                "SELECT sm.id, sm.member_id, sm.message, m.phone
+                "SELECT sm.id, sm.member_id, sm.message, sm.scheduled_date, sm.scheduled_time, m.phone
                  FROM scheduled_messages sm
                  JOIN members m ON m.id = sm.member_id
                  WHERE sm.status = 'pending' AND sm.scheduled_date <= CURDATE(){$locJoin}",
@@ -559,11 +581,32 @@ class AdminController
 
                 try {
                     $sms = new \Services\SMSService((int) ($_SESSION['user_id'] ?? 0));
-                    $sms->send($phone, $m['message']);
-                    $db->execute(
-                        "UPDATE scheduled_messages SET status = 'sent', sent_at = NOW() WHERE id = ?",
-                        [(int) $m['id']]
-                    );
+                    $sent = $sms->send($phone, $m['message']);
+                    if ($sent) {
+                        $db->execute(
+                            "UPDATE scheduled_messages SET status = 'sent', sent_at = NOW() WHERE id = ?",
+                            [(int) $m['id']]
+                        );
+
+                        // Auto-schedule for next month (recurring)
+                        $nextDate = date('Y-m-d', strtotime($m['scheduled_date'] . ' +1 month'));
+                        $memberInfo = $db->fetch('SELECT name, monthly_amount FROM members WHERE id = ?', [(int) $m['member_id']]);
+                        if ($memberInfo) {
+                            $dueMonth = date('F Y', strtotime($nextDate));
+                            $template = \Models\Setting::get('msg_due', 'Dear [Name], your contribution of Rs.[Amount] for [Month] is due. Pay before [Date].');
+                            $newMsg = str_replace(
+                                ['[Name]', '[Amount]', '[MonthlyAmount]', '[Date]', '[Month]'],
+                                [$memberInfo['name'], number_format((float) ($memberInfo['monthly_amount'] ?? 0), 2), number_format((float) ($memberInfo['monthly_amount'] ?? 0), 2), $nextDate, $dueMonth],
+                                $template
+                            );
+                            $db->execute(
+                                'INSERT INTO scheduled_messages (member_id, user_id, scheduled_date, scheduled_time, message, type, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                                [(int) $m['member_id'], (int) ($_SESSION['user_id'] ?? 0), $nextDate, $m['scheduled_time'] ?? null, $newMsg, 'due', 'pending']
+                            );
+                        }
+                    } else {
+                        $db->execute("UPDATE scheduled_messages SET status = 'failed' WHERE id = ?", [(int) $m['id']]);
+                    }
                 } catch (\Exception $e) {
                     $db->execute("UPDATE scheduled_messages SET status = 'failed' WHERE id = ?", [(int) $m['id']]);
                 }
@@ -647,18 +690,54 @@ class AdminController
             $phone = preg_replace('/[^0-9]/', '', $u['phone'] ?? '');
             if ($phone === '') continue;
 
-            // Determine due month from schedule date
+            // Calculate unpaid months since last payment
+            $lastPaid = $db->fetch(
+                "SELECT COALESCE(MAX(to_month), '0000-00-00') AS last_to FROM payments WHERE member_id = ?",
+                [(int) $u['id']]
+            );
+            $lastPaidDate = $lastPaid['last_to'] ?? '0000-00-00';
+            $dueMonthStart = date('Y-m-01', strtotime($scheduleDate));
+            
+            if ($lastPaidDate !== '0000-00-00') {
+                $unpaidStart = date('Y-m-01', strtotime($lastPaidDate . ' +1 month'));
+            } else {
+                $startSetting = \Models\Setting::get('collection_start_date', date('Y-m-d'));
+                $unpaidStart = date('Y-m-01', strtotime($startSetting));
+            }
+
+            // Calculate number of unpaid months
+            $unpaidMonths = 0;
+            $totalDue = 0;
+            $monthlyAmount = (float) ($u['monthly_amount'] ?? 0);
+            if ($monthlyAmount > 0 && $unpaidStart <= $dueMonthStart) {
+                $diff = (strtotime($dueMonthStart) - strtotime($unpaidStart)) / (60 * 60 * 24 * 30.44);
+                $unpaidMonths = max(0, (int) ceil($diff));
+                $totalDue = $unpaidMonths * $monthlyAmount;
+            }
+
             $dueMonth = date('F Y', strtotime($scheduleDate));
 
+            // Add unpaid months info to message
+            $dueInfo = '';
+            if ($unpaidMonths > 1) {
+                $dueInfo = sprintf('%d months (Rs. %s) ', $unpaidMonths, number_format($totalDue, 2));
+            }
+
             $msg = str_replace(
-                ['[Name]', '[Amount]', '[MonthlyAmount]', '[Date]', '[Month]'],
-                [$u['name'], number_format((float) ($u['monthly_amount'] ?? 0), 2), number_format((float) ($u['monthly_amount'] ?? 0), 2), $scheduleDate, $dueMonth],
+                ['[Name]', '[Amount]', '[MonthlyAmount]', '[Date]', '[Month]', '[DueMonths]', '[TotalDue]'],
+                [$u['name'], number_format($monthlyAmount, 2), number_format($monthlyAmount, 2), $scheduleDate, $dueMonth, $unpaidMonths, number_format($totalDue, 2)],
                 $template
             );
 
+            // Remove old pending schedules for this member, keep new one
             $db->execute(
-                'INSERT INTO scheduled_messages (member_id, scheduled_date, scheduled_time, message, type, status) VALUES (?, ?, ?, ?, ?, ?)',
-                [(int) $u['id'], $scheduleDate, $scheduleTime !== '' ? $scheduleTime : null, $msg, 'due', 'pending']
+                "DELETE FROM scheduled_messages WHERE member_id = ? AND status = 'pending' AND type = 'due'",
+                [(int) $u['id']]
+            );
+
+            $db->execute(
+                'INSERT INTO scheduled_messages (member_id, user_id, scheduled_date, scheduled_time, message, type, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                [(int) $u['id'], (int) ($_SESSION['user_id'] ?? 0), $scheduleDate, $scheduleTime !== '' ? $scheduleTime : null, $msg, 'due', 'pending']
             );
             $scheduled++;
         }
@@ -703,32 +782,37 @@ class AdminController
 
             try {
                 $sms = new \Services\SMSService((int) ($_SESSION['user_id'] ?? 0));
-                $sms->send($phone, $m['message']);
-                $db->execute(
-                    "UPDATE scheduled_messages SET status = 'sent', sent_at = NOW() WHERE id = ?",
-                    [(int) $m['id']]
-                );
-                $sent++;
+                $smsSent = $sms->send($phone, $m['message']);
+                if ($smsSent) {
+                    $db->execute(
+                        "UPDATE scheduled_messages SET status = 'sent', sent_at = NOW() WHERE id = ?",
+                        [(int) $m['id']]
+                    );
+                    $sent++;
 
-                // Auto-schedule for next month (recurring)
-                $nextDate = date('Y-m-d', strtotime($m['scheduled_date'] . ' +1 month'));
-                $member = $db->fetch('SELECT id, monthly_amount FROM members WHERE id = ?', [(int) $m['member_id']]);
-                if ($member) {
-                    $dueMonth = date('F Y', strtotime($nextDate));
-                    $template = Setting::get('msg_due', 'Dear [Name], your contribution of Rs.[Amount] for [Month] is due. Pay before [Date].');
-                    $memberInfo = $db->fetch('SELECT name, monthly_amount FROM members WHERE id = ?', [(int) $m['member_id']]);
-                    if ($memberInfo) {
-                        $newMsg = str_replace(
-                            ['[Name]', '[Amount]', '[MonthlyAmount]', '[Date]', '[Month]'],
-                            [$memberInfo['name'], number_format((float) ($memberInfo['monthly_amount'] ?? 0), 2), number_format((float) ($memberInfo['monthly_amount'] ?? 0), 2), $nextDate, $dueMonth],
-                            $template
-                        );
-                        $db->execute(
-                            'INSERT INTO scheduled_messages (member_id, scheduled_date, scheduled_time, message, type, status) VALUES (?, ?, ?, ?, ?, ?)',
-                            [(int) $m['member_id'], $nextDate, $m['scheduled_time'] ?? null, $newMsg, 'due', 'pending']
-                        );
-                        $autoScheduled++;
+                    // Auto-schedule for next month (recurring)
+                    $nextDate = date('Y-m-d', strtotime($m['scheduled_date'] . ' +1 month'));
+                    $member = $db->fetch('SELECT id, monthly_amount FROM members WHERE id = ?', [(int) $m['member_id']]);
+                    if ($member) {
+                        $dueMonth = date('F Y', strtotime($nextDate));
+                        $template = Setting::get('msg_due', 'Dear [Name], your contribution of Rs.[Amount] for [Month] is due. Pay before [Date].');
+                        $memberInfo = $db->fetch('SELECT name, monthly_amount FROM members WHERE id = ?', [(int) $m['member_id']]);
+                        if ($memberInfo) {
+                            $newMsg = str_replace(
+                                ['[Name]', '[Amount]', '[MonthlyAmount]', '[Date]', '[Month]'],
+                                [$memberInfo['name'], number_format((float) ($memberInfo['monthly_amount'] ?? 0), 2), number_format((float) ($memberInfo['monthly_amount'] ?? 0), 2), $nextDate, $dueMonth],
+                                $template
+                            );
+                            $db->execute(
+                                'INSERT INTO scheduled_messages (member_id, user_id, scheduled_date, scheduled_time, message, type, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                                [(int) $m['member_id'], (int) ($_SESSION['user_id'] ?? 0), $nextDate, $m['scheduled_time'] ?? null, $newMsg, 'due', 'pending']
+                            );
+                            $autoScheduled++;
+                        }
                     }
+                } else {
+                    $db->execute("UPDATE scheduled_messages SET status = 'failed' WHERE id = ?", [(int) $m['id']]);
+                    $failed++;
                 }
             } catch (\Exception $e) {
                 $db->execute("UPDATE scheduled_messages SET status = 'failed' WHERE id = ?", [(int) $m['id']]);
@@ -898,6 +982,8 @@ class AdminController
         }
 
         $calc = Payment::calculatePayment($memberId, $amount);
+        $calc['extra'] = round((float) ($calc['extra'] ?? 0), 2);
+        $calc['months'] = (int) ($calc['months'] ?? 0);
 
         header('Content-Type: application/json');
         echo json_encode(['success' => true, 'calculation' => $calc]);
@@ -939,7 +1025,7 @@ class AdminController
         try {
             Payment::create([
                 'member_id'        => $memberId,
-                'amount'         => $amount,
+                'amount'         => round($amount, 2),
                 'months_covered' => $calc['months'],
                 'extra_amount'   => $calc['extra'],
                 'from_month'     => $calc['from'],
@@ -966,25 +1052,39 @@ class AdminController
                     $nextDue = $calc['to']
                         ? date('M Y', strtotime($calc['to'] . ' +1 month'))
                         : date('M Y');
-                    // Total paid so far
-                    $totalPaid = \Models\Database::connect()->fetch(
-                        'SELECT COALESCE(SUM(amount), 0) AS total FROM payments WHERE member_id = ?',
-                        [$memberId]
-                    )['total'] ?? 0;
 
-                    $template = Setting::get('msg_confirmation', 'Dear [Name], Rs.[Amount] paid for [Period]. Next due: [NextDue]. Total paid: Rs.[TotalPaid]. Thank you!');
+                    // Calculate remaining/outstanding amount
+                    $monthlyAmount = (float) $user['monthly_amount'];
+                    $lastPay = \Models\Database::connect()->fetch(
+                        "SELECT COALESCE(MAX(to_month), '0000-00-00') AS last_to FROM payments WHERE member_id = ?",
+                        [$memberId]
+                    );
+                    $lastPaidTo = $lastPay['last_to'] ?? '0000-00-00';
+                    $today = date('Y-m-d');
+                    $remainingAmount = 0;
+                    if ($monthlyAmount > 0 && $lastPaidTo !== '0000-00-00') {
+                        $unpaidStart = date('Y-m-01', strtotime($lastPaidTo . ' +1 month'));
+                        if ($unpaidStart <= $today) {
+                            $diff = (strtotime($today) - strtotime($unpaidStart)) / (60 * 60 * 24 * 30.44);
+                            $unpaidMonths = max(0, (int) ceil($diff));
+                            $remainingAmount = $unpaidMonths * $monthlyAmount;
+                        }
+                    }
+
+                    $template = Setting::get('msg_confirmation', 'Dear [Name], Rs.[Amount] paid for [Period]. Next due: [NextDue]. Outstanding: Rs.[Remaining]. Thank you!');
                     $msg = str_replace(
-                        ['[Name]', '[Amount]', '[Period]', '[MonthlyAmount]', '[PaidUpTo]', '[NextDue]', '[TotalPaid]', '[ExtraAmount]', '[MonthsCovered]'],
+                        ['[Name]', '[Amount]', '[Period]', '[MonthlyAmount]', '[PaidUpTo]', '[NextDue]', '[TotalPaid]', '[ExtraAmount]', '[MonthsCovered]', '[Remaining]'],
                         [
                             $user['name'],
                             number_format($amount, 2),
                             $period,
-                            number_format((float) $user['monthly_amount'], 2),
+                            number_format($monthlyAmount, 2),
                             $period ?: '-',
                             $nextDue,
-                            number_format((float) $totalPaid, 2),
+                            number_format(0, 2),
                             number_format((float) ($calc['extra'] ?? 0), 2),
                             (string) ($calc['months'] ?? 0),
+                            number_format($remainingAmount, 2),
                         ],
                         $template
                     );
@@ -1257,5 +1357,209 @@ class AdminController
             return array_map('intval', explode(',', $locationIds));
         }
         return [];
+    }
+
+    // ─── Admin Transfer ───────────────────────────
+
+    public function transfer(): void
+    {
+        $this->view('Transfer Ownership', 'transfer.php', [], 'profile.transfer');
+    }
+
+    public function transferSendOldOtp(): void
+    {
+        $this->requireJson();
+        $data = $this->jsonBody();
+        $phone = trim($data['phone'] ?? '');
+
+        if ($phone === '') {
+            $this->jsonError('Phone number is required.');
+            return;
+        }
+
+        // Find old admin
+        $oldAdmin = \Models\Database::connect()->fetch(
+            'SELECT id, name, phone FROM users WHERE phone = ? AND role = ?',
+            [$phone, 'admin']
+        );
+        if (!$oldAdmin) {
+            $this->jsonError('No admin found with this phone number.');
+            return;
+        }
+
+        // Store old admin in session
+        $_SESSION['transfer_old_admin_id'] = (int) $oldAdmin['id'];
+        $_SESSION['transfer_old_admin_name'] = $oldAdmin['name'];
+        $_SESSION['transfer_old_admin_phone'] = $oldAdmin['phone'];
+
+        // Generate and send OTP
+        $otp = (new \Services\SMSService())->generateOtp();
+        \Models\OtpCode::create($phone, $otp);
+        $sent = (new \Services\SMSService())->sendOtp($phone, $otp);
+
+        if ($sent || !(new \Services\SMSService())->isConfigured()) {
+            $_SESSION['transfer_old_otp'] = $otp;
+            $this->jsonSuccess('OTP sent to old admin.');
+        } else {
+            $this->jsonError('Failed to send OTP.');
+        }
+    }
+
+    public function transferVerifyOldOtp(): void
+    {
+        $this->requireJson();
+        $data = $this->jsonBody();
+        $otp = trim($data['otp'] ?? '');
+
+        $savedOtp = $_SESSION['transfer_old_otp'] ?? '';
+        $phone = $_SESSION['transfer_old_admin_phone'] ?? '';
+
+        if ($otp === '' || $savedOtp === '') {
+            $this->jsonError('Invalid OTP.');
+            return;
+        }
+
+        if (\Models\OtpCode::verify($phone, $otp)) {
+            $_SESSION['transfer_old_verified'] = true;
+            $this->jsonSuccess('Old admin verified. Now enter new admin details.');
+        } else {
+            $this->jsonError('Invalid OTP.');
+        }
+    }
+
+    public function transferSendNewOtp(): void
+    {
+        $this->requireJson();
+        $data = $this->jsonBody();
+        $name = trim($data['name'] ?? '');
+        $phone = trim($data['phone'] ?? '');
+        $email = trim($data['email'] ?? '');
+
+        if ($name === '' || $phone === '') {
+            $this->jsonError('Name and phone are required.');
+            return;
+        }
+
+        // Check if phone already in use
+        $existing = \Models\Database::connect()->fetch(
+            'SELECT id FROM users WHERE phone = ?',
+            [$phone]
+        );
+        if ($existing) {
+            $this->jsonError('Phone number already in use by another user.');
+            return;
+        }
+
+        // Store new admin details in session
+        $_SESSION['transfer_new_name'] = $name;
+        $_SESSION['transfer_new_phone'] = $phone;
+        $_SESSION['transfer_new_email'] = $email;
+
+        // Generate and send OTP to new admin
+        $otp = (new \Services\SMSService())->generateOtp();
+        \Models\OtpCode::create($phone, $otp);
+        $sent = (new \Services\SMSService())->sendOtp($phone, $otp);
+
+        if ($sent || !(new \Services\SMSService())->isConfigured()) {
+            $_SESSION['transfer_new_otp'] = $otp;
+            $this->jsonSuccess('OTP sent to new admin.');
+        } else {
+            $this->jsonError('Failed to send OTP.');
+        }
+    }
+
+    public function transferVerifyNewOtp(): void
+    {
+        $this->requireJson();
+        $data = $this->jsonBody();
+        $otp = trim($data['otp'] ?? '');
+
+        $savedOtp = $_SESSION['transfer_new_otp'] ?? '';
+        $phone = $_SESSION['transfer_new_phone'] ?? '';
+
+        if ($otp === '' || $savedOtp === '') {
+            $this->jsonError('Invalid OTP.');
+            return;
+        }
+
+        if (\Models\OtpCode::verify($phone, $otp)) {
+            // Complete the transfer
+            $this->transferComplete();
+        } else {
+            $this->jsonError('Invalid OTP.');
+        }
+    }
+
+    private function transferComplete(): void
+    {
+        $db = \Models\Database::connect();
+        $oldId = (int) ($_SESSION['transfer_old_admin_id'] ?? 0);
+        $oldName = $_SESSION['transfer_old_admin_name'] ?? '';
+        $oldPhone = $_SESSION['transfer_old_admin_phone'] ?? '';
+        $newName = $_SESSION['transfer_new_name'] ?? '';
+        $newPhone = $_SESSION['transfer_new_phone'] ?? '';
+        $newEmail = $_SESSION['transfer_new_email'] ?? '';
+
+        if ($oldId <= 0 || $newName === '' || $newPhone === '') {
+            $this->jsonError('Transfer session expired. Please start again.');
+            return;
+        }
+
+        try {
+            // Update old admin: set inactive
+            $db->execute(
+                'UPDATE users SET name = ?, phone = ?, email = ?, is_active = 0 WHERE id = ?',
+                [$newName, $newPhone, $newEmail, $oldId]
+            );
+
+            // Update old admin's members to reassign
+            $db->execute(
+                'UPDATE members SET location_id = NULL WHERE location_id = (SELECT location_id FROM users WHERE id = ?)',
+                [$oldId]
+            );
+
+            // Send notifications
+            $loginUrl = BASE_URL . '/login';
+            try {
+                $sms = new \Services\SMSService();
+
+                // To super admin
+                $superAdmins = $db->fetchAll(
+                    'SELECT phone FROM users WHERE role = ? AND is_active = 1',
+                    ['super_admin']
+                );
+                foreach ($superAdmins as $sa) {
+                    $saPhone = preg_replace('/[^0-9]/', '', $sa['phone'] ?? '');
+                    if ($saPhone !== '') {
+                        $sms->send($saPhone, "Admin transfer: {$oldName} ({$oldPhone}) transferred to {$newName} ({$newPhone}).");
+                    }
+                }
+
+                // To old admin
+                $sms->send($oldPhone, "Your MasjidPay admin account has been transferred to {$newName} ({$newPhone}).");
+
+                // To new admin
+                $sms->send($newPhone, "Welcome {$newName}! You are now the admin for MasjidPay. Login at: {$loginUrl} - OTP will be sent to your phone.");
+            } catch (\Exception $e) {
+                // SMS failure shouldn't block transfer
+            }
+
+            // Clear session
+            unset(
+                $_SESSION['transfer_old_admin_id'],
+                $_SESSION['transfer_old_admin_name'],
+                $_SESSION['transfer_old_admin_phone'],
+                $_SESSION['transfer_old_otp'],
+                $_SESSION['transfer_old_verified'],
+                $_SESSION['transfer_new_name'],
+                $_SESSION['transfer_new_phone'],
+                $_SESSION['transfer_new_email'],
+                $_SESSION['transfer_new_otp']
+            );
+
+            $this->jsonSuccess('Admin ownership transferred successfully!');
+        } catch (\Exception $e) {
+            $this->jsonError('Transfer failed: ' . $e->getMessage());
+        }
     }
 }

@@ -92,6 +92,7 @@ final class AppLayout
         nameError: '',
         wardError: '',
         userErrors: {},
+        memberErrors: {},
         get filteredLocs() {
             if (!this.drawerData?.ward_id) return window.rawLocs || [];
             const ids = window.wardLocMap?.[this.drawerData.ward_id] || [];

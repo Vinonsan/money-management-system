@@ -23,7 +23,6 @@ CREATE TABLE IF NOT EXISTS users (
     business_name VARCHAR(255) DEFAULT NULL,
     phone VARCHAR(20) NOT NULL UNIQUE,
     email VARCHAR(255) DEFAULT NULL,
-    password VARCHAR(255) DEFAULT NULL,
     role ENUM('super_admin', 'admin') NOT NULL DEFAULT 'admin',
     location_id INT UNSIGNED DEFAULT NULL COMMENT 'Admin\'s assigned location for isolation',
     is_active TINYINT(1) NOT NULL DEFAULT 1,

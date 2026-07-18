@@ -19,12 +19,20 @@ class AuthController
             unset($_SESSION['otp_step'], $_SESSION['otp_phone'], $_SESSION['flash_success']);
         }
 
+        // Check lock status for pre-filled phone
+        $lockSeconds = 0;
+        if (!empty($_SESSION['otp_phone'])) {
+            $lockSeconds = LoginRateLimit::getLockRemainingSeconds($_SESSION['otp_phone']);
+        }
+
         require_once __DIR__ . '/../Views/layouts/auth_layout.php';
         renderAuthLayout('Staff Login', __DIR__ . '/../Views/auth/login.php', [
             'error' => $_SESSION['flash_error'] ?? null,
             'success' => $_SESSION['flash_success'] ?? null,
             'step' => $_SESSION['otp_step'] ?? 'phone',
             'phone' => $_SESSION['otp_phone'] ?? '',
+            'otp_sent_at' => $_SESSION['otp_sent_at'] ?? 0,
+            'lock_seconds' => $lockSeconds,
         ]);
         unset($_SESSION['flash_error'], $_SESSION['flash_success']);
     }
@@ -44,12 +52,20 @@ class AuthController
             unset($_SESSION['sa_otp_step'], $_SESSION['sa_otp_phone'], $_SESSION['flash_success']);
         }
 
+        // Check lock status for pre-filled phone
+        $lockSeconds = 0;
+        if (!empty($_SESSION['sa_otp_phone'])) {
+            $lockSeconds = LoginRateLimit::getLockRemainingSeconds($_SESSION['sa_otp_phone']);
+        }
+
         require_once __DIR__ . '/../Views/layouts/super_admin_auth_layout.php';
         renderSuperAdminAuthLayout('Super Admin Login', __DIR__ . '/../Views/auth/super_admin_login.php', [
             'error'   => $_SESSION['flash_error'] ?? null,
             'success' => $_SESSION['flash_success'] ?? null,
             'step'    => $_SESSION['sa_otp_step'] ?? 'phone',
             'phone'   => $_SESSION['sa_otp_phone'] ?? '',
+            'otp_sent_at' => $_SESSION['sa_otp_sent_at'] ?? 0,
+            'lock_seconds' => $lockSeconds,
         ]);
         unset($_SESSION['flash_error'], $_SESSION['flash_success']);
     }
@@ -69,18 +85,24 @@ class AuthController
         $lockMsg = LoginRateLimit::isLocked($phone);
         if ($lockMsg !== null) {
             $this->flashError($lockMsg);
+            $_SESSION['sa_otp_step'] = 'phone';
+            $_SESSION['sa_otp_phone'] = $phone;
             $this->redirectSuperAdminLogin();
         }
 
         $user = User::findByPhone($phone);
         if (!$user) {
             $this->flashError('If this number is registered, an OTP will be sent.');
+            $_SESSION['sa_otp_step'] = 'phone';
+            $_SESSION['sa_otp_phone'] = $phone;
             $this->redirectSuperAdminLogin();
         }
 
         // Only super_admin role allowed
         if ($user['role'] !== 'super_admin') {
             $this->flashError('This portal is only for Super Administrators.');
+            $_SESSION['sa_otp_step'] = 'phone';
+            $_SESSION['sa_otp_phone'] = $phone;
             $this->redirectSuperAdminLogin();
         }
 
@@ -88,7 +110,8 @@ class AuthController
         if ($rateMsg !== null) {
             $this->flashError($rateMsg);
             $_SESSION['sa_otp_step'] = 'phone';
-            unset($_SESSION['sa_otp_phone']);
+            $_SESSION['sa_otp_phone'] = $phone;
+            unset($_SESSION['sa_otp_sent_at']);
             $this->redirectSuperAdminLogin();
         }
 
@@ -106,6 +129,7 @@ class AuthController
 
         $_SESSION['sa_otp_step'] = 'otp';
         $_SESSION['sa_otp_phone'] = $phone;
+        $_SESSION['sa_otp_sent_at'] = time();
         $_SESSION['flash_success'] = 'OTP sent successfully. Check your phone.';
         $this->redirectSuperAdminLogin();
     }
@@ -121,7 +145,7 @@ class AuthController
         if ($phone === '' || !$this->isValidPhone($phone)) {
             $this->flashError('Session expired. Enter your phone number again.');
             $_SESSION['sa_otp_step'] = 'phone';
-            unset($_SESSION['sa_otp_phone']);
+            unset($_SESSION['sa_otp_phone'], $_SESSION['sa_otp_sent_at']);
             $this->redirectSuperAdminLogin();
         }
 
@@ -129,7 +153,7 @@ class AuthController
         if ($lockMsg !== null) {
             $this->flashError($lockMsg);
             $_SESSION['sa_otp_step'] = 'phone';
-            unset($_SESSION['sa_otp_phone']);
+            $_SESSION['sa_otp_phone'] = $phone;
             $this->redirectSuperAdminLogin();
         }
 
@@ -146,7 +170,8 @@ class AuthController
             $this->flashError($msg);
             if (LoginRateLimit::isLocked($phone) !== null) {
                 $_SESSION['sa_otp_step'] = 'phone';
-                unset($_SESSION['sa_otp_phone']);
+                $_SESSION['sa_otp_phone'] = $phone;
+                unset($_SESSION['sa_otp_sent_at']);
             } else {
                 $_SESSION['sa_otp_step'] = 'otp';
                 $_SESSION['sa_otp_phone'] = $phone;
@@ -183,6 +208,8 @@ class AuthController
         $lockMsg = LoginRateLimit::isLocked($phone);
         if ($lockMsg !== null) {
             $this->flashError($lockMsg);
+            $_SESSION['otp_step'] = 'phone';
+            $_SESSION['otp_phone'] = $phone;
             $this->redirectLogin();
         }
 
@@ -197,6 +224,8 @@ class AuthController
         // Only admin-side roles for now (super_admin reserved for later)
         if (!in_array($user['role'], ['super_admin', 'admin', 'collector'], true)) {
             $this->flashError('You are not allowed to access admin login.');
+            $_SESSION['otp_step'] = 'phone';
+            $_SESSION['otp_phone'] = $phone;
             $this->redirectLogin();
         }
 
@@ -204,7 +233,8 @@ class AuthController
         if ($rateMsg !== null) {
             $this->flashError($rateMsg);
             $_SESSION['otp_step'] = 'phone';
-            unset($_SESSION['otp_phone']);
+            $_SESSION['otp_phone'] = $phone;
+            unset($_SESSION['otp_sent_at']);
             $this->redirectLogin();
         }
 
@@ -222,6 +252,7 @@ class AuthController
 
         $_SESSION['otp_step'] = 'otp';
         $_SESSION['otp_phone'] = $phone;
+        $_SESSION['otp_sent_at'] = time();
         $_SESSION['flash_success'] = 'OTP sent successfully. Check your phone.';
         $this->redirectLogin();
     }
@@ -245,7 +276,7 @@ class AuthController
         if ($lockMsg !== null) {
             $this->flashError($lockMsg);
             $_SESSION['otp_step'] = 'phone';
-            unset($_SESSION['otp_phone']);
+            $_SESSION['otp_phone'] = $phone;
             $this->redirectLogin();
         }
 
@@ -260,10 +291,10 @@ class AuthController
         if (!$user || !OtpCode::verify($phone, $otp)) {
             $msg = LoginRateLimit::recordFailedLogin($phone);
             $this->flashError($msg);
-            // If locked after this fail, reset to phone step
             if (LoginRateLimit::isLocked($phone) !== null) {
                 $_SESSION['otp_step'] = 'phone';
-                unset($_SESSION['otp_phone']);
+                $_SESSION['otp_phone'] = $phone;
+                unset($_SESSION['otp_sent_at']);
             } else {
                 $_SESSION['otp_step'] = 'otp';
                 $_SESSION['otp_phone'] = $phone;

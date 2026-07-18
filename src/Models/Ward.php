@@ -3,7 +3,7 @@ namespace Models;
 
 class Ward
 {
-    public static function getAll(int $page = 1, int $perPage = 50, ?int $locationFilter = null): array
+    public static function getAll(int $page = 1, int $perPage = 50, ?int $locationFilter = null, ?int $createdBy = null): array
     {
         $db = Database::connect();
         $offset = ($page - 1) * $perPage;
@@ -13,6 +13,9 @@ class Ward
         if ($locationFilter !== null) {
             $where = 'WHERE wl.location_id = ?';
             $params[] = $locationFilter;
+        } elseif ($createdBy !== null) {
+            $where = 'WHERE l.created_by = ?';
+            $params[] = $createdBy;
         }
 
         return $db->fetchAll(
@@ -30,13 +33,16 @@ class Ward
         );
     }
 
-    public static function count(?int $locationFilter = null): int
+    public static function count(?int $locationFilter = null, ?int $createdBy = null): int
     {
         $where = '';
         $params = [];
         if ($locationFilter !== null) {
             $where = 'INNER JOIN ward_locations wl ON wl.ward_id = w.id AND wl.location_id = ?';
             $params[] = $locationFilter;
+        } elseif ($createdBy !== null) {
+            $where = 'INNER JOIN ward_locations wl ON wl.ward_id = w.id INNER JOIN locations l ON l.id = wl.location_id AND l.created_by = ?';
+            $params[] = $createdBy;
         }
         $result = Database::connect()->fetch("SELECT COUNT(*) AS cnt FROM wards w {$where}", $params);
         return (int) ($result['cnt'] ?? 0);
@@ -88,13 +94,21 @@ class Ward
         );
     }
 
-    public static function numberExists(int $wardNumber, ?int $excludeId = null): bool
+    public static function numberExists(int $wardNumber, ?int $excludeId = null, ?int $createdBy = null): bool
     {
-        $sql = 'SELECT id FROM wards WHERE ward_number = ?';
-        $params = [$wardNumber];
+        $sql = 'SELECT w.id FROM wards w';
+        $params = [];
+
+        if ($createdBy !== null) {
+            $sql .= ' INNER JOIN ward_locations wl ON wl.ward_id = w.id INNER JOIN locations l ON l.id = wl.location_id AND l.created_by = ?';
+            $params[] = $createdBy;
+        }
+
+        $sql .= ' WHERE w.ward_number = ?';
+        $params[] = $wardNumber;
 
         if ($excludeId !== null) {
-            $sql .= ' AND id != ?';
+            $sql .= ' AND w.id != ?';
             $params[] = $excludeId;
         }
 

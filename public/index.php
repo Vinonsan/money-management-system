@@ -78,6 +78,14 @@ $routes = [
 
     // Schedule Report
     'admin/schedule-report'           => ['Controller' => 'AdminController', 'Action' => 'scheduleReport', 'Middleware' => 'StaffAuth'],
+
+    // Admin Transfer
+    'admin/transfer'                      => ['Controller' => 'AdminController', 'Action' => 'transfer', 'Middleware' => 'StaffAuth'],
+    'admin/transfer/send-old-otp'         => ['Controller' => 'AdminController', 'Action' => 'transferSendOldOtp', 'Middleware' => 'StaffAuth'],
+    'admin/transfer/verify-old-otp'       => ['Controller' => 'AdminController', 'Action' => 'transferVerifyOldOtp', 'Middleware' => 'StaffAuth'],
+    'admin/transfer/send-new-otp'         => ['Controller' => 'AdminController', 'Action' => 'transferSendNewOtp', 'Middleware' => 'StaffAuth'],
+    'admin/transfer/verify-new-otp'       => ['Controller' => 'AdminController', 'Action' => 'transferVerifyNewOtp', 'Middleware' => 'StaffAuth'],
+    'admin/transfer/complete'             => ['Controller' => 'AdminController', 'Action' => 'transferComplete', 'Middleware' => 'StaffAuth'],
 ];
 
 if (array_key_exists($route, $routes)) {

@@ -105,18 +105,18 @@ class SMSService
                 'message'   => $message,
             ];
 
-            $ch = curl_init();
-            curl_setopt_array($ch, [
-                CURLOPT_URL            => $url . '?' . http_build_query($params),
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_TIMEOUT        => 15,
-                CURLOPT_SSL_VERIFYPEER => true,
+            $ch = \curl_init();
+            \curl_setopt_array($ch, [
+                \CURLOPT_URL            => $url . '?' . \http_build_query($params),
+                \CURLOPT_RETURNTRANSFER => true,
+                \CURLOPT_TIMEOUT        => 15,
+                \CURLOPT_SSL_VERIFYPEER => true,
             ]);
 
-            $response = curl_exec($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $error    = curl_error($ch);
-            curl_close($ch);
+            $response = \curl_exec($ch);
+            $httpCode = \curl_getinfo($ch, \CURLINFO_HTTP_CODE);
+            $error    = \curl_error($ch);
+            \curl_close($ch);
 
             if ($error !== '') {
                 throw new \RuntimeException('cURL error: ' . $error);
@@ -179,17 +179,17 @@ class SMSService
                 'api_key' => $this->apiKey,
             ];
 
-            $ch = curl_init();
-            curl_setopt_array($ch, [
-                CURLOPT_URL            => $this->baseUrl . '/account-status?' . http_build_query($params),
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_TIMEOUT        => 10,
-                CURLOPT_SSL_VERIFYPEER => true,
+            $ch = \curl_init();
+            \curl_setopt_array($ch, [
+                \CURLOPT_URL            => $this->baseUrl . '/account-status?' . \http_build_query($params),
+                \CURLOPT_RETURNTRANSFER => true,
+                \CURLOPT_TIMEOUT        => 10,
+                \CURLOPT_SSL_VERIFYPEER => true,
             ]);
 
-            $response = curl_exec($ch);
-            $error    = curl_error($ch);
-            curl_close($ch);
+            $response = \curl_exec($ch);
+            $error    = \curl_error($ch);
+            \curl_close($ch);
 
             if ($error !== '') {
                 return $default;
