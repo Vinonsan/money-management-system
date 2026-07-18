@@ -1,41 +1,7 @@
 <?php
-/**
- * @var array $locations  List of locations
- * @var array $wards      List of wards
- */
-
-use Components\Base\Badge;
-
 $pageTitle = 'Bulk Import';
 
-$importTypes = [
-    'locations' => [
-        'label'       => 'Locations',
-        'icon'        => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>',
-        'description' => 'Bulk import locations (name only)',
-        'columns'     => ['name'],
-        'sample'      => ['Main Masjid'],
-    ],
-    'wards' => [
-        'label'       => 'Wards',
-        'icon'        => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>',
-        'description' => 'Bulk import wards (ward number, status)',
-        'columns'     => ['ward_number', 'is_active'],
-        'sample'      => ['1', '1'],
-    ],
-    'members' => [
-        'label'       => 'Members',
-        'icon'        => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>',
-        'description' => 'Bulk import members with location & ward assignment',
-        'columns'     => ['name', 'email', 'phone', 'card_number', 'road_number', 'street', 'location_name', 'ward_number', 'monthly_amount'],
-        'sample'      => ['Mohamed Ali', 'ali@example.com', '0771234567', '101', '12A', 'Main Street', 'Main Masjid', '1', '500.00'],
-    ],
-];
-
-$activeType = trim((string) ($_GET['type'] ?? 'members'));
-if (!isset($importTypes[$activeType])) {
-    $activeType = 'members';
-}
+$columns = ['name', 'phone', 'monthly_amount', 'card_number', 'ward_number', 'location_name'];
 ?>
 
 <div class="space-y-6 max-w-5xl mx-auto py-2">
@@ -43,35 +9,16 @@ if (!isset($importTypes[$activeType])) {
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/60 backdrop-blur-md p-6 rounded-2xl border border-slate-200/80 shadow-sm">
         <div>
             <h1 class="text-2xl font-bold tracking-tight text-slate-900"><?= e($pageTitle) ?></h1>
-            <p class="mt-1 text-sm text-slate-500 font-medium">Import locations, wards, and members from CSV files in bulk.</p>
+            <p class="mt-1 text-sm text-slate-500 font-medium">Bulk import members from CSV file.</p>
         </div>
     </div>
 
-    <!-- Import Type Tabs -->
+    <!-- Import Section -->
     <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
-        <div class="flex border-b border-slate-200 bg-slate-50/50" role="tablist">
-            <?php foreach ($importTypes as $key => $type):
-                $active = $key === $activeType;
-                $tabClass = $active
-                    ? 'border-b-2 border-primary-600 text-primary-700 bg-white font-semibold'
-                    : 'text-slate-500 hover:text-slate-700 hover:bg-white/60';
-            ?>
-                <a href="<?= BASE_URL ?>/admin/bulk-import?type=<?= $key ?>"
-                   class="flex items-center gap-2 px-5 py-3.5 text-sm font-medium transition-all <?= $tabClass ?>">
-                    <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <?= $type['icon'] ?>
-                    </svg>
-                    <span><?= e($type['label']) ?></span>
-                </a>
-            <?php endforeach; ?>
-        </div>
-
         <div class="p-6">
-            <!-- Active Type Info -->
-            <?php $current = $importTypes[$activeType]; ?>
             <div class="mb-6">
-                <h2 class="text-lg font-semibold text-slate-800">Import <?= e($current['label']) ?></h2>
-                <p class="mt-1 text-sm text-slate-500"><?= e($current['description']) ?></p>
+                <h2 class="text-lg font-semibold text-slate-800">Import Members</h2>
+                <p class="mt-1 text-sm text-slate-500">Bulk import members — location & ward auto-created if missing.</p>
             </div>
 
             <!-- Step 1: Download Template -->
@@ -86,7 +33,7 @@ if (!isset($importTypes[$activeType])) {
                         <h3 class="text-sm font-semibold text-slate-800">Step 1: Download Sample CSV Template</h3>
                         <p class="mt-1 text-xs text-slate-500">Download the template, fill in your data, and save as CSV.</p>
                     </div>
-                    <a href="<?= BASE_URL ?>/admin/bulk-import/template?type=<?= $activeType ?>"
+                    <a href="<?= BASE_URL ?>/admin/bulk-import/template?type=members"
                        class="shrink-0 inline-flex items-center gap-2 rounded-xl bg-white border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-slate-300">
                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
@@ -159,7 +106,7 @@ if (!isset($importTypes[$activeType])) {
 </div>
 
 <script>
-const IMPORT_TYPE = '<?= $activeType ?>';
+const IMPORT_TYPE = 'members';
 
 document.getElementById('csvFile').addEventListener('change', function(e) {
     const file = e.target.files[0];
@@ -179,7 +126,11 @@ document.getElementById('csvFile').addEventListener('change', function(e) {
 
     const reader = new FileReader();
     reader.onload = function(evt) {
-        const text = evt.target.result;
+        let text = evt.target.result;
+        // Strip BOM (byte order mark) if present — Excel adds this in UTF-8 CSVs
+        if (text.charCodeAt(0) === 0xFEFF || text.charCodeAt(0) === 0xEFBBBF || text.charCodeAt(0) === 0xBBBF) {
+            text = text.slice(1);
+        }
         parseCSV(text);
     };
     reader.onerror = function() {
@@ -198,6 +149,7 @@ function parseCSV(text) {
         const ch = text[i];
         if (ch === '"') {
             inQuote = !inQuote;
+            current += ch; // Keep quotes so parseCSVLine can handle them
         } else if (ch === '\n' && !inQuote) {
             if (current.trim()) lines.push(current);
             current = '';

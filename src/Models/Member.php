@@ -36,6 +36,7 @@ class Member
 
         return Database::connect()->fetchAll(
             "SELECT m.id, m.name, m.phone, m.card_number, m.monthly_amount, m.is_active, m.created_at,
+                    m.location_id, m.ward_id,
                     l.name AS location_name, w.ward_number
              FROM members m
              LEFT JOIN locations l ON l.id = m.location_id

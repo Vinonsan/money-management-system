@@ -79,6 +79,9 @@ $routes = [
     // Schedule Report
     'admin/schedule-report'           => ['Controller' => 'AdminController', 'Action' => 'scheduleReport', 'Middleware' => 'StaffAuth'],
 
+    // Reports
+    'admin/reports'                       => ['Controller' => 'AdminController', 'Action' => 'reports', 'Middleware' => 'StaffAuth'],
+
     // Bulk Import
     'admin/bulk-import'                    => ['Controller' => 'AdminController', 'Action' => 'bulkImport', 'Middleware' => 'StaffAuth'],
     'admin/bulk-import/process'            => ['Controller' => 'AdminController', 'Action' => 'processBulkImport', 'Middleware' => 'StaffAuth'],

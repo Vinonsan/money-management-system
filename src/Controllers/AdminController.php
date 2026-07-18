@@ -1491,6 +1491,173 @@ $role = $_SESSION['user_role'] ?? '';
     }
 
     // ──────────────────────────────────────────────
+    //  Reports
+    // ──────────────────────────────────────────────
+
+    public function reports(): void
+    {
+        $locFilter = $this->getLocationFilter();
+        $role = $_SESSION['user_role'] ?? '';
+        $createdBy = $role !== 'super_admin' ? (int) ($_SESSION['user_id'] ?? 0) : null;
+
+        $year = (int) ($_GET['year'] ?? date('Y'));
+        $month = (int) ($_GET['month'] ?? 0);
+        $locationId = (int) ($_GET['location_id'] ?? 0);
+        $wardId = (int) ($_GET['ward_id'] ?? 0);
+
+        $db = \Models\Database::connect();
+
+        // ── Monthly breakdown for selected year ──────────────
+        $monthlyParams = [$year];
+        $monthlyWhere = 'YEAR(p.created_at) = ?';
+
+        if ($locFilter !== null) {
+            $monthlyWhere .= ' AND m.location_id = ?';
+            $monthlyParams[] = $locFilter;
+        }
+        if ($locationId > 0) {
+            $monthlyWhere .= ' AND m.location_id = ?';
+            $monthlyParams[] = $locationId;
+        }
+        if ($wardId > 0) {
+            $monthlyWhere .= ' AND m.ward_id = ?';
+            $monthlyParams[] = $wardId;
+        }
+
+        $monthlyData = $db->fetchAll(
+            "SELECT
+                MONTH(p.created_at) AS m,
+                COUNT(*) AS txns,
+                COALESCE(SUM(p.amount), 0) AS total
+             FROM payments p
+             JOIN members m ON m.id = p.member_id
+             WHERE {$monthlyWhere}
+             GROUP BY MONTH(p.created_at)
+             ORDER BY m ASC",
+            $monthlyParams
+        );
+
+        // Build full 12-month grid
+        $months = [];
+        for ($i = 1; $i <= 12; $i++) {
+            $found = 0;
+            $txns = 0;
+            foreach ($monthlyData as $md) {
+                if ((int) $md['m'] === $i) {
+                    $found = (float) $md['total'];
+                    $txns = (int) $md['txns'];
+                    break;
+                }
+            }
+            $months[$i] = ['total' => $found, 'txns' => $txns];
+        }
+
+        // ── Yearly summary ──────────────────────────────────
+        $yearlyParams = [];
+        $yearlyWhere = '1=1';
+        if ($locFilter !== null) {
+            $yearlyWhere .= ' AND m.location_id = ?';
+            $yearlyParams[] = $locFilter;
+        }
+
+        $yearlyData = $db->fetchAll(
+            "SELECT
+                YEAR(p.created_at) AS y,
+                COUNT(*) AS txns,
+                COALESCE(SUM(p.amount), 0) AS total
+             FROM payments p
+             JOIN members m ON m.id = p.member_id
+             WHERE {$yearlyWhere}
+             GROUP BY YEAR(p.created_at)
+             ORDER BY y DESC
+             LIMIT 10",
+            $yearlyParams
+        );
+
+        // ── Detail transactions for selected month/year ─────
+        $detailWhere = '1=1';
+        $detailParams = [];
+
+        if ($year > 0) {
+            $detailWhere .= ' AND YEAR(p.created_at) = ?';
+            $detailParams[] = $year;
+        }
+        if ($month > 0) {
+            $detailWhere .= ' AND MONTH(p.created_at) = ?';
+            $detailParams[] = $month;
+        }
+        if ($locFilter !== null) {
+            $detailWhere .= ' AND m.location_id = ?';
+            $detailParams[] = $locFilter;
+        }
+        if ($locationId > 0) {
+            $detailWhere .= ' AND m.location_id = ?';
+            $detailParams[] = $locationId;
+        }
+        if ($wardId > 0) {
+            $detailWhere .= ' AND m.ward_id = ?';
+            $detailParams[] = $wardId;
+        }
+
+        $details = $db->fetchAll(
+            "SELECT
+                p.id, p.amount, p.months_covered, p.extra_amount, p.from_month, p.to_month, p.created_at,
+                m.name AS member_name, m.phone, m.card_number,
+                l.name AS location_name, w.ward_number
+             FROM payments p
+             JOIN members m ON m.id = p.member_id
+             LEFT JOIN locations l ON l.id = m.location_id
+             LEFT JOIN wards w ON w.id = m.ward_id
+             WHERE {$detailWhere}
+             ORDER BY p.created_at DESC
+             LIMIT 500",
+            $detailParams
+        );
+
+        // ── Year to date totals ─────────────────────────────
+        $ytdParams = [date('Y')];
+        $ytdWhere = 'YEAR(p.created_at) = ?';
+        if ($locFilter !== null) {
+            $ytdWhere .= ' AND m.location_id = ?';
+            $ytdParams[] = $locFilter;
+        }
+        $ytdTotal = $db->fetch(
+            "SELECT COALESCE(SUM(p.amount), 0) AS total FROM payments p
+             JOIN members m ON m.id = p.member_id
+             WHERE {$ytdWhere}",
+            $ytdParams
+        )['total'] ?? 0;
+
+        // ── Available years for filter ──────────────────────
+        $startYear = (int) date('Y', strtotime(Setting::get('collection_start_date', date('Y-m-d'))));
+        $currentYear = (int) date('Y');
+        $availYears = $db->fetchAll(
+            "SELECT DISTINCT y FROM (
+                SELECT YEAR(p.created_at) AS y FROM payments p
+                UNION
+                SELECT ? AS y
+                UNION
+                SELECT ? AS y
+            ) AS yr ORDER BY y DESC",
+            [$startYear, $currentYear]
+        );
+
+        $this->view('Reports', 'reports.php', [
+            'year'       => $year,
+            'month'      => $month,
+            'months'     => $months,
+            'yearlyData' => $yearlyData,
+            'details'    => $details,
+            'ytdTotal'   => $ytdTotal,
+            'availYears' => $availYears,
+            'locations'  => Location::allActive(null, $createdBy),
+            'wards'      => Ward::allActive(null),
+            'locationId' => $locationId,
+            'wardId'     => $wardId,
+        ], 'reports');
+    }
+
+    // ──────────────────────────────────────────────
     //  Bulk Import (CSV)
     // ──────────────────────────────────────────────
 
@@ -1519,12 +1686,12 @@ $role = $_SESSION['user_role'] ?? '';
                 break;
 
             case 'wards':
-                fputcsv($output, ['ward_number', 'is_active']);
+                fputcsv($output, ['ward_number', 'location_names']);
                 break;
 
             case 'members':
             default:
-                fputcsv($output, ['name', 'email', 'phone', 'card_number', 'road_number', 'street', 'location_name', 'ward_number', 'monthly_amount']);
+                fputcsv($output, ['name', 'phone', 'monthly_amount', 'card_number', 'ward_number', 'location_name']);
                 break;
         }
 
@@ -1539,7 +1706,7 @@ $role = $_SESSION['user_role'] ?? '';
         $importType = trim((string) ($data['import_type'] ?? ''));
         $rows = $data['rows'] ?? [];
 
-        if (!in_array($importType, ['locations', 'wards', 'members'], true)) {
+        if ($importType !== 'members') {
             $this->jsonError('Invalid import type.');
             return;
         }
@@ -1558,17 +1725,7 @@ $role = $_SESSION['user_role'] ?? '';
         foreach ($rows as $i => $row) {
             $rowNum = $i + 2; // +2 because row 1 is header
             try {
-                switch ($importType) {
-                    case 'locations':
-                        $result = $this->importLocationRow($row, $userId, $role);
-                        break;
-                    case 'wards':
-                        $result = $this->importWardRow($row);
-                        break;
-                    case 'members':
-                        $result = $this->importMemberRow($row, $role, $userId);
-                        break;
-                }
+                $result = $this->importMemberRow($row, $role, $userId);
 
                 if ($result['success']) {
                     $imported++;
@@ -1629,11 +1786,12 @@ $role = $_SESSION['user_role'] ?? '';
     private function importWardRow(array $row): array
     {
         $wardNumber = trim((string) ($row['ward_number'] ?? ''));
-        if ($wardNumber === '' || !ctype_digit($wardNumber)) {
+        // Handle Excel-exported numbers like "1.0" or "1,0" (European locale)
+        if ($wardNumber === '' || !is_numeric(str_replace(',', '.', $wardNumber))) {
             return ['success' => false, 'error' => 'Valid ward_number is required (positive integer).'];
         }
-
-        $wardNumber = (int) $wardNumber;
+        // Cast through float to handle decimals (e.g. "1.0" → (int)1.0 → 1)
+        $wardNumber = (int) (float) str_replace(',', '.', $wardNumber);
 
         if (Ward::numberExists($wardNumber)) {
             return ['success' => false, 'error' => "Ward number {$wardNumber} already exists."];
@@ -1650,10 +1808,49 @@ $role = $_SESSION['user_role'] ?? '';
             'is_active'   => $isActive,
         ]);
 
-        // Assign to all active locations by default
-        $locations = Location::allActive();
-        if (!empty($locations)) {
-            Ward::syncLocations((int) $wardId, array_column($locations, 'id'));
+        // Parse location_names (comma-separated). If empty, assign to all active locations.
+        $locationIds = [];
+        $locationNames = trim((string) ($row['location_names'] ?? ''));
+        if ($locationNames !== '') {
+            $names = explode(',', $locationNames);
+            $userId = (int) ($_SESSION['user_id'] ?? 0);
+            $role = $_SESSION['user_role'] ?? '';
+            $createdBy = $role !== 'super_admin' ? $userId : null;
+
+            foreach ($names as $locName) {
+                $locName = trim($locName);
+                if ($locName === '') continue;
+
+                // Check if location exists
+                $loc = \Models\Database::connect()->fetch(
+                    'SELECT id FROM locations WHERE name = ? LIMIT 1',
+                    [$locName]
+                );
+
+                if ($loc) {
+                    $locationIds[] = (int) $loc['id'];
+                } else {
+                    // Auto-create the location if it doesn't exist
+                    $newLocId = Location::create([
+                        'name'       => $locName,
+                        'address'    => '',
+                        'city'       => '',
+                        'is_active'  => 1,
+                        'created_by' => $createdBy,
+                    ]);
+                    $locationIds[] = (int) $newLocId;
+                }
+            }
+        }
+
+        if (!empty($locationIds)) {
+            Ward::syncLocations((int) $wardId, $locationIds);
+        } else {
+            // No locations specified - assign to all active locations
+            $locations = Location::allActive();
+            if (!empty($locations)) {
+                Ward::syncLocations((int) $wardId, array_column($locations, 'id'));
+            }
         }
 
         return ['success' => true];
@@ -1674,7 +1871,7 @@ $role = $_SESSION['user_role'] ?? '';
             return ['success' => false, 'error' => "Phone {$phone} already exists for '{$name}'."];
         }
 
-        // Resolve location_name to location_id
+        // Resolve location_name — auto-create if missing
         $locationId = null;
         $locationName = trim((string) ($row['location_name'] ?? ''));
         if ($locationName !== '') {
@@ -1682,7 +1879,19 @@ $role = $_SESSION['user_role'] ?? '';
                 'SELECT id FROM locations WHERE name = ? LIMIT 1',
                 [$locationName]
             );
-            $locationId = $loc ? (int) $loc['id'] : null;
+            if ($loc) {
+                $locationId = (int) $loc['id'];
+            } else {
+                $createdBy = $role !== 'super_admin' ? $userId : null;
+                $newLocId = Location::create([
+                    'name'       => $locationName,
+                    'address'    => '',
+                    'city'       => '',
+                    'is_active'  => 1,
+                    'created_by' => $createdBy,
+                ]);
+                $locationId = (int) $newLocId;
+            }
         }
 
         // Enforce admin location isolation for non-super-admin
@@ -1693,15 +1902,34 @@ $role = $_SESSION['user_role'] ?? '';
             }
         }
 
-        // Resolve ward_number to ward_id
+        // Resolve ward_number — auto-create if missing
         $wardId = null;
         $wardNumber = trim((string) ($row['ward_number'] ?? ''));
-        if ($wardNumber !== '' && ctype_digit($wardNumber)) {
-            $wd = \Models\Database::connect()->fetch(
-                'SELECT id FROM wards WHERE ward_number = ? LIMIT 1',
-                [(int) $wardNumber]
-            );
-            $wardId = $wd ? (int) $wd['id'] : null;
+        if ($wardNumber !== '') {
+            // Handle Excel-style decimals e.g. "1.0"
+            $cleanWard = preg_replace('/[^0-9]/', '', $wardNumber);
+            if ($cleanWard !== '') {
+                $cleanWard = (int) $cleanWard;
+                $wd = \Models\Database::connect()->fetch(
+                    'SELECT id FROM wards WHERE ward_number = ? LIMIT 1',
+                    [$cleanWard]
+                );
+                if ($wd) {
+                    $wardId = (int) $wd['id'];
+                } else {
+                    // Auto-create ward
+                    $newWardId = Ward::create([
+                        'ward_number' => $cleanWard,
+                        'is_active'   => 1,
+                    ]);
+                    $wardId = (int) $newWardId;
+
+                    // Link ward to member's location if available
+                    if ($locationId !== null) {
+                        Ward::syncLocations($wardId, [$locationId]);
+                    }
+                }
+            }
         }
 
         Member::create([
