@@ -14,7 +14,7 @@ class Ward
             $where = 'WHERE wl.location_id = ?';
             $params[] = $locationFilter;
         } elseif ($createdBy !== null) {
-            $where = 'WHERE (l.created_by = ? OR l.id IS NULL)';
+            $where = 'WHERE (w.id IN (SELECT wl.ward_id FROM ward_locations wl JOIN locations l ON l.id = wl.location_id WHERE l.created_by = ?) OR w.id NOT IN (SELECT ward_id FROM ward_locations))';
             $params[] = $createdBy;
         }
 
@@ -41,9 +41,8 @@ class Ward
             $where = 'INNER JOIN ward_locations wl ON wl.ward_id = w.id AND wl.location_id = ?';
             $params[] = $locationFilter;
         } elseif ($createdBy !== null) {
-            $where = 'LEFT JOIN ward_locations wl ON wl.ward_id = w.id LEFT JOIN locations l ON l.id = wl.location_id AND (l.created_by = ? OR l.id IS NULL)';
+            $where = 'WHERE (w.id IN (SELECT wl.ward_id FROM ward_locations wl JOIN locations l ON l.id = wl.location_id WHERE l.created_by = ?) OR w.id NOT IN (SELECT ward_id FROM ward_locations))';
             $params[] = $createdBy;
-            // Use LEFT JOIN so orphan wards (no location link) still appear
         }
         $result = Database::connect()->fetch("SELECT COUNT(*) AS cnt FROM wards w {$where}", $params);
         return (int) ($result['cnt'] ?? 0);
@@ -81,7 +80,7 @@ class Ward
         }
 
         if ($createdBy !== null) {
-            $sql .= ' AND (l.created_by = ? OR l.id IS NULL)';
+            $sql .= ' AND (w.id IN (SELECT wl.ward_id FROM ward_locations wl JOIN locations l ON l.id = wl.location_id WHERE l.created_by = ?) OR w.id NOT IN (SELECT ward_id FROM ward_locations))';
             $params[] = $createdBy;
         }
 

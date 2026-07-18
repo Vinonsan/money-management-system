@@ -402,7 +402,7 @@ $role = $_SESSION['user_role'] ?? '';
             'sortField' => $sortField,
             'sortDir' => $sortDir,
             'locations' => Location::allActive(null, $createdBy),
-            'wards' => Ward::allActive(),
+            'wards' => Ward::allActive(null, $createdBy),
         ], 'users.list');
     }
 
