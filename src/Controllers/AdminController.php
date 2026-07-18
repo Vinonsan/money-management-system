@@ -1490,6 +1490,235 @@ $role = $_SESSION['user_role'] ?? '';
         }
     }
 
+    // ──────────────────────────────────────────────
+    //  Bulk Import (CSV)
+    // ──────────────────────────────────────────────
+
+    public function bulkImport(): void
+    {
+        $this->view('Bulk Import', 'bulk_import.php', [
+            'locations' => Location::allActive(),
+            'wards'     => Ward::allActive(),
+        ], 'locations.bulk-import');
+    }
+
+    public function downloadTemplate(): void
+    {
+        $type = trim((string) ($_GET['type'] ?? 'members'));
+
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $type . '_template.csv"');
+
+        $output = fopen('php://output', 'w');
+        // UTF-8 BOM for Excel compatibility
+        fwrite($output, "\xEF\xBB\xBF");
+
+        switch ($type) {
+            case 'locations':
+                fputcsv($output, ['name']);
+                break;
+
+            case 'wards':
+                fputcsv($output, ['ward_number', 'is_active']);
+                break;
+
+            case 'members':
+            default:
+                fputcsv($output, ['name', 'email', 'phone', 'card_number', 'road_number', 'street', 'location_name', 'ward_number', 'monthly_amount']);
+                break;
+        }
+
+        fclose($output);
+        exit;
+    }
+
+    public function processBulkImport(): void
+    {
+        $this->requireJson();
+        $data = $this->jsonBody();
+        $importType = trim((string) ($data['import_type'] ?? ''));
+        $rows = $data['rows'] ?? [];
+
+        if (!in_array($importType, ['locations', 'wards', 'members'], true)) {
+            $this->jsonError('Invalid import type.');
+            return;
+        }
+
+        if (empty($rows) || !is_array($rows)) {
+            $this->jsonError('No data rows to import.');
+            return;
+        }
+
+        $db = \Models\Database::connect();
+        $imported = 0;
+        $errors = [];
+        $role = $_SESSION['user_role'] ?? '';
+        $userId = (int) ($_SESSION['user_id'] ?? 0);
+
+        foreach ($rows as $i => $row) {
+            $rowNum = $i + 2; // +2 because row 1 is header
+            try {
+                switch ($importType) {
+                    case 'locations':
+                        $result = $this->importLocationRow($row, $userId, $role);
+                        break;
+                    case 'wards':
+                        $result = $this->importWardRow($row);
+                        break;
+                    case 'members':
+                        $result = $this->importMemberRow($row, $role, $userId);
+                        break;
+                }
+
+                if ($result['success']) {
+                    $imported++;
+                } else {
+                    $errors[] = 'Row ' . $rowNum . ': ' . $result['error'];
+                }
+            } catch (\Exception $e) {
+                $errors[] = 'Row ' . $rowNum . ': ' . $e->getMessage();
+            }
+        }
+
+        if ($imported === 0 && !empty($errors)) {
+            $this->jsonError('Import failed. ' . implode(' | ', $errors));
+            return;
+        }
+
+        $msg = "Successfully imported {$imported} {$importType}.";
+        if (!empty($errors)) {
+            $msg .= ' Errors: ' . implode(' | ', array_slice($errors, 0, 10));
+            if (count($errors) > 10) {
+                $msg .= ' (and ' . (count($errors) - 10) . ' more errors)';
+            }
+        }
+
+        $this->jsonSuccess($msg);
+    }
+
+    private function importLocationRow(array $row, int $userId, string $role): array
+    {
+        $name = trim((string) ($row['name'] ?? ''));
+        if ($name === '') {
+            return ['success' => false, 'error' => 'Location name is required.'];
+        }
+
+        $createdBy = $role !== 'super_admin' ? $userId : null;
+
+        if (Location::nameExists($name, null, $createdBy)) {
+            return ['success' => false, 'error' => "Location '{$name}' already exists."];
+        }
+
+        // Default to active (1) if is_active is not provided or empty
+        $isActive = 1;
+        if (isset($row['is_active']) && $row['is_active'] !== '') {
+            $isActive = $row['is_active'] === '0' ? 0 : 1;
+        }
+
+        Location::create([
+            'name'       => $name,
+            'address'    => trim((string) ($row['address'] ?? '')),
+            'city'       => trim((string) ($row['city'] ?? '')),
+            'is_active'  => $isActive,
+            'created_by' => $createdBy,
+        ]);
+
+        return ['success' => true];
+    }
+
+    private function importWardRow(array $row): array
+    {
+        $wardNumber = trim((string) ($row['ward_number'] ?? ''));
+        if ($wardNumber === '' || !ctype_digit($wardNumber)) {
+            return ['success' => false, 'error' => 'Valid ward_number is required (positive integer).'];
+        }
+
+        $wardNumber = (int) $wardNumber;
+
+        if (Ward::numberExists($wardNumber)) {
+            return ['success' => false, 'error' => "Ward number {$wardNumber} already exists."];
+        }
+
+        // Default to active (1) if is_active is not provided or empty
+        $isActive = 1;
+        if (isset($row['is_active']) && $row['is_active'] !== '') {
+            $isActive = $row['is_active'] === '0' ? 0 : 1;
+        }
+
+        $wardId = Ward::create([
+            'ward_number' => $wardNumber,
+            'is_active'   => $isActive,
+        ]);
+
+        // Assign to all active locations by default
+        $locations = Location::allActive();
+        if (!empty($locations)) {
+            Ward::syncLocations((int) $wardId, array_column($locations, 'id'));
+        }
+
+        return ['success' => true];
+    }
+
+    private function importMemberRow(array $row, string $role, int $userId): array
+    {
+        $name = trim((string) ($row['name'] ?? ''));
+        $phone = trim((string) ($row['phone'] ?? ''));
+
+        if ($name === '') {
+            return ['success' => false, 'error' => 'Member name is required.'];
+        }
+        if ($phone === '' || !preg_match('/^[+0-9][+0-9()\- ]{6,19}$/', $phone)) {
+            return ['success' => false, 'error' => "Valid phone number is required for '{$name}'."];
+        }
+        if (Member::phoneExists($phone)) {
+            return ['success' => false, 'error' => "Phone {$phone} already exists for '{$name}'."];
+        }
+
+        // Resolve location_name to location_id
+        $locationId = null;
+        $locationName = trim((string) ($row['location_name'] ?? ''));
+        if ($locationName !== '') {
+            $loc = \Models\Database::connect()->fetch(
+                'SELECT id FROM locations WHERE name = ? LIMIT 1',
+                [$locationName]
+            );
+            $locationId = $loc ? (int) $loc['id'] : null;
+        }
+
+        // Enforce admin location isolation for non-super-admin
+        if ($role !== 'super_admin') {
+            $userLocId = $_SESSION['user_location_id'] ?? 0;
+            if ($userLocId > 0) {
+                $locationId = (int) $userLocId;
+            }
+        }
+
+        // Resolve ward_number to ward_id
+        $wardId = null;
+        $wardNumber = trim((string) ($row['ward_number'] ?? ''));
+        if ($wardNumber !== '' && ctype_digit($wardNumber)) {
+            $wd = \Models\Database::connect()->fetch(
+                'SELECT id FROM wards WHERE ward_number = ? LIMIT 1',
+                [(int) $wardNumber]
+            );
+            $wardId = $wd ? (int) $wd['id'] : null;
+        }
+
+        Member::create([
+            'name'           => $name,
+            'email'          => trim((string) ($row['email'] ?? '')),
+            'phone'          => $phone,
+            'card_number'    => trim((string) ($row['card_number'] ?? '')),
+            'road_number'    => trim((string) ($row['road_number'] ?? '')),
+            'street'         => trim((string) ($row['street'] ?? '')),
+            'location_id'    => $locationId,
+            'ward_id'        => $wardId,
+            'monthly_amount' => (float) ($row['monthly_amount'] ?? 0),
+        ]);
+
+        return ['success' => true];
+    }
+
     private function transferComplete(): void
     {
         $db = \Models\Database::connect();

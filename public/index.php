@@ -79,6 +79,11 @@ $routes = [
     // Schedule Report
     'admin/schedule-report'           => ['Controller' => 'AdminController', 'Action' => 'scheduleReport', 'Middleware' => 'StaffAuth'],
 
+    // Bulk Import
+    'admin/bulk-import'                    => ['Controller' => 'AdminController', 'Action' => 'bulkImport', 'Middleware' => 'StaffAuth'],
+    'admin/bulk-import/process'            => ['Controller' => 'AdminController', 'Action' => 'processBulkImport', 'Middleware' => 'StaffAuth'],
+    'admin/bulk-import/template'           => ['Controller' => 'AdminController', 'Action' => 'downloadTemplate', 'Middleware' => 'StaffAuth'],
+
     // Admin Transfer
     'admin/transfer'                      => ['Controller' => 'AdminController', 'Action' => 'transfer', 'Middleware' => 'StaffAuth'],
     'admin/transfer/send-old-otp'         => ['Controller' => 'AdminController', 'Action' => 'transferSendOldOtp', 'Middleware' => 'StaffAuth'],

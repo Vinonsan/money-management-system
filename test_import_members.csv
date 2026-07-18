@@ -1,0 +1,3 @@
+name,email,phone,card_number,road_number,street,location_name,ward_number,monthly_amount
+Test Member One,test1@example.com,0771111111,201,10,Main Street,Main Masjid,1,500.00
+Test Member Two,test2@example.com,0772222222,202,15,Park Avenue,Main Masjid,2,750.00
