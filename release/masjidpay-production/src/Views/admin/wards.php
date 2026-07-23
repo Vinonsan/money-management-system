@@ -220,10 +220,10 @@ $drawerFooter = <<<HTML
         class="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50">
         Cancel
     </button>
-    <button type="button" x-show="drawerMode !== 'view'"
+    <button type="button" x-show="drawerMode !== 'view'" :disabled="wardSaving"
             @click="submitWard()"
-        class="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-primary-600/20 transition hover:bg-primary-700">
-        <span x-text="drawerMode === 'edit' ? 'Update Ward' : 'Save Ward'"></span>
+        class="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-primary-600/20 transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60">
+        <span x-text="wardSaving ? 'Saving...' : (drawerMode === 'edit' ? 'Update Ward' : 'Save Ward')"></span>
     </button>
 </div>
 HTML;
@@ -278,6 +278,7 @@ function openDeleteModal(id, name) {
 
 function submitWard() {
     const data = Alpine.$data(document.querySelector('[x-data]'));
+    if (data.wardSaving) return;
     data.wardError = '';
 
     const wardNum = Number(data.drawerData.ward_number);
@@ -304,14 +305,35 @@ function submitWard() {
 
     const isEdit = !!formData.id;
     const url = BASE_URL + (isEdit ? '/admin/wards/update' : '/admin/wards/create');
+    data.wardSaving = true;
 
     fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
         body: JSON.stringify(formData),
     })
-    .then(r => r.json())
+    .then(async response => {
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+            throw new Error(response.redirected
+                ? 'Your session expired. Please sign in again.'
+                : 'The server returned an invalid response.');
+        }
+        const result = await response.json();
+        if (response.status === 401) {
+            showToast(result.error || 'Your session expired. Please sign in again.', 'error');
+            setTimeout(() => {
+                window.location.href = BASE_URL + '/admin/login';
+            }, 1200);
+            return null;
+        }
+        if (!response.ok && !result.error) {
+            throw new Error('Ward could not be saved.');
+        }
+        return result;
+    })
     .then(r => {
+        if (!r) return;
         if (r.success) {
             showToast(r.message || 'Ward saved!');
             setTimeout(() => window.location.reload(), 1500);
@@ -324,7 +346,10 @@ function submitWard() {
             }
         }
     })
-    .catch(() => showToast('Network error.', 'error'));
+    .catch(error => showToast(error.message || 'Network error. Please try again.', 'error'))
+    .finally(() => {
+        data.wardSaving = false;
+    });
 }
 
 function multiSelect(id, placeholderText) {

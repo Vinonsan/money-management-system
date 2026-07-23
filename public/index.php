@@ -115,6 +115,14 @@ if (array_key_exists($route, $routes)) {
     }
 } else {
     http_response_code(404);
-    require_once __DIR__ . '/../src/Views/layouts/app_layout.php';
-    renderAppLayout('404', __DIR__ . '/../src/Views/public/404.php');
+    $expectsJson = strtolower($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') === 'xmlhttprequest'
+        || str_contains(strtolower($_SERVER['HTTP_ACCEPT'] ?? ''), 'application/json')
+        || str_contains(strtolower($_SERVER['CONTENT_TYPE'] ?? ''), 'application/json');
+    if ($expectsJson) {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'error' => 'API route not found.']);
+    } else {
+        require_once __DIR__ . '/../src/Views/layouts/app_layout.php';
+        renderAppLayout('404', __DIR__ . '/../src/Views/public/404.php');
+    }
 }

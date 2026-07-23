@@ -184,9 +184,17 @@ class Ward
             $locationIds = $validIds;
         }
 
+        $locationIds = array_values(array_unique(array_filter(
+            array_map('intval', $locationIds),
+            static fn (int $id): bool => $id > 0
+        )));
+        if ($locationIds === []) {
+            throw new \RuntimeException('No valid locations were selected.');
+        }
+
         $db->execute('DELETE FROM ward_locations WHERE ward_id = ?', [$wardId]);
 
-        foreach (array_unique(array_map('intval', $locationIds)) as $locationId) {
+        foreach ($locationIds as $locationId) {
             $db->insert(
                 'INSERT INTO ward_locations (ward_id, location_id) VALUES (?, ?)',
                 [$wardId, $locationId]

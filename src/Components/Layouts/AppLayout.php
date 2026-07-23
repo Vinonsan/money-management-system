@@ -91,6 +91,7 @@ final class AppLayout
         modalData: {},
         nameError: '',
         wardError: '',
+        wardSaving: false,
         userErrors: {},
         memberErrors: {},
         get filteredLocs() {

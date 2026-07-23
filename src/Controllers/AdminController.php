@@ -1,6 +1,7 @@
 <?php
 namespace Controllers;
 
+use Models\Database;
 use Models\Location;
 use Models\Member;
 use Models\Payment;
@@ -349,16 +350,23 @@ $role = $_SESSION['user_role'] ?? '';
             return;
         }
 
+        $connection = Database::connect()->getConn();
         try {
+            $connection->beginTransaction();
             $wardId = Ward::create([
                 'ward_number' => (int) $data['ward_number'],
                 'is_active'   => !empty($data['is_active']) ? 1 : 0,
                 'created_by'  => $createdByCheck,
             ]);
             Ward::syncLocations((int) $wardId, $locationIds, $createdByCheck);
+            $connection->commit();
             $this->jsonSuccess('Ward created.');
-        } catch (\Exception $e) {
-            $this->jsonError('Failed to create ward: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            if ($connection->inTransaction()) {
+                $connection->rollBack();
+            }
+            error_log('Ward creation failed: ' . $e->getMessage());
+            $this->jsonError('Failed to create ward. Please try again.');
         }
     }
 
@@ -393,16 +401,23 @@ $role = $_SESSION['user_role'] ?? '';
             return;
         }
 
+        $connection = Database::connect()->getConn();
         try {
+            $connection->beginTransaction();
             Ward::update($id, [
                 'ward_number' => (int) $data['ward_number'],
                 'is_active'   => !empty($data['is_active']) ? 1 : 0,
                 'created_by'  => $createdByCheck,
             ]);
             Ward::syncLocations($id, $locationIds, $createdByCheck);
+            $connection->commit();
             $this->jsonSuccess('Ward updated.');
-        } catch (\Exception $e) {
-            $this->jsonError('Failed to update ward: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            if ($connection->inTransaction()) {
+                $connection->rollBack();
+            }
+            error_log('Ward update failed: ' . $e->getMessage());
+            $this->jsonError('Failed to update ward. Please try again.');
         }
     }
 
