@@ -1504,28 +1504,13 @@ $role = $_SESSION['user_role'] ?? '';
     public function smsManager(): void
     {
         $db = \Models\Database::connect();
+        $adminId = (int) ($_SESSION['user_id'] ?? 0);
 
-        // Use phone-based lookup for reliable user ID
-        $adminId = 0;
-        $phone = $_SESSION['user_phone'] ?? '';
-        if ($phone) {
-            $user = \Models\User::findByPhone($phone);
-            if ($user) {
-                $adminId = (int) $user['id'];
-            }
-        }
-        if ($adminId <= 0) {
-            $adminId = (int) ($_SESSION['member_id'] ?? 0);
-        }
-
-        $smsBalance = \Services\SMSService::getBalance((int) ($_SESSION['user_id'] ?? 0));
+        $smsBalance = \Services\SMSService::getBalance($adminId);
         $smsCost = \Models\Setting::get('sms_cost_per_message', '0.62');
         $remainingSms = (float)$smsCost > 0 ? floor($smsBalance / (float)$smsCost) : 0;
 
-        $requests = $db->fetchAll(
-            'SELECT * FROM refill_requests WHERE admin_id = ? ORDER BY created_at DESC LIMIT 20',
-            [$adminId]
-        );
+        $requests = \Models\RefillRequest::forAdmin($adminId);
 
         $this->view('SMS Manager', 'sms_manager.php', [
             'smsBalance'    => $smsBalance,
@@ -1553,17 +1538,17 @@ $role = $_SESSION['user_role'] ?? '';
             exit;
         }
 
-        // Use phone-based lookup for reliable user ID
-        $adminId = 0;
-        $phone = $_SESSION['user_phone'] ?? '';
-        if ($phone) {
-            $user = \Models\User::findByPhone($phone);
-            if ($user) {
-                $adminId = (int) $user['id'];
-            }
-        }
-        if ($adminId <= 0) {
-            $adminId = (int) ($_SESSION['member_id'] ?? 0);
+        $adminId = (int) ($_SESSION['user_id'] ?? 0);
+        $admin = $adminId > 0
+            ? \Models\Database::connect()->fetch(
+                "SELECT id FROM users WHERE id = ? AND role = 'admin' AND is_active = 1",
+                [$adminId]
+            )
+            : null;
+        if (!$admin) {
+            $_SESSION['refill_error'] = 'Your admin account could not be verified.';
+            header('Location: ' . BASE_URL . '/admin/sms');
+            exit;
         }
 
         $amount  = (float) ($_POST['amount'] ?? 0);
@@ -1575,12 +1560,13 @@ $role = $_SESSION['user_role'] ?? '';
             exit;
         }
 
-        \Models\Database::connect()->insert(
-            'INSERT INTO refill_requests (admin_id, amount, message) VALUES (?, ?, ?)',
-            [$adminId, $amount, $message]
-        );
-
-        $_SESSION['refill_success'] = 'Refill request submitted. Waiting for Super Admin approval.';
+        try {
+            $requestId = \Models\RefillRequest::create($adminId, $amount, $message);
+            $_SESSION['refill_success'] = 'Refill request #' . $requestId . ' submitted. Waiting for Super Admin approval.';
+        } catch (\Throwable $e) {
+            error_log('SMS refill request failed: ' . $e->getMessage());
+            $_SESSION['refill_error'] = 'Refill request could not be submitted. Please try again.';
+        }
         header('Location: ' . BASE_URL . '/admin/sms');
         exit;
     }

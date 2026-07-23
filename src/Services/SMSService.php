@@ -9,6 +9,8 @@ namespace Services;
  */
 class SMSService
 {
+    public const LOW_BALANCE_THRESHOLD = 50;
+
     private string $baseUrl = 'https://smslenz.lk/api';
     private string $userId;
     private string $apiKey;
@@ -48,6 +50,24 @@ class SMSService
     }
 
     /**
+     * Get the number of messages affordable with the tracked balance.
+     */
+    public static function getRemaining(?int $adminId = null): int
+    {
+        $cost = (float) \Models\Setting::get('sms_cost_per_message', '0.62');
+        if ($cost <= 0) {
+            return 0;
+        }
+
+        return max(0, (int) floor(self::getBalance($adminId) / $cost));
+    }
+
+    public static function hasAvailableMessages(?int $adminId = null): bool
+    {
+        return self::getRemaining($adminId) > 0;
+    }
+
+    /**
      * Check if SMSlenz is configured with valid credentials.
      */
     public function isConfigured(): bool
@@ -83,6 +103,13 @@ class SMSService
      */
     public function send(string $phone, string $message): bool
     {
+        // Admin-funded messages must never be sent once their tracked
+        // balance can no longer cover a single SMS.
+        if ($this->adminId !== null && !self::hasAvailableMessages($this->adminId)) {
+            $this->logFailure($phone, 'SMS balance exhausted. Recharge required.');
+            return false;
+        }
+
         // Append branding
         $message = rtrim($message) . ' - MasjidPay';
 
@@ -255,5 +282,17 @@ class SMSService
         } catch (\Exception $e) {
             // Don't block SMS if balance deduction fails
         }
+    }
+
+    private function logFailure(string $phone, string $reason): void
+    {
+        $line = sprintf(
+            "[%s] SMS BLOCKED to %s: %s%s",
+            date('Y-m-d H:i:s'),
+            $phone,
+            $reason,
+            PHP_EOL
+        );
+        @file_put_contents(__DIR__ . '/../../sms_log.txt', $line, FILE_APPEND);
     }
 }

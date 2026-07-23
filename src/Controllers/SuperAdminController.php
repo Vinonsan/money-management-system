@@ -248,14 +248,7 @@ if ($name === '' || $phone === '') {
 
     public function refillRequests(): void
     {
-        $db = Database::connect();
-        $requests = $db->fetchAll(
-            "SELECT r.*, u.name AS admin_name, u.phone AS admin_phone
-             FROM refill_requests r
-             JOIN users u ON u.id = r.admin_id
-             ORDER BY r.created_at DESC
-             LIMIT 50"
-        );
+        $requests = \Models\RefillRequest::all();
 
         require_once __DIR__ . '/../Views/layouts/app_layout.php';
         renderAppLayout('Refill Requests', __DIR__ . '/../Views/admin/super_admin/refill_requests.php', [
@@ -278,7 +271,7 @@ if ($name === '' || $phone === '') {
         }
 
         $db = Database::connect();
-        $req = $db->fetch('SELECT * FROM refill_requests WHERE id = ? AND status = ?', [$id, 'pending']);
+        $req = \Models\RefillRequest::findPending($id);
         if (!$req) {
             $this->jsonError('Request not found or already processed.');
             return;
@@ -295,16 +288,10 @@ if ($name === '' || $phone === '') {
             $txnId = 'sms_txn_' . date('Ymd_His') . '_' . bin2hex(random_bytes(4));
             \Models\Setting::set($txnId, 'Refill (request #' . $id . ' - admin ' . $reqAdminId . '): +' . number_format($amount, 2) . ' | Balance: ' . number_format($newBalance, 2));
 
-            $db->execute(
-                'UPDATE refill_requests SET status = ?, approved_by = ? WHERE id = ?',
-                ['approved', $superAdminId, $id]
-            );
+            \Models\RefillRequest::setStatus($id, 'approved', $superAdminId);
             $this->jsonSuccess('Request #' . $id . ' approved. Rs. ' . number_format($amount, 2) . ' added to balance.');
         } else {
-            $db->execute(
-                'UPDATE refill_requests SET status = ?, approved_by = ? WHERE id = ?',
-                ['rejected', $superAdminId, $id]
-            );
+            \Models\RefillRequest::setStatus($id, 'rejected', $superAdminId);
             $this->jsonSuccess('Request #' . $id . ' rejected.');
         }
     }

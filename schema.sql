@@ -141,6 +141,9 @@ CREATE TABLE IF NOT EXISTS refill_requests (
     approved_by INT UNSIGNED DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_refill_admin (admin_id),
+    INDEX idx_refill_status (status),
+    INDEX idx_refill_approved_by (approved_by),
     FOREIGN KEY (admin_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -176,15 +179,15 @@ ON DUPLICATE KEY UPDATE
 
 -- ─── Default SMS settings ────────────────────────────────────────────
 INSERT INTO settings (key_name, value) VALUES ('smslenz_user_id', '')
-ON DUPLICATE KEY UPDATE value = VALUES(value);
+ON DUPLICATE KEY UPDATE key_name = VALUES(key_name);
 INSERT INTO settings (key_name, value) VALUES ('smslenz_api_key', '')
-ON DUPLICATE KEY UPDATE value = VALUES(value);
+ON DUPLICATE KEY UPDATE key_name = VALUES(key_name);
 INSERT INTO settings (key_name, value) VALUES ('smslenz_sender_id', '')
-ON DUPLICATE KEY UPDATE value = VALUES(value);
+ON DUPLICATE KEY UPDATE key_name = VALUES(key_name);
 INSERT INTO settings (key_name, value) VALUES ('sms_balance', '5.00')
-ON DUPLICATE KEY UPDATE value = VALUES(value);
+ON DUPLICATE KEY UPDATE key_name = VALUES(key_name);
 INSERT INTO settings (key_name, value) VALUES ('sms_cost_per_message', '0.62')
-ON DUPLICATE KEY UPDATE value = VALUES(value);
+ON DUPLICATE KEY UPDATE key_name = VALUES(key_name);
 
 -- ─── Safe migrations for existing tables (ignore if columns already exist) ─
 -- These only run when deploying on a server that already has tables.
@@ -267,6 +270,19 @@ PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 -- Scheduled messages: retain the admin who owns the schedule/SMS balance
 SET @col = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'scheduled_messages' AND COLUMN_NAME = 'user_id');
 SET @sql = IF(@col = 0, 'ALTER TABLE scheduled_messages ADD COLUMN user_id INT UNSIGNED NULL AFTER member_id, ADD INDEX idx_scheduled_user (user_id)', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Refill requests: indexes required by admin history and Super Admin queues
+SET @idx = (SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'refill_requests' AND INDEX_NAME = 'idx_refill_admin');
+SET @sql = IF(@idx = 0, 'ALTER TABLE refill_requests ADD INDEX idx_refill_admin (admin_id)', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @idx = (SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'refill_requests' AND INDEX_NAME = 'idx_refill_status');
+SET @sql = IF(@idx = 0, 'ALTER TABLE refill_requests ADD INDEX idx_refill_status (status)', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @idx = (SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'refill_requests' AND INDEX_NAME = 'idx_refill_approved_by');
+SET @sql = IF(@idx = 0, 'ALTER TABLE refill_requests ADD INDEX idx_refill_approved_by (approved_by)', 'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- Re-create foreign keys if missing

@@ -26,6 +26,10 @@ final class AppLayout
         $tailwindConfig = $isSuperAdmin
             ? \superAdminTailwindColorsJs()
             : \adminTailwindColorsJs();
+        $smsRemaining = null;
+        if ($isLoggedIn && ($_SESSION['user_role'] ?? '') === 'admin') {
+            $smsRemaining = \Services\SMSService::getRemaining((int) $_SESSION['user_id']);
+        }
         ?>
 <!DOCTYPE html>
 <html lang="en" class="h-full">
@@ -115,6 +119,23 @@ final class AppLayout
 
     <div class="flex min-w-0 flex-1 flex-col">
         <?= Navbar::render($title) ?>
+        <?php if ($smsRemaining !== null && $smsRemaining <= \Services\SMSService::LOW_BALANCE_THRESHOLD): ?>
+            <div class="<?= $smsRemaining === 0 ? 'bg-red-50 border-red-200 text-red-800' : 'bg-amber-50 border-amber-200 text-amber-900' ?> border-b px-4 py-3 sm:px-6">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <p class="text-sm font-semibold">
+                        <?php if ($smsRemaining === 0): ?>
+                            SMS balance exhausted. Messages cannot be sent until you recharge.
+                        <?php else: ?>
+                            Low SMS balance: only <?= (int) $smsRemaining ?> messages remaining. Please recharge soon.
+                        <?php endif; ?>
+                    </p>
+                    <a href="<?= BASE_URL ?>/admin/sms"
+                       class="rounded-lg <?= $smsRemaining === 0 ? 'bg-red-700 hover:bg-red-800' : 'bg-amber-600 hover:bg-amber-700' ?> px-4 py-2 text-xs font-bold text-white transition">
+                        Recharge SMS
+                    </a>
+                </div>
+            </div>
+        <?php endif; ?>
         <main class="flex-1 overflow-y-auto p-4 sm:p-6">
             <?php require $contentView; ?>
         </main>
