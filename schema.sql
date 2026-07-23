@@ -230,6 +230,10 @@ SET @sql = IF(@col = 0, 'ALTER TABLE users ADD COLUMN collection_start_date DATE
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- Wards: drop global unique constraint (ward numbers are per-admin now)
+SET @col = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'wards' AND COLUMN_NAME = 'created_by');
+SET @sql = IF(@col = 0, 'ALTER TABLE wards ADD COLUMN created_by INT UNSIGNED DEFAULT NULL AFTER is_active, ADD INDEX idx_ward_created_by (created_by)', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 SET @ward_type = (SELECT DATA_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'wards' AND COLUMN_NAME = 'ward_number');
 SET @sql = IF(@ward_type IS NOT NULL AND @ward_type <> 'varchar', 'ALTER TABLE wards MODIFY COLUMN ward_number VARCHAR(100) NOT NULL', 'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;

@@ -109,54 +109,116 @@ class Ward
         $wardNumber = self::normalizeNumber($wardNumber);
 
         if ($createdBy !== null && $db->columnExists('wards', 'created_by')) {
-            return $db->fetch(
+            $wards = $db->fetchAll(
                 'SELECT * FROM wards
-                 WHERE ward_number = ? AND (created_by = ? OR created_by IS NULL)
-                 ORDER BY created_by IS NULL ASC
-                 LIMIT 1',
-                [$wardNumber, $createdBy]
+                 WHERE created_by = ? OR created_by IS NULL
+                 ORDER BY created_by IS NULL ASC, id ASC',
+                [$createdBy]
             );
+            foreach ($wards as $ward) {
+                if (self::comparisonKey($ward['ward_number'] ?? '') === self::comparisonKey($wardNumber)) {
+                    return $ward;
+                }
+            }
+            return null;
         }
 
         if ($locationId !== null && $locationId > 0) {
-            return $db->fetch(
+            $wards = $db->fetchAll(
                 'SELECT w.* FROM wards w
                  LEFT JOIN ward_locations wl ON wl.ward_id = w.id
-                 WHERE w.ward_number = ? AND (wl.location_id = ? OR wl.location_id IS NULL)
-                 ORDER BY wl.location_id IS NULL ASC
-                 LIMIT 1',
-                [$wardNumber, $locationId]
+                 WHERE wl.location_id = ? OR wl.location_id IS NULL
+                 ORDER BY wl.location_id IS NULL ASC, w.id ASC',
+                [$locationId]
             );
+            foreach ($wards as $ward) {
+                if (self::comparisonKey($ward['ward_number'] ?? '') === self::comparisonKey($wardNumber)) {
+                    return $ward;
+                }
+            }
+            return null;
         }
 
-        return $db->fetch(
-            'SELECT * FROM wards WHERE ward_number = ? LIMIT 1',
-            [$wardNumber]
+        foreach ($db->fetchAll('SELECT * FROM wards ORDER BY id ASC') as $ward) {
+            if (self::comparisonKey($ward['ward_number'] ?? '') === self::comparisonKey($wardNumber)) {
+                return $ward;
+            }
+        }
+        return null;
+    }
+
+    public static function findAndMergeForImport(
+        string|int $wardNumber,
+        ?int $createdBy = null
+    ): ?array {
+        $db = Database::connect();
+        $params = [];
+        $hasCreatedBy = $db->columnExists('wards', 'created_by');
+        $ownerWhere = $hasCreatedBy ? 'created_by IS NULL' : '1 = 1';
+        if ($hasCreatedBy && $createdBy !== null) {
+            $ownerWhere = 'created_by = ?';
+            $params[] = $createdBy;
+        }
+
+        $matches = [];
+        foreach ($db->fetchAll(
+            "SELECT * FROM wards WHERE {$ownerWhere} ORDER BY id ASC",
+            $params
+        ) as $ward) {
+            if (self::comparisonKey($ward['ward_number'] ?? '')
+                === self::comparisonKey($wardNumber)) {
+                $matches[] = $ward;
+            }
+        }
+
+        if ($matches === []) {
+            // Legacy global wards may be reused, but must not be merged into an
+            // individual admin because other admins can still reference them.
+            return self::findByNumber($wardNumber, $createdBy);
+        }
+
+        $keeper = array_shift($matches);
+        $keeperId = (int) $keeper['id'];
+        $normalized = self::normalizeNumber($wardNumber);
+        $db->execute(
+            'UPDATE wards SET ward_number = ? WHERE id = ?',
+            [$normalized, $keeperId]
         );
+
+        foreach ($matches as $duplicate) {
+            $duplicateId = (int) $duplicate['id'];
+            $db->execute(
+                'INSERT IGNORE INTO ward_locations (ward_id, location_id)
+                 SELECT ?, location_id FROM ward_locations WHERE ward_id = ?',
+                [$keeperId, $duplicateId]
+            );
+            $db->execute(
+                'UPDATE members SET ward_id = ? WHERE ward_id = ?',
+                [$keeperId, $duplicateId]
+            );
+            $db->execute('DELETE FROM wards WHERE id = ?', [$duplicateId]);
+        }
+
+        return self::getById($keeperId);
     }
 
     public static function numberExists(string|int $wardNumber, ?int $excludeId = null, ?int $createdBy = null): bool
     {
         $db = Database::connect();
         $wardNumber = self::normalizeNumber($wardNumber);
-        $sql = 'SELECT w.id FROM wards w';
+        $sql = 'SELECT w.id, w.ward_number FROM wards w';
         $params = [];
-
         if ($createdBy !== null && $db->columnExists('wards', 'created_by')) {
             $sql .= ' WHERE (w.created_by = ? OR w.created_by IS NULL)';
             $params[] = $createdBy;
-            $sql .= ' AND w.ward_number = ?';
-        } else {
-            $sql .= ' WHERE w.ward_number = ?';
         }
-        $params[] = $wardNumber;
-
-        if ($excludeId !== null) {
-            $sql .= ' AND w.id != ?';
-            $params[] = $excludeId;
+        foreach ($db->fetchAll($sql, $params) as $ward) {
+            if (($excludeId === null || (int) $ward['id'] !== $excludeId)
+                && self::comparisonKey($ward['ward_number'] ?? '') === self::comparisonKey($wardNumber)) {
+                return true;
+            }
         }
-
-        return $db->fetch($sql, $params) !== null;
+        return false;
     }
 
     public static function create(array $data): string
@@ -279,7 +341,22 @@ class Ward
     public static function normalizeNumber(string|int $wardNumber): string
     {
         $value = preg_replace('/\s+/u', ' ', trim((string) $wardNumber)) ?? '';
-        $withoutPrefix = preg_replace('/^ward[\s#:_-]+/iu', '', $value) ?? $value;
-        return trim($withoutPrefix) !== '' ? trim($withoutPrefix) : $value;
+        $withoutPrefix = preg_replace('/^ward\s*[#:_-]?\s*/iu', '', $value) ?? $value;
+        $value = trim($withoutPrefix) !== '' ? trim($withoutPrefix) : $value;
+
+        // Excel and manually typed variants such as 1, 01, 1.0 and Ward1
+        // must resolve to the same ward instead of creating separate rows.
+        if (preg_match('/^\d+(?:[.,]0+)?$/', $value) === 1) {
+            $integerPart = preg_split('/[.,]/', $value, 2)[0] ?? $value;
+            $integerPart = ltrim($integerPart, '0');
+            return $integerPart === '' ? '0' : $integerPart;
+        }
+
+        return $value;
+    }
+
+    private static function comparisonKey(string|int $wardNumber): string
+    {
+        return mb_strtolower(self::normalizeNumber($wardNumber), 'UTF-8');
     }
 }

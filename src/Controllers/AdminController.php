@@ -2160,7 +2160,7 @@ $role = $_SESSION['user_role'] ?? '';
             $isActive = $row['is_active'] === '0' ? 0 : 1;
         }
 
-        $existingWard = Ward::findByNumber($wardNumber, $createdBy);
+        $existingWard = Ward::findAndMergeForImport($wardNumber, $createdBy);
         $wardId = $existingWard
             ? (int) $existingWard['id']
             : (int) Ward::create([
@@ -2180,12 +2180,18 @@ $role = $_SESSION['user_role'] ?? '';
                 if ($locName === '') continue;
 
                 // Check if location exists (scoped to admin's locations)
-                $loc = \Models\Database::connect()->fetch(
-                    'SELECT id FROM locations
-                     WHERE name = ? AND (created_by = ? OR created_by IS NULL)
-                     LIMIT 1',
-                    [$locName, $userId]
-                );
+                $db = \Models\Database::connect();
+                $loc = $db->columnExists('locations', 'created_by')
+                    ? $db->fetch(
+                        'SELECT id FROM locations
+                         WHERE name = ? AND (created_by = ? OR created_by IS NULL)
+                         LIMIT 1',
+                        [$locName, $userId]
+                    )
+                    : $db->fetch(
+                        'SELECT id FROM locations WHERE name = ? LIMIT 1',
+                        [$locName]
+                    );
 
                 if ($loc) {
                     $locationIds[] = (int) $loc['id'];
@@ -2245,10 +2251,18 @@ $role = $_SESSION['user_role'] ?? '';
 
         if ($locationName !== '') {
             // Look up location by name (scoped to admin's locations + legacy)
-            $loc = \Models\Database::connect()->fetch(
-                'SELECT id FROM locations WHERE name = ? AND (created_by = ? OR created_by IS NULL) LIMIT 1',
-                [$locationName, $userId]
-            );
+            $db = \Models\Database::connect();
+            $loc = $db->columnExists('locations', 'created_by')
+                ? $db->fetch(
+                    'SELECT id FROM locations
+                     WHERE name = ? AND (created_by = ? OR created_by IS NULL)
+                     LIMIT 1',
+                    [$locationName, $userId]
+                )
+                : $db->fetch(
+                    'SELECT id FROM locations WHERE name = ? LIMIT 1',
+                    [$locationName]
+                );
             if ($loc) {
                 $locationId = (int) $loc['id'];
             } else {
@@ -2283,14 +2297,20 @@ $role = $_SESSION['user_role'] ?? '';
         // the same placeholder number. Use card number as the import
         // duplicate key when it is available.
         if ($cardNumber !== '') {
-            $existingCard = \Models\Database::connect()->fetch(
-                'SELECT m.id FROM members m
-                 LEFT JOIN locations l ON l.id = m.location_id
-                 WHERE m.card_number = ?
-                   AND (l.created_by = ? OR l.created_by IS NULL)
-                 LIMIT 1',
-                [(int) $cardNumber, $userId]
-            );
+            $db = \Models\Database::connect();
+            $existingCard = $db->columnExists('locations', 'created_by')
+                ? $db->fetch(
+                    'SELECT m.id FROM members m
+                     LEFT JOIN locations l ON l.id = m.location_id
+                     WHERE m.card_number = ?
+                       AND (l.created_by = ? OR l.created_by IS NULL)
+                     LIMIT 1',
+                    [(int) $cardNumber, $userId]
+                )
+                : $db->fetch(
+                    'SELECT id FROM members WHERE card_number = ? LIMIT 1',
+                    [(int) $cardNumber]
+                );
             if ($existingCard) {
                 return ['success' => false, 'error' => "Card number {$cardNumber} already used."];
             }
@@ -2303,7 +2323,7 @@ $role = $_SESSION['user_role'] ?? '';
             if (mb_strlen($wardNumber) <= 100) {
                 // Reuse the same admin-scoped ward for every linked location.
                 // "Ward 1", "ward-1", and "1" all resolve to ward number 1.
-                $wd = Ward::findByNumber($wardNumber, $createdBy, $locationId);
+                $wd = Ward::findAndMergeForImport($wardNumber, $createdBy);
                 if ($wd) {
                     $wardId = (int) $wd['id'];
                     if ($locationId !== null) {

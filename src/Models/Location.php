@@ -19,7 +19,7 @@ class Location
             $params[] = $locationFilter;
         }
 
-        if ($createdBy !== null) {
+        if ($createdBy !== null && Database::connect()->columnExists('locations', 'created_by')) {
             $conditions[] = 'created_by = ?';
             $params[] = $createdBy;
         }
@@ -106,7 +106,19 @@ class Location
 
     public static function create(array $data): string
     {
-        return Database::connect()->insert(
+        $db = Database::connect();
+        if (!$db->columnExists('locations', 'created_by')) {
+            return $db->insert(
+                'INSERT INTO locations (name, address, city, is_active) VALUES (?, ?, ?, ?)',
+                [
+                    $data['name'],
+                    $data['address'] ?? null,
+                    $data['city'] ?? null,
+                    !empty($data['is_active']) ? 1 : 0,
+                ]
+            );
+        }
+        return $db->insert(
             'INSERT INTO locations (name, address, city, is_active, created_by) VALUES (?, ?, ?, ?, ?)',
             [
                 $data['name'],
@@ -130,7 +142,7 @@ class Location
         ];
 
         // Scope to created_by if provided
-        if (!empty($data['created_by'])) {
+        if (!empty($data['created_by']) && Database::connect()->columnExists('locations', 'created_by')) {
             $sql .= ' AND created_by = ?';
             $params[] = (int) $data['created_by'];
         }
@@ -143,7 +155,7 @@ class Location
         $sql = 'DELETE FROM locations WHERE id = ?';
         $params = [$id];
 
-        if ($createdBy !== null) {
+        if ($createdBy !== null && Database::connect()->columnExists('locations', 'created_by')) {
             $sql .= ' AND created_by = ?';
             $params[] = $createdBy;
         }
