@@ -27,28 +27,64 @@ class AdminController
         return $locId > 0 ? (int) $locId : -1;
     }
 
+    private function getManagedLocationIds(): ?array
+    {
+        if (($_SESSION['user_role'] ?? '') === 'super_admin') {
+            return null;
+        }
+
+        $userId = (int) ($_SESSION['user_id'] ?? 0);
+        $rows = \Models\Database::connect()->fetchAll(
+            'SELECT id FROM locations WHERE created_by = ? OR created_by IS NULL',
+            [$userId]
+        );
+        $ids = array_map('intval', array_column($rows, 'id'));
+        $assignedId = (int) ($_SESSION['user_location_id'] ?? 0);
+        if ($assignedId > 0) {
+            $ids[] = $assignedId;
+        }
+
+        return array_values(array_unique($ids));
+    }
+
     public function index(): void
     {
         $db = \Models\Database::connect();
         $today = date('Y-m-d');
         $firstOfMonth = date('Y-m-01');
-        $locFilter = $this->getLocationFilter();
-        $locJoin = $locFilter ? ' AND m.location_id = ' . (int) $locFilter : '';
-        $locJoinSimple = $locFilter ? ' AND location_id = ' . (int) $locFilter : '';
-        $locPayJoin = $locFilter ? ' AND m2.location_id = ' . (int) $locFilter : '';
+        $locationIds = $this->getManagedLocationIds();
+        $locParams = [];
+        if ($locationIds === null) {
+            $locJoin = '';
+            $locJoinSimple = '';
+        } elseif ($locationIds === []) {
+            $locJoin = ' AND 1=0';
+            $locJoinSimple = ' AND 1=0';
+        } else {
+            $placeholders = implode(',', array_fill(0, count($locationIds), '?'));
+            $locJoin = " AND m.location_id IN ({$placeholders})";
+            $locJoinSimple = " AND location_id IN ({$placeholders})";
+            $locParams = $locationIds;
+        }
 
         // Total members
-        $totalMembers = $db->fetch("SELECT COUNT(*) AS cnt FROM members WHERE is_active = 1 AND monthly_amount > 0{$locJoinSimple}")['cnt'] ?? 0;
+        $totalMembers = $db->fetch(
+            "SELECT COUNT(*) AS cnt FROM members WHERE is_active = 1 AND monthly_amount > 0{$locJoinSimple}",
+            $locParams
+        )['cnt'] ?? 0;
 
         // Monthly target
-        $monthlyTarget = $db->fetch("SELECT COALESCE(SUM(monthly_amount), 0) AS total FROM members WHERE is_active = 1 AND monthly_amount > 0{$locJoinSimple}")['total'] ?? 0;
+        $monthlyTarget = $db->fetch(
+            "SELECT COALESCE(SUM(monthly_amount), 0) AS total FROM members WHERE is_active = 1 AND monthly_amount > 0{$locJoinSimple}",
+            $locParams
+        )['total'] ?? 0;
 
         // This month collection - filter by admin's location members
         $thisMonth = $db->fetch(
             "SELECT COALESCE(SUM(p.amount), 0) AS total FROM payments p
              JOIN members m ON m.id = p.member_id
              WHERE p.created_at >= ? AND p.created_at < ?{$locJoin}",
-            [$firstOfMonth, date('Y-m-01', strtotime('+1 month'))]
+            array_merge([$firstOfMonth, date('Y-m-01', strtotime('+1 month'))], $locParams)
         )['total'] ?? 0;
 
         // Yearly collection
@@ -57,20 +93,31 @@ class AdminController
             "SELECT COALESCE(SUM(p.amount), 0) AS total FROM payments p
              JOIN members m ON m.id = p.member_id
              WHERE p.created_at >= ? AND p.created_at < ?{$locJoin}",
-            [$firstOfYear, date('Y-01-01', strtotime('+1 year'))]
+            array_merge([$firstOfYear, date('Y-01-01', strtotime('+1 year'))], $locParams)
         )['total'] ?? 0;
 
         $yearlyTarget = $monthlyTarget * 12;
 
         // Total collection (admin's location only)
-        $totalCollected = $db->fetch("SELECT COALESCE(SUM(p.amount), 0) AS total FROM payments p JOIN members m ON m.id = p.member_id WHERE 1=1{$locJoin}")['total'] ?? 0;
+        $totalCollected = $db->fetch(
+            "SELECT COALESCE(SUM(p.amount), 0) AS total FROM payments p JOIN members m ON m.id = p.member_id WHERE 1=1{$locJoin}",
+            $locParams
+        )['total'] ?? 0;
 
         // Unpaid members count
         $unpaidCount = $db->fetch(
             "SELECT COUNT(*) AS cnt FROM members m WHERE m.is_active = 1 AND m.monthly_amount > 0{$locJoin}
              AND ((SELECT COALESCE(MAX(p.to_month), '0000-00-00') FROM payments p WHERE p.member_id = m.id) < ?
                   OR (SELECT COUNT(*) FROM payments p WHERE p.member_id = m.id) = 0)",
-            [$today]
+            array_merge($locParams, [$today])
+        )['cnt'] ?? 0;
+
+        $paidCount = $db->fetch(
+            "SELECT COUNT(*) AS cnt FROM members m
+             WHERE m.is_active = 1 AND m.monthly_amount > 0{$locJoin}
+               AND (SELECT COALESCE(MAX(p.to_month), '0000-00-00')
+                    FROM payments p WHERE p.member_id = m.id) >= ?",
+            array_merge($locParams, [$today])
         )['cnt'] ?? 0;
 
         // SMS data (per-admin balance)
@@ -88,6 +135,7 @@ class AdminController
             'thisYear'       => (float) $thisYear,
             'totalCollected' => (float) $totalCollected,
             'unpaidCount'    => (int) $unpaidCount,
+            'paidCount'      => (int) $paidCount,
             'smsBalance'     => $smsBalance,
             'smsCost'        => $smsCost,
             'remainingSms'   => (int) $remainingSms,
@@ -195,6 +243,11 @@ class AdminController
         $userId = (int) ($_SESSION['user_id'] ?? 0);
         $role = $_SESSION['user_role'] ?? '';
         $createdByCheck = $role !== 'super_admin' ? $userId : null;
+        $location = Location::getById($id);
+        if (!$location || ($createdByCheck !== null && (int) ($location['created_by'] ?? 0) !== $createdByCheck)) {
+            $this->jsonError('Location not found or access denied.');
+            return;
+        }
         if (Location::nameExists($name, $id, $createdByCheck)) {
             $this->jsonError('A location with this name already exists.');
             return;
@@ -227,9 +280,18 @@ class AdminController
 
         $role = $_SESSION['user_role'] ?? '';
         $createdBy = $role !== 'super_admin' ? (int) ($_SESSION['user_id'] ?? 0) : null;
+        $location = Location::getById($id);
+        if (!$location || ($createdBy !== null && (int) ($location['created_by'] ?? 0) !== $createdBy)) {
+            $this->jsonError('Location not found or access denied.');
+            return;
+        }
 
         try {
-            Location::delete($id, $createdBy);
+            $deleted = Location::delete($id, $createdBy);
+            if ($deleted === 0) {
+                $this->jsonError('Location could not be deleted.');
+                return;
+            }
             $this->jsonSuccess('Location deleted.');
         } catch (\Exception $e) {
             $this->jsonError('Failed to delete location: ' . $e->getMessage());
@@ -285,6 +347,7 @@ $role = $_SESSION['user_role'] ?? '';
             $wardId = Ward::create([
                 'ward_number' => (int) $data['ward_number'],
                 'is_active'   => !empty($data['is_active']) ? 1 : 0,
+                'created_by'  => $createdByCheck,
             ]);
             Ward::syncLocations((int) $wardId, $locationIds, $createdByCheck);
             $this->jsonSuccess('Ward created.');
@@ -314,6 +377,11 @@ $role = $_SESSION['user_role'] ?? '';
         }
         $role = $_SESSION['user_role'] ?? '';
         $createdByCheck = $role !== 'super_admin' ? (int) ($_SESSION['user_id'] ?? 0) : null;
+        $ward = Ward::getById($id);
+        if (!$ward || ($createdByCheck !== null && (int) ($ward['created_by'] ?? 0) !== $createdByCheck)) {
+            $this->jsonError('Ward not found or access denied.');
+            return;
+        }
         if (Ward::numberExists((int) $data['ward_number'], $id, $createdByCheck)) {
             $this->jsonError('This ward number already exists.');
             return;
@@ -347,7 +415,16 @@ $role = $_SESSION['user_role'] ?? '';
         $createdByCheck = $role !== 'super_admin' ? (int) ($_SESSION['user_id'] ?? 0) : null;
 
         try {
-            Ward::delete($id, $createdByCheck);
+            $ward = Ward::getById($id);
+            if (!$ward || ($createdByCheck !== null && (int) ($ward['created_by'] ?? 0) !== $createdByCheck)) {
+                $this->jsonError('Ward not found or access denied.');
+                return;
+            }
+            $deleted = Ward::delete($id, $createdByCheck);
+            if ($deleted === 0) {
+                $this->jsonError('Ward could not be deleted.');
+                return;
+            }
             $this->jsonSuccess('Ward deleted.');
         } catch (\Exception $e) {
             $this->jsonError('Failed to delete ward: ' . $e->getMessage());
@@ -402,7 +479,9 @@ $role = $_SESSION['user_role'] ?? '';
             'sortField' => $sortField,
             'sortDir' => $sortDir,
             'locations' => Location::allActive(null, $createdBy),
-            'wards' => Ward::allActive(null, $createdBy),
+            // Member assignment can use any active ward in the database.
+            // Ward management itself remains owner-scoped.
+            'wards' => Ward::allActive(),
         ], 'users.list');
     }
 
@@ -431,11 +510,8 @@ $role = $_SESSION['user_role'] ?? '';
 
             Member::create([
                 'name' => $name,
-                'email' => !empty($data['email']) ? trim($data['email']) : null,
                 'phone' => $phone,
                 'card_number' => !empty($data['card_number']) ? (int) $data['card_number'] : null,
-                'road_number' => !empty($data['road_number']) ? trim($data['road_number']) : null,
-                'street' => !empty($data['street']) ? trim($data['street']) : null,
                 'location_id' => $locationId,
                 'ward_id' => !empty($data['ward_id']) ? (int) $data['ward_id'] : null,
                 'monthly_amount' => !empty($data['monthly_amount']) ? (float) $data['monthly_amount'] : 0,
@@ -444,6 +520,20 @@ $role = $_SESSION['user_role'] ?? '';
         } catch (\Exception $e) {
             $this->jsonError('Failed to create member: ' . $e->getMessage());
         }
+    }
+
+    public function memberFormOptions(): void
+    {
+        $role = $_SESSION['user_role'] ?? '';
+        $createdBy = $role !== 'super_admin' ? (int) ($_SESSION['user_id'] ?? 0) : null;
+
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode([
+            'success' => true,
+            'wards' => Ward::allActive(),
+            'locations' => Location::allActive(null, $createdBy),
+        ]);
+        exit;
     }
 
     public function updateMember(): void
@@ -496,11 +586,8 @@ $role = $_SESSION['user_role'] ?? '';
 
             Member::update($id, [
                 'name' => $name,
-                'email' => !empty($data['email']) ? trim($data['email']) : null,
                 'phone' => $phone,
                 'card_number' => !empty($data['card_number']) ? (int) $data['card_number'] : null,
-                'road_number' => !empty($data['road_number']) ? trim($data['road_number']) : null,
-                'street' => !empty($data['street']) ? trim($data['street']) : null,
                 'location_id' => !empty($data['location_id']) ? (int) $data['location_id'] : null,
                 'ward_id' => !empty($data['ward_id']) ? (int) $data['ward_id'] : null,
                 'monthly_amount' => !empty($data['monthly_amount']) ? (float) $data['monthly_amount'] : 0,
@@ -598,6 +685,42 @@ $role = $_SESSION['user_role'] ?? '';
         $createdBy = $role !== 'super_admin' ? (int) ($_SESSION['user_id'] ?? 0) : null;
         $result = Payment::getMembers($search, $locationId, $wardId, $status, $page, $perPage, $createdLocationIds);
 
+        // Load the nearest pending schedule for the same member filters.
+        $scheduleConditions = ["sm.status = 'pending'"];
+        $scheduleParams = [];
+        if ($role !== 'super_admin') {
+            $scheduleConditions[] = 'sm.user_id = ?';
+            $scheduleParams[] = (int) ($_SESSION['user_id'] ?? 0);
+        }
+        if (!empty($createdLocationIds)) {
+            $placeholders = implode(',', array_fill(0, count($createdLocationIds), '?'));
+            $scheduleConditions[] = "m.location_id IN ({$placeholders})";
+            $scheduleParams = array_merge($scheduleParams, $createdLocationIds);
+        }
+        if ($search !== '') {
+            $scheduleConditions[] = '(m.name LIKE ? OR m.card_number LIKE ?)';
+            $scheduleParams[] = '%' . $search . '%';
+            $scheduleParams[] = '%' . $search . '%';
+        }
+        if ($locationId > 0) {
+            $scheduleConditions[] = 'm.location_id = ?';
+            $scheduleParams[] = $locationId;
+        }
+        if ($wardId > 0) {
+            $scheduleConditions[] = 'm.ward_id = ?';
+            $scheduleParams[] = $wardId;
+        }
+        $currentSchedule = \Models\Database::connect()->fetch(
+            'SELECT sm.scheduled_date, sm.scheduled_time, COUNT(*) AS member_count
+             FROM scheduled_messages sm
+             JOIN members m ON m.id = sm.member_id
+             WHERE ' . implode(' AND ', $scheduleConditions) . '
+             GROUP BY sm.scheduled_date, sm.scheduled_time
+             ORDER BY sm.scheduled_date ASC, sm.scheduled_time ASC
+             LIMIT 1',
+            $scheduleParams
+        );
+
         $this->view('Members', 'payments_members.php', [
             'members'    => $result['rows'],
             'total'      => $result['total'],
@@ -611,6 +734,7 @@ $role = $_SESSION['user_role'] ?? '';
             'sortDir'    => $sortDir,
             'locations'  => Location::allActive(null, $createdBy),
             'wards'     => Ward::allActive(null, $createdBy),
+            'currentSchedule' => $currentSchedule,
         ], 'payments.members');
     }
 
@@ -618,14 +742,24 @@ $role = $_SESSION['user_role'] ?? '';
     {
         try {
             $db = \Models\Database::connect();
-            $locFilter = $this->getLocationFilter();
-            $locJoin = $locFilter !== null ? ' AND m.location_id = ?' : '';
-            $params = $locFilter !== null ? [$locFilter] : [];
+            $locationIds = $this->getManagedLocationIds();
+            $locJoin = '';
+            $params = [];
+            if ($locationIds !== null) {
+                if ($locationIds === []) return;
+                $placeholders = implode(',', array_fill(0, count($locationIds), '?'));
+                $locJoin = " AND m.location_id IN ({$placeholders})";
+                $params = $locationIds;
+            }
             $dueMessages = $db->fetchAll(
-                "SELECT sm.id, sm.member_id, sm.message, sm.scheduled_date, sm.scheduled_time, m.phone
+                "SELECT sm.id, sm.member_id, sm.user_id, sm.message, sm.scheduled_date, sm.scheduled_time, m.phone
                  FROM scheduled_messages sm
                  JOIN members m ON m.id = sm.member_id
-                 WHERE sm.status = 'pending' AND sm.scheduled_date <= CURDATE(){$locJoin}",
+                 WHERE sm.status = 'pending'
+                   AND (
+                       sm.scheduled_date < CURDATE()
+                       OR (sm.scheduled_date = CURDATE() AND (sm.scheduled_time IS NULL OR sm.scheduled_time <= CURTIME()))
+                   ){$locJoin}",
                 $params
             );
 
@@ -637,7 +771,8 @@ $role = $_SESSION['user_role'] ?? '';
                 }
 
                 try {
-                    $sms = new \Services\SMSService((int) ($_SESSION['user_id'] ?? 0));
+                    $scheduleOwnerId = (int) ($m['user_id'] ?? $_SESSION['user_id'] ?? 0);
+                    $sms = new \Services\SMSService($scheduleOwnerId);
                     $sent = $sms->send($phone, $m['message']);
                     if ($sent) {
                         $db->execute(
@@ -658,7 +793,7 @@ $role = $_SESSION['user_role'] ?? '';
                             );
                             $db->execute(
                                 'INSERT INTO scheduled_messages (member_id, user_id, scheduled_date, scheduled_time, message, type, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                                [(int) $m['member_id'], (int) ($_SESSION['user_id'] ?? 0), $nextDate, $m['scheduled_time'] ?? null, $newMsg, 'due', 'pending']
+                                [(int) $m['member_id'], $scheduleOwnerId, $nextDate, $m['scheduled_time'] ?? null, $newMsg, 'due', 'pending']
                             );
                         }
                     } else {
@@ -680,9 +815,19 @@ $role = $_SESSION['user_role'] ?? '';
         $type = trim((string) ($data['type'] ?? 'due'));
         $scheduleDate = trim((string) ($data['schedule_date'] ?? date('Y-m-d')));
         $scheduleTime = trim((string) ($data['schedule_time'] ?? ''));
+        $dateObject = \DateTimeImmutable::createFromFormat('!Y-m-d', $scheduleDate);
+        if (!$dateObject || $dateObject->format('Y-m-d') !== $scheduleDate || $scheduleDate < date('Y-m-d')) {
+            $this->jsonError('Select today or a future schedule date.');
+            return;
+        }
         // Validate time format HH:MM (24-hour)
         if ($scheduleTime !== '' && !preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $scheduleTime)) {
-            $scheduleTime = '';
+            $this->jsonError('Enter a valid schedule time.');
+            return;
+        }
+        if ($scheduleDate === date('Y-m-d') && $scheduleTime !== '' && $scheduleTime <= date('H:i')) {
+            $this->jsonError('For today, select a future schedule time.');
+            return;
         }
         $status = trim((string) ($data['status'] ?? 'unpaid'));
         $search = trim((string) ($data['search'] ?? ''));
@@ -698,10 +843,15 @@ $role = $_SESSION['user_role'] ?? '';
         $params = [];
 
         // Enforce location isolation for non-super-admin
-        $locFilter = $this->getLocationFilter();
-        if ($locFilter !== null) {
-            $conditions[] = 'm.location_id = ?';
-            $params[] = $locFilter;
+        $locationIds = $this->getManagedLocationIds();
+        if ($locationIds !== null) {
+            if ($locationIds === []) {
+                $this->jsonError('No managed locations are available.');
+                return;
+            }
+            $placeholders = implode(',', array_fill(0, count($locationIds), '?'));
+            $conditions[] = "m.location_id IN ({$placeholders})";
+            $params = array_merge($params, $locationIds);
         }
 
         if ($search !== '') {
@@ -767,8 +917,10 @@ $role = $_SESSION['user_role'] ?? '';
             $totalDue = 0;
             $monthlyAmount = (float) ($u['monthly_amount'] ?? 0);
             if ($monthlyAmount > 0 && $unpaidStart <= $dueMonthStart) {
-                $diff = (strtotime($dueMonthStart) - strtotime($unpaidStart)) / (60 * 60 * 24 * 30.44);
-                $unpaidMonths = max(0, (int) ceil($diff));
+                $startParts = array_map('intval', explode('-', $unpaidStart));
+                $dueParts = array_map('intval', explode('-', $dueMonthStart));
+                $unpaidMonths = (($dueParts[0] - $startParts[0]) * 12)
+                    + ($dueParts[1] - $startParts[1]) + 1;
                 $totalDue = $unpaidMonths * $monthlyAmount;
             }
 
@@ -788,8 +940,8 @@ $role = $_SESSION['user_role'] ?? '';
 
             // Remove old pending schedules for this member, keep new one
             $db->execute(
-                "DELETE FROM scheduled_messages WHERE member_id = ? AND status = 'pending' AND type = 'due'",
-                [(int) $u['id']]
+                "DELETE FROM scheduled_messages WHERE member_id = ? AND user_id = ? AND status = 'pending' AND type = 'due'",
+                [(int) $u['id'], (int) ($_SESSION['user_id'] ?? 0)]
             );
 
             $db->execute(
@@ -807,15 +959,24 @@ $role = $_SESSION['user_role'] ?? '';
     {
         $this->requireJson();
         $db = \Models\Database::connect();
-        $locFilter = $this->getLocationFilter();
-        $locJoin = $locFilter !== null ? ' AND m.location_id = ?' : '';
-        $locParams = $locFilter !== null ? [$locFilter] : [];
+        $locationIds = $this->getManagedLocationIds();
+        $locJoin = '';
+        $locParams = [];
+        if ($locationIds !== null) {
+            if ($locationIds === []) {
+                $this->jsonSuccess('Sent: 0, Failed: 0, Auto-scheduled for next month: 0.');
+                return;
+            }
+            $placeholders = implode(',', array_fill(0, count($locationIds), '?'));
+            $locJoin = " AND m.location_id IN ({$placeholders})";
+            $locParams = $locationIds;
+        }
 
         // Fetch pending messages where:
         //   - scheduled_date < CURDATE(), OR
         //   - scheduled_date = CURDATE() AND (scheduled_time IS NULL OR scheduled_time <= CURTIME())
         $dueMessages = $db->fetchAll(
-            "SELECT sm.id, sm.member_id, sm.message, sm.scheduled_date, sm.scheduled_time, m.phone
+            "SELECT sm.id, sm.member_id, sm.user_id, sm.message, sm.scheduled_date, sm.scheduled_time, m.phone
              FROM scheduled_messages sm
              JOIN members m ON m.id = sm.member_id
              WHERE sm.status = 'pending'
@@ -838,7 +999,8 @@ $role = $_SESSION['user_role'] ?? '';
             }
 
             try {
-                $sms = new \Services\SMSService((int) ($_SESSION['user_id'] ?? 0));
+                $scheduleOwnerId = (int) ($m['user_id'] ?? $_SESSION['user_id'] ?? 0);
+                $sms = new \Services\SMSService($scheduleOwnerId);
                 $smsSent = $sms->send($phone, $m['message']);
                 if ($smsSent) {
                     $db->execute(
@@ -862,7 +1024,7 @@ $role = $_SESSION['user_role'] ?? '';
                             );
                             $db->execute(
                                 'INSERT INTO scheduled_messages (member_id, user_id, scheduled_date, scheduled_time, message, type, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                                [(int) $m['member_id'], (int) ($_SESSION['user_id'] ?? 0), $nextDate, $m['scheduled_time'] ?? null, $newMsg, 'due', 'pending']
+                                [(int) $m['member_id'], $scheduleOwnerId, $nextDate, $m['scheduled_time'] ?? null, $newMsg, 'due', 'pending']
                             );
                             $autoScheduled++;
                         }
@@ -885,35 +1047,48 @@ $role = $_SESSION['user_role'] ?? '';
     public function scheduleReport(): void
     {
         $db = \Models\Database::connect();
-        $locFilter = $this->getLocationFilter();
+        $locationIds = $this->getManagedLocationIds();
+        $accessSql = '';
+        $accessParams = [];
+        if ($locationIds !== null) {
+            $accessSql .= ' AND sm.user_id = ?';
+            $accessParams[] = (int) ($_SESSION['user_id'] ?? 0);
+            if ($locationIds === []) {
+                $accessSql .= ' AND 1 = 0';
+            } else {
+                $placeholders = implode(',', array_fill(0, count($locationIds), '?'));
+                $accessSql .= " AND m.location_id IN ({$placeholders})";
+                $accessParams = array_merge($accessParams, $locationIds);
+            }
+        }
 
         // Stats
         $totalScheduled = $db->fetch(
             "SELECT COUNT(*) AS cnt FROM scheduled_messages sm
              JOIN members m ON m.id = sm.member_id
-             WHERE 1=1" . ($locFilter !== null ? ' AND m.location_id = ?' : ''),
-            $locFilter !== null ? [$locFilter] : []
+             WHERE 1=1{$accessSql}",
+            $accessParams
         )['cnt'] ?? 0;
 
         $sentToday = $db->fetch(
             "SELECT COUNT(*) AS cnt FROM scheduled_messages sm
              JOIN members m ON m.id = sm.member_id
-             WHERE DATE(sm.sent_at) = CURDATE()" . ($locFilter !== null ? ' AND m.location_id = ?' : ''),
-            $locFilter !== null ? [$locFilter] : []
+             WHERE DATE(sm.sent_at) = CURDATE(){$accessSql}",
+            $accessParams
         )['cnt'] ?? 0;
 
         $pendingCount = $db->fetch(
             "SELECT COUNT(*) AS cnt FROM scheduled_messages sm
              JOIN members m ON m.id = sm.member_id
-             WHERE sm.status = 'pending'" . ($locFilter !== null ? ' AND m.location_id = ?' : ''),
-            $locFilter !== null ? [$locFilter] : []
+             WHERE sm.status = 'pending'{$accessSql}",
+            $accessParams
         )['cnt'] ?? 0;
 
         $failedCount = $db->fetch(
             "SELECT COUNT(*) AS cnt FROM scheduled_messages sm
              JOIN members m ON m.id = sm.member_id
-             WHERE sm.status = 'failed'" . ($locFilter !== null ? ' AND m.location_id = ?' : ''),
-            $locFilter !== null ? [$locFilter] : []
+             WHERE sm.status = 'failed'{$accessSql}",
+            $accessParams
         )['cnt'] ?? 0;
 
         // Recent activity
@@ -921,9 +1096,9 @@ $role = $_SESSION['user_role'] ?? '';
             "SELECT sm.*, m.name AS member_name, m.phone AS member_phone
              FROM scheduled_messages sm
              JOIN members m ON m.id = sm.member_id
-             WHERE 1=1" . ($locFilter !== null ? ' AND m.location_id = ?' : '') . "
+             WHERE 1=1{$accessSql}
              ORDER BY sm.created_at DESC LIMIT 50",
-            $locFilter !== null ? [$locFilter] : []
+            $accessParams
         );
 
         // Upcoming schedules
@@ -931,9 +1106,12 @@ $role = $_SESSION['user_role'] ?? '';
             "SELECT sm.*, m.name AS member_name, m.phone AS member_phone
              FROM scheduled_messages sm
              JOIN members m ON m.id = sm.member_id
-             WHERE sm.status = 'pending' AND sm.scheduled_date >= CURDATE()" . ($locFilter !== null ? ' AND m.location_id = ?' : '') . "
-             ORDER BY sm.scheduled_date ASC LIMIT 20",
-            $locFilter !== null ? [$locFilter] : []
+             WHERE sm.status = 'pending'
+               AND (sm.scheduled_date > CURDATE()
+                    OR (sm.scheduled_date = CURDATE() AND (sm.scheduled_time IS NULL OR sm.scheduled_time >= CURTIME())))
+               {$accessSql}
+             ORDER BY sm.scheduled_date ASC, sm.scheduled_time ASC LIMIT 50",
+            $accessParams
         );
 
         $this->view('Schedule Report', 'schedule_report.php', [
@@ -1609,7 +1787,7 @@ $role = $_SESSION['user_role'] ?? '';
 
     public function reports(): void
     {
-        $locFilter = $this->getLocationFilter();
+        $managedLocationIds = $this->getManagedLocationIds();
         $role = $_SESSION['user_role'] ?? '';
         $createdBy = $role !== 'super_admin' ? (int) ($_SESSION['user_id'] ?? 0) : null;
 
@@ -1619,15 +1797,24 @@ $role = $_SESSION['user_role'] ?? '';
         $wardId = (int) ($_GET['ward_id'] ?? 0);
 
         $db = \Models\Database::connect();
+        $applyManagedLocations = static function (string &$where, array &$params) use ($managedLocationIds): void {
+            if ($managedLocationIds === null) {
+                return;
+            }
+            if ($managedLocationIds === []) {
+                $where .= ' AND 1=0';
+                return;
+            }
+            $placeholders = implode(',', array_fill(0, count($managedLocationIds), '?'));
+            $where .= " AND m.location_id IN ({$placeholders})";
+            $params = array_merge($params, $managedLocationIds);
+        };
 
         // ── Monthly breakdown for selected year ──────────────
         $monthlyParams = [$year];
         $monthlyWhere = 'YEAR(p.created_at) = ?';
 
-        if ($locFilter !== null) {
-            $monthlyWhere .= ' AND m.location_id = ?';
-            $monthlyParams[] = $locFilter;
-        }
+        $applyManagedLocations($monthlyWhere, $monthlyParams);
         if ($locationId > 0) {
             $monthlyWhere .= ' AND m.location_id = ?';
             $monthlyParams[] = $locationId;
@@ -1668,9 +1855,14 @@ $role = $_SESSION['user_role'] ?? '';
         // ── Yearly summary ──────────────────────────────────
         $yearlyParams = [];
         $yearlyWhere = '1=1';
-        if ($locFilter !== null) {
+        $applyManagedLocations($yearlyWhere, $yearlyParams);
+        if ($locationId > 0) {
             $yearlyWhere .= ' AND m.location_id = ?';
-            $yearlyParams[] = $locFilter;
+            $yearlyParams[] = $locationId;
+        }
+        if ($wardId > 0) {
+            $yearlyWhere .= ' AND m.ward_id = ?';
+            $yearlyParams[] = $wardId;
         }
 
         $yearlyData = $db->fetchAll(
@@ -1699,10 +1891,7 @@ $role = $_SESSION['user_role'] ?? '';
             $detailWhere .= ' AND MONTH(p.created_at) = ?';
             $detailParams[] = $month;
         }
-        if ($locFilter !== null) {
-            $detailWhere .= ' AND m.location_id = ?';
-            $detailParams[] = $locFilter;
-        }
+        $applyManagedLocations($detailWhere, $detailParams);
         if ($locationId > 0) {
             $detailWhere .= ' AND m.location_id = ?';
             $detailParams[] = $locationId;
@@ -1728,11 +1917,16 @@ $role = $_SESSION['user_role'] ?? '';
         );
 
         // ── Year to date totals ─────────────────────────────
-        $ytdParams = [date('Y')];
+        $ytdParams = [$year];
         $ytdWhere = 'YEAR(p.created_at) = ?';
-        if ($locFilter !== null) {
+        $applyManagedLocations($ytdWhere, $ytdParams);
+        if ($locationId > 0) {
             $ytdWhere .= ' AND m.location_id = ?';
-            $ytdParams[] = $locFilter;
+            $ytdParams[] = $locationId;
+        }
+        if ($wardId > 0) {
+            $ytdWhere .= ' AND m.ward_id = ?';
+            $ytdParams[] = $wardId;
         }
         $ytdTotal = $db->fetch(
             "SELECT COALESCE(SUM(p.amount), 0) AS total FROM payments p
@@ -1782,7 +1976,7 @@ $role = $_SESSION['user_role'] ?? '';
         $this->view('Bulk Import', 'bulk_import.php', [
             'locations' => Location::allActive(null, $createdBy),
             'wards'     => Ward::allActive(null, $createdBy),
-        ], 'locations.bulk-import');
+        ], 'bulk_import');
     }
 
     public function downloadTemplate(): void
@@ -1807,7 +2001,14 @@ $role = $_SESSION['user_role'] ?? '';
 
             case 'members':
             default:
-                fputcsv($output, ['name', 'phone', 'monthly_amount', 'card_number', 'ward_number', 'location_name']);
+                fputcsv($output, [
+                    'name',
+                    'phone',
+                    'card_number',
+                    'location_name',
+                    'ward_number',
+                    'monthly_amount',
+                ]);
                 break;
         }
 
@@ -1822,7 +2023,7 @@ $role = $_SESSION['user_role'] ?? '';
         $importType = trim((string) ($data['import_type'] ?? ''));
         $rows = $data['rows'] ?? [];
 
-        if ($importType !== 'members') {
+        if (!in_array($importType, ['members', 'locations', 'wards'], true)) {
             $this->jsonError('Invalid import type.');
             return;
         }
@@ -1841,7 +2042,11 @@ $role = $_SESSION['user_role'] ?? '';
         foreach ($rows as $i => $row) {
             $rowNum = $i + 2; // +2 because row 1 is header
             try {
-                $result = $this->importMemberRow($row, $role, $userId);
+                $result = match ($importType) {
+                    'locations' => $this->importLocationRow($row, $userId, $role),
+                    'wards' => $this->importWardRow($row, $role, $userId),
+                    default => $this->importMemberRow($row, $role, $userId),
+                };
 
                 if ($result['success']) {
                     $imported++;
@@ -1924,6 +2129,7 @@ $role = $_SESSION['user_role'] ?? '';
         $wardId = Ward::create([
             'ward_number' => $wardNumber,
             'is_active'   => $isActive,
+            'created_by'  => $createdBy,
         ]);
 
         // Parse location_names (comma-separated). If empty, assign to admin's active locations.
@@ -2052,12 +2258,13 @@ $role = $_SESSION['user_role'] ?? '';
                     $newWardId = Ward::create([
                         'ward_number' => $cleanWard,
                         'is_active'   => 1,
+                        'created_by'  => $createdBy,
                     ]);
                     $wardId = (int) $newWardId;
 
                     // Link ward to member's location
                     if ($locationId !== null) {
-                        Ward::syncLocations($wardId, [$locationId]);
+                        Ward::syncLocations($wardId, [$locationId], $createdBy);
                     }
                 }
             }
@@ -2104,7 +2311,7 @@ $role = $_SESSION['user_role'] ?? '';
             );
 
             // Send notifications
-            $loginUrl = BASE_URL . '/login';
+            $loginUrl = BASE_URL . '/admin/login';
             try {
                 $sms = new \Services\SMSService();
 

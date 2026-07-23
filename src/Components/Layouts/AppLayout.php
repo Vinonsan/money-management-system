@@ -11,7 +11,7 @@ final class AppLayout
         // Auth token verification: redirect to login if not authenticated (skip for public pages)
         $isPublicPage = str_contains($contentView, '/public/') || str_contains($contentView, 'public' . DIRECTORY_SEPARATOR);
         if (!$isPublicPage && empty($_SESSION['user_id'])) {
-            header('Location: ' . BASE_URL . '/login');
+            header('Location: ' . BASE_URL . '/admin/login');
             exit;
         }
 
@@ -94,9 +94,9 @@ final class AppLayout
         userErrors: {},
         memberErrors: {},
         get filteredLocs() {
-            if (!this.drawerData?.ward_id) return window.rawLocs || [];
-            const ids = window.wardLocMap?.[this.drawerData.ward_id] || [];
-            return (window.rawLocs || []).filter(loc => ids.includes(loc.id));
+            // Always offer every location owned by the current admin.
+            // Ward selection may suggest a default, but must not hide other locations.
+            return window.rawLocs || [];
         },
         toggle() {
             this.collapsed = !this.collapsed;
@@ -127,7 +127,7 @@ final class AppLayout
                 <img src="<?= BASE_URL ?>/public/assets/img/logo.png" alt="<?= APP_NAME ?>" class="h-8 w-auto">
                 <span class="text-xl font-bold text-primary-600"><?= APP_NAME ?></span>
             </a>
-            <a href="<?= BASE_URL ?>/login" class="rounded-lg bg-primary-500 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-600 transition">Login</a>
+            <a href="<?= BASE_URL ?>/admin/login" class="rounded-lg bg-primary-500 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-600 transition">Admin Login</a>
         </div>
     </header>
     <main>

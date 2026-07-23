@@ -6,7 +6,7 @@ use Components\Base\Select;
 use Components\Drawer\Drawer;
 use Components\Modal\Modal;
 
-$pageTitle = 'Users';
+$pageTitle = 'Members';
 $searchVal = htmlspecialchars($search, ENT_QUOTES, 'UTF-8');
 
 // ─── Location options for filter & form ────────────────────────────────
@@ -14,7 +14,7 @@ $locOptions = [];
 foreach ($locations as $loc) {
     $locOptions[(int) $loc['id']] = htmlspecialchars($loc['name'] ?? '', ENT_QUOTES);
 }
-$locFilterOpts = '<option value="0">All Streets</option>';
+$locFilterOpts = '<option value="0">All Locations</option>';
 foreach ($locOptions as $id => $name) {
     $sel = $locationId === $id ? ' selected' : '';
     $locFilterOpts .= '<option value="' . $id . '"' . $sel . '>' . $name . '</option>';
@@ -75,6 +75,12 @@ $iconTrash = '<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 
 
 $columns = [
     ['label' => 'Name', 'field' => 'name', 'sortable' => true],
+    [
+        'label' => 'Monthly (Rs)',
+        'field' => 'monthly_amount',
+        'sortable' => true,
+        'format' => fn ($v) => '<span class="font-semibold text-slate-700">Rs. ' . number_format((float) ($v ?? 0), 2) . '</span>',
+    ],
     ['label' => 'Phone', 'field' => 'phone', 'sortable' => true],
     [
         'label' => 'Card',
@@ -82,28 +88,14 @@ $columns = [
         'format' => fn ($v) => $v ? '<span class="font-mono font-semibold text-slate-700">' . (int) $v . '</span>' : '<span class="text-slate-300 italic">\u2014</span>',
     ],
     [
-        'label' => 'Location',
-        'field' => 'location_name',
-        'format' => fn ($v) => $v ? htmlspecialchars($v, ENT_QUOTES) : '<span class="text-slate-300 italic">\u2014</span>',
-    ],
-    [
         'label' => 'Ward',
         'field' => 'ward_number',
         'format' => fn ($v) => $v ? 'Ward #' . (int) $v : '<span class="text-slate-300 italic">\u2014</span>',
     ],
     [
-        'label' => 'Monthly (Rs)',
-        'field' => 'monthly_amount',
-        'sortable' => true,
-        'format' => fn ($v) => '<span class="font-semibold text-slate-700">Rs. ' . number_format((float) ($v ?? 0), 2) . '</span>',
-    ],
-    [
-        'label' => 'Status',
-        'field' => 'is_active',
-        'sortable' => true,
-        'format' => static fn ($v): string => (int) $v === 1
-            ? '<span class="inline-flex rounded-full bg-primary-50 px-2.5 py-1 text-xs font-semibold text-primary-700 ring-1 ring-inset ring-primary-600/20">Active</span>'
-            : '<span class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">Inactive</span>',
+        'label' => 'Location',
+        'field' => 'location_name',
+        'format' => fn ($v) => $v ? htmlspecialchars($v, ENT_QUOTES) : '<span class="text-slate-300 italic">\u2014</span>',
     ],
     [
         'label' => 'Action',
@@ -130,11 +122,11 @@ $columns = [
         <div>
             <div class="flex items-center gap-3">
                 <h1 class="text-2xl font-bold tracking-tight text-slate-900">Member Management</h1>
-                <span class="rounded-full bg-primary-50 px-3 py-1 text-sm font-bold text-primary-700"><?= (int) $total ?> Users</span>
+                <span class="rounded-full bg-primary-50 px-3 py-1 text-sm font-bold text-primary-700"><?= (int) $total ?> Members</span>
             </div>
             <p class="mt-1 text-sm font-medium text-slate-500">Add and manage registered members.</p>
         </div>
-        <button type="button" @click="drawerData = {}; drawerMode = 'add'; drawer = 'member-drawer'"
+        <button type="button" onclick="openAddMember()"
             class="inline-flex items-center justify-center gap-2 rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-primary-600/20 transition-all hover:bg-primary-700">
             <svg class="h-4 w-4 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
             Add Member
@@ -217,6 +209,51 @@ function openDrawer(mode, data) {
     app.drawer = 'member-drawer';
     // Reset location when ward changes (handled by onWardChange on select)
 }
+
+async function openAddMember() {
+    const app = getAlpine();
+    app.memberErrors = {};
+    app.drawerData = {};
+    app.drawerMode = 'add';
+
+    try {
+        const response = await fetch(BASE_URL + '/admin/members/form-options', {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        });
+        const result = await response.json();
+        if (!result.success) throw new Error('Unable to load member options.');
+
+        window.rawWards = result.wards || [];
+        window.rawLocs = result.locations || [];
+        window.wardLocMap = {};
+
+        result.wards.forEach(ward => {
+            const ids = String(ward.location_ids || '')
+                .split(',')
+                .filter(Boolean)
+                .map(Number);
+            window.wardLocMap[ward.id] = ids;
+        });
+
+        const wardSelect = document.getElementById('member-ward-select');
+        wardSelect.replaceChildren(new Option('Select ward...', ''));
+        result.wards.forEach(ward => {
+            const locations = ward.location_names ? ' (' + ward.location_names + ')' : '';
+            wardSelect.add(new Option('Ward #' + ward.ward_number + locations, String(ward.id)));
+        });
+
+        const locationSelect = document.getElementById('member-location-select');
+        locationSelect.replaceChildren(new Option('Select location...', ''));
+        result.locations.forEach(location => {
+            locationSelect.add(new Option(location.name, String(location.id)));
+        });
+    } catch (error) {
+        showToast('Could not refresh wards. Showing the currently loaded list.', 'warning');
+    }
+
+    app.drawer = 'member-drawer';
+}
+
 function openDeleteModal(id, name) {
     const app = getAlpine();
     app.modalData = { id: id, name: name };
@@ -305,7 +342,7 @@ function submitMember() {
 function onWardChange() {
     const data = Alpine.$data(document.querySelector('[x-data]'));
     const wardId = data.drawerData.ward_id;
-    const map = wardLocMap;
+    const map = window.wardLocMap || {};
     if (wardId && map[wardId] && map[wardId].length > 0) {
         data.drawerData.location_id = map[wardId][0]; // auto-select first location
     } else {
@@ -457,7 +494,7 @@ HTML
         <!-- 5. Ward -->
         <div x-show="drawerMode !== 'view'">
             <label class="block mb-1.5 text-sm font-semibold text-primary-800">Ward <span class="text-rose-500">*</span></label>
-            <select x-model="drawerData.ward_id" @change="onWardChange()" :disabled="drawerMode === 'view'" required
+            <select id="member-ward-select" x-model="drawerData.ward_id" @change="onWardChange()" :disabled="drawerMode === 'view'" required
                 :class="'w-full rounded-lg border bg-primary-50/30 px-3 py-2.5 text-sm text-slate-800 transition focus:outline-none focus:ring-2 appearance-none focus:bg-white ' + (memberErrors?.ward_id ? 'border-red-300 focus:border-red-500 focus:ring-red-500/30' : 'border-primary-200 focus:border-primary-600 focus:ring-primary-600/30')">
                 <option value="">Select ward...</option>
                 <?= $wardOptsHtml ?>
@@ -475,10 +512,10 @@ HTML
 <<<HTML
         </div>
 
-        <!-- 6. Street / Location -->
+        <!-- 6. Location -->
         <div x-show="drawerMode !== 'view'">
-            <label class="block mb-1.5 text-sm font-semibold text-primary-800">Street / Location</label>
-            <select x-model="drawerData.location_id" :disabled="drawerMode === 'view'"
+            <label class="block mb-1.5 text-sm font-semibold text-primary-800">Location</label>
+            <select id="member-location-select" x-model="drawerData.location_id" :disabled="drawerMode === 'view'"
                 :class="'w-full rounded-lg border bg-primary-50/30 px-3 py-2.5 text-sm text-slate-800 transition focus:outline-none focus:ring-2 appearance-none focus:bg-white border-primary-200 focus:border-primary-600 focus:ring-primary-600/30'">
                 <option value="">Select location...</option>
                 <template x-for="loc in filteredLocs" :key="loc.id">
@@ -489,31 +526,10 @@ HTML
         <div x-show="drawerMode === 'view'">
 HTML
 . Input::render('location_view', [
-    'label' => 'Street / Location',
+    'label' => 'Location',
     'value' => '',
     'disabled' => true,
     'attrs' => ['x-model' => 'drawerData.location_name'],
-]) .
-<<<HTML
-        </div>
-
-        <!-- 7. Status -->
-        <div x-show="drawerMode !== 'view'">
-HTML
-. Select::render('is_active', [
-    'label' => 'Status',
-    'options' => [1 => 'Active', 0 => 'Inactive'],
-    'attrs' => ['x-model' => 'drawerData.is_active', ':disabled' => "drawerMode === 'view'"],
-]) .
-<<<HTML
-        </div>
-        <div x-show="drawerMode === 'view'">
-HTML
-. Select::render('is_active_view', [
-    'label' => 'Status',
-    'options' => [1 => 'Active', 0 => 'Inactive'],
-    'disabled' => true,
-    'attrs' => ['x-model' => 'drawerData.is_active'],
 ]) .
 <<<HTML
         </div>
@@ -532,12 +548,12 @@ $drawerFooter = <<<HTML
 <div class="flex items-center justify-end gap-3 border-t border-slate-100 bg-white px-6 py-4">
     <button type="button" @click="drawer = ''" class="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50">Cancel</button>
     <button type="button" x-show="drawerMode !== 'view'" @click="submitMember()" class="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-primary-600/20 transition hover:bg-primary-700">
-        <span x-text="drawerMode === 'edit' ? 'Update User' : 'Save User'"></span>
+        <span x-text="drawerMode === 'edit' ? 'Update Member' : 'Save Member'"></span>
     </button>
 </div>
 HTML;
 
-echo Drawer::render('member-drawer', 'User Details', $drawerBody, [
+echo Drawer::render('member-drawer', 'Member Details', $drawerBody, [
     'side' => 'right',
     'size' => 'lg',
     'footer' => $drawerFooter,

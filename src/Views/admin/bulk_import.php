@@ -1,7 +1,14 @@
 <?php
 $pageTitle = 'Bulk Import';
 
-$columns = ['name', 'phone', 'monthly_amount', 'card_number', 'ward_number', 'location_name'];
+$columns = [
+    'name',
+    'phone',
+    'card_number',
+    'location_name',
+    'ward_number',
+    'monthly_amount',
+];
 ?>
 
 <div class="space-y-6 max-w-5xl mx-auto py-2">
@@ -13,12 +20,21 @@ $columns = ['name', 'phone', 'monthly_amount', 'card_number', 'ward_number', 'lo
         </div>
     </div>
 
+    <!-- Import Type Tabs -->
+    <div class="rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
+        <div class="grid grid-cols-1 gap-2 sm:grid-cols-3" role="tablist" aria-label="Bulk import type">
+            <button type="button" class="import-tab" data-import-type="members" role="tab">Members</button>
+            <button type="button" class="import-tab" data-import-type="locations" role="tab">Locations</button>
+            <button type="button" class="import-tab" data-import-type="wards" role="tab">Wards</button>
+        </div>
+    </div>
+
     <!-- Import Section -->
     <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
         <div class="p-6">
             <div class="mb-6">
-                <h2 class="text-lg font-semibold text-slate-800">Import Members</h2>
-                <p class="mt-1 text-sm text-slate-500">Bulk import members — location & ward auto-created if missing.</p>
+                <h2 id="importTitle" class="text-lg font-semibold text-slate-800">Import Members</h2>
+                <p id="importDescription" class="mt-1 text-sm text-slate-500">Bulk import members — locations and wards are auto-created if missing.</p>
             </div>
 
             <!-- Step 1: Download Template -->
@@ -33,7 +49,7 @@ $columns = ['name', 'phone', 'monthly_amount', 'card_number', 'ward_number', 'lo
                         <h3 class="text-sm font-semibold text-slate-800">Step 1: Download Sample CSV Template</h3>
                         <p class="mt-1 text-xs text-slate-500">Download the template, fill in your data, and save as CSV.</p>
                     </div>
-                    <a href="<?= BASE_URL ?>/admin/bulk-import/template?type=members"
+                    <a id="templateLink" href="<?= BASE_URL ?>/admin/bulk-import/template?type=members"
                        class="shrink-0 inline-flex items-center gap-2 rounded-xl bg-white border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-slate-300">
                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
@@ -106,7 +122,53 @@ $columns = ['name', 'phone', 'monthly_amount', 'card_number', 'ward_number', 'lo
 </div>
 
 <script>
-const IMPORT_TYPE = 'members';
+let importType = 'members';
+
+const importTypes = {
+    members: {
+        label: 'Members',
+        description: 'Bulk import members — locations and wards are auto-created if missing.',
+    },
+    locations: {
+        label: 'Locations',
+        description: 'Bulk import location names from a simple CSV file.',
+    },
+    wards: {
+        label: 'Wards',
+        description: 'Bulk import wards and connect comma-separated location names.',
+    },
+};
+
+function selectImportType(type) {
+    if (!importTypes[type]) return;
+
+    importType = type;
+    const config = importTypes[type];
+    document.getElementById('importTitle').textContent = 'Import ' + config.label;
+    document.getElementById('importDescription').textContent = config.description;
+    document.getElementById('templateLink').href =
+        BASE_URL + '/admin/bulk-import/template?type=' + encodeURIComponent(type);
+
+    document.querySelectorAll('.import-tab').forEach(tab => {
+        const active = tab.dataset.importType === type;
+        tab.className = 'import-tab rounded-xl px-4 py-3 text-sm font-semibold transition ' +
+            (active
+                ? 'bg-primary-600 text-white shadow-md shadow-primary-600/20'
+                : 'bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900');
+        tab.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+
+    document.getElementById('csvFile').value = '';
+    document.getElementById('fileError').classList.add('hidden');
+    document.getElementById('previewSection').classList.add('hidden');
+    document.getElementById('resultMsg').classList.add('hidden');
+}
+
+document.querySelectorAll('.import-tab').forEach(tab => {
+    tab.addEventListener('click', () => selectImportType(tab.dataset.importType));
+});
+
+selectImportType('members');
 
 document.getElementById('csvFile').addEventListener('change', function(e) {
     const file = e.target.files[0];
@@ -168,7 +230,7 @@ function parseCSV(text) {
 
     // Parse header
     const headers = parseCSVLine(lines[0]);
-    const requiredCols = getRequiredColumns(IMPORT_TYPE);
+    const requiredCols = getRequiredColumns(importType);
 
     // Validate required columns exist
     const missing = requiredCols.filter(c => !headers.some(h => h.trim().toLowerCase() === c.toLowerCase()));
@@ -300,7 +362,7 @@ document.getElementById('importBtn').addEventListener('click', function() {
             'X-Requested-With': 'XMLHttpRequest',
         },
         body: JSON.stringify({
-            import_type: IMPORT_TYPE,
+            import_type: importType,
             rows: rows,
             _csrf: '<?= e($_SESSION['csrf_token'] ?? '') ?>',
         }),

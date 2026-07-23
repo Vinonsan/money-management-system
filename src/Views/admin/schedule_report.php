@@ -59,6 +59,7 @@
                     <thead>
                         <tr class="border-b border-primary-100">
                             <th class="px-3 py-2 font-semibold text-primary-600">Date</th>
+                            <th class="px-3 py-2 font-semibold text-primary-600">Time</th>
                             <th class="px-3 py-2 font-semibold text-primary-600">Member</th>
                             <th class="px-3 py-2 font-semibold text-primary-600">Phone</th>
                             <th class="px-3 py-2 font-semibold text-primary-600">Status</th>
@@ -68,6 +69,9 @@
                         <?php foreach ($upcomingMessages as $sm): ?>
                             <tr class="border-b border-primary-50 hover:bg-primary-50/50">
                                 <td class="px-3 py-2.5 text-primary-800"><?= e($sm['scheduled_date']) ?></td>
+                                <td class="px-3 py-2.5 text-primary-700">
+                                    <?= !empty($sm['scheduled_time']) ? e(date('H:i', strtotime($sm['scheduled_time']))) : 'Any time' ?>
+                                </td>
                                 <td class="px-3 py-2.5 font-medium text-primary-900"><?= e($sm['member_name'] ?? '') ?></td>
                                 <td class="px-3 py-2.5 text-primary-600"><?= e($sm['member_phone'] ?? '') ?></td>
                                 <td class="px-3 py-2.5">

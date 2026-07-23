@@ -14,7 +14,7 @@ class Ward
             $where = 'WHERE wl.location_id = ?';
             $params[] = $locationFilter;
         } elseif ($createdBy !== null) {
-            $where = 'WHERE (w.id IN (SELECT wl.ward_id FROM ward_locations wl JOIN locations l ON l.id = wl.location_id WHERE l.created_by = ?) OR w.id NOT IN (SELECT ward_id FROM ward_locations))';
+            $where = 'WHERE w.created_by = ?';
             $params[] = $createdBy;
         }
 
@@ -41,7 +41,7 @@ class Ward
             $where = 'INNER JOIN ward_locations wl ON wl.ward_id = w.id AND wl.location_id = ?';
             $params[] = $locationFilter;
         } elseif ($createdBy !== null) {
-            $where = 'WHERE (w.id IN (SELECT wl.ward_id FROM ward_locations wl JOIN locations l ON l.id = wl.location_id WHERE l.created_by = ?) OR w.id NOT IN (SELECT ward_id FROM ward_locations))';
+            $where = 'WHERE w.created_by = ?';
             $params[] = $createdBy;
         }
         $result = Database::connect()->fetch("SELECT COUNT(*) AS cnt FROM wards w {$where}", $params);
@@ -80,7 +80,7 @@ class Ward
         }
 
         if ($createdBy !== null) {
-            $sql .= ' AND (w.id IN (SELECT wl.ward_id FROM ward_locations wl JOIN locations l ON l.id = wl.location_id WHERE l.created_by = ?) OR w.id NOT IN (SELECT ward_id FROM ward_locations))';
+            $sql .= ' AND w.created_by = ?';
             $params[] = $createdBy;
         }
 
@@ -105,11 +105,12 @@ class Ward
         $params = [];
 
         if ($createdBy !== null) {
-            $sql .= ' INNER JOIN ward_locations wl ON wl.ward_id = w.id INNER JOIN locations l ON l.id = wl.location_id AND l.created_by = ?';
+            $sql .= ' WHERE w.created_by = ?';
             $params[] = $createdBy;
+            $sql .= ' AND w.ward_number = ?';
+        } else {
+            $sql .= ' WHERE w.ward_number = ?';
         }
-
-        $sql .= ' WHERE w.ward_number = ?';
         $params[] = $wardNumber;
 
         if ($excludeId !== null) {
@@ -123,10 +124,11 @@ class Ward
     public static function create(array $data): string
     {
         return Database::connect()->insert(
-            'INSERT INTO wards (ward_number, is_active) VALUES (?, ?)',
+            'INSERT INTO wards (ward_number, is_active, created_by) VALUES (?, ?, ?)',
             [
                 (int) $data['ward_number'],
                 !empty($data['is_active']) ? 1 : 0,
+                $data['created_by'] ?? null,
             ]
         );
     }
@@ -142,7 +144,7 @@ class Ward
 
         // Scope by created_by if provided (via locations JOIN)
         if (!empty($data['created_by'])) {
-            $sql .= ' AND id IN (SELECT ward_id FROM ward_locations wl JOIN locations l ON l.id = wl.location_id WHERE l.created_by = ?)';
+            $sql .= ' AND created_by = ?';
             $params[] = (int) $data['created_by'];
         }
 
@@ -155,7 +157,7 @@ class Ward
         $params = [$id];
 
         if ($createdBy !== null) {
-            $sql .= ' AND id IN (SELECT ward_id FROM ward_locations wl JOIN locations l ON l.id = wl.location_id WHERE l.created_by = ?)';
+            $sql .= ' AND created_by = ?';
             $params[] = $createdBy;
         }
 
@@ -170,7 +172,10 @@ class Ward
         if ($createdBy !== null) {
             $validIds = [];
             foreach (array_unique(array_map('intval', $locationIds)) as $locId) {
-                $loc = $db->fetch('SELECT id FROM locations WHERE id = ? AND created_by = ?', [$locId, $createdBy]);
+                $loc = $db->fetch(
+                    'SELECT id FROM locations WHERE id = ? AND created_by = ?',
+                    [$locId, $createdBy]
+                );
                 if ($loc) {
                     $validIds[] = (int) $loc['id'];
                 }

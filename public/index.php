@@ -1,5 +1,5 @@
 <?php
-// Enable error display for debugging deployment
+// Log errors without exposing details in the browser.
 error_reporting(E_ALL);
 ini_set('display_errors', '0');
 ini_set('log_errors', '1');
@@ -14,9 +14,10 @@ $routes = [
     'home'  => ['Controller' => 'HomeController', 'Action' => 'index'],
 
     // Auth (OTP login)
-    'login'                       => ['Controller' => 'AuthController', 'Action' => 'showLogin'],
-    'login/request-otp'           => ['Controller' => 'AuthController', 'Action' => 'requestOtp'],
-    'login/verify-otp'            => ['Controller' => 'AuthController', 'Action' => 'verifyOtp'],
+    'login'                       => ['Controller' => 'AuthController', 'Action' => 'redirectToAdminLogin'],
+    'admin/login'                 => ['Controller' => 'AuthController', 'Action' => 'showLogin'],
+    'admin/login/request-otp'     => ['Controller' => 'AuthController', 'Action' => 'requestOtp'],
+    'admin/login/verify-otp'      => ['Controller' => 'AuthController', 'Action' => 'verifyOtp'],
     'logout'                      => ['Controller' => 'AuthController', 'Action' => 'logout'],
 
     // Super Admin Auth (Red-themed login)
@@ -41,6 +42,7 @@ $routes = [
     // Users
     'admin/members'        => ['Controller' => 'AdminController', 'Action' => 'membersList', 'Middleware' => 'StaffAuth'],
     'admin/members/create' => ['Controller' => 'AdminController', 'Action' => 'createMember', 'Middleware' => 'StaffAuth'],
+    'admin/members/form-options' => ['Controller' => 'AdminController', 'Action' => 'memberFormOptions', 'Middleware' => 'StaffAuth'],
     'admin/members/update' => ['Controller' => 'AdminController', 'Action' => 'updateMember', 'Middleware' => 'StaffAuth'],
     'admin/members/delete' => ['Controller' => 'AdminController', 'Action' => 'deleteMember', 'Middleware' => 'StaffAuth'],
 

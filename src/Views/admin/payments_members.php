@@ -13,6 +13,7 @@ use Components\Base\DataTable;
  * @var string $status    'all' | 'paid' | 'unpaid'
  * @var array  $locations
  * @var array  $wards
+ * @var array|null $currentSchedule Nearest pending schedule for current filters
  */
 
 $pageTitle = 'Members';
@@ -218,6 +219,13 @@ $tabQs = $qsSearch . $qsLoc . $qsWard;
                                    class="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/10">
                         </div>
 
+                        <div x-show="existingSchedule"
+                             class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                            Current pending schedule loaded from database
+                            <span class="font-semibold" x-text="'for ' + existingScheduleCount + ' member(s)'"></span>.
+                            Saving will replace their previous pending due schedule.
+                        </div>
+
                         <!-- Time Picker -->
                         <div>
                             <label class="block text-sm font-semibold text-slate-700 mb-2">
@@ -265,16 +273,26 @@ function memberManager() {
         scheduleDate: '',
         scheduleTime: '',
         scheduleDateMin: '',
+        existingSchedule: <?= !empty($currentSchedule) ? 'true' : 'false' ?>,
+        existingScheduleCount: <?= (int) ($currentSchedule['member_count'] ?? 0) ?>,
         init() {
             const today = new Date();
             const y = today.getFullYear();
             const m = String(today.getMonth() + 1).padStart(2, '0');
             const d = String(today.getDate()).padStart(2, '0');
             this.scheduleDateMin = y + '-' + m + '-' + d;
-            // Default to 20th of current month
-            const defMonth = String(today.getMonth() + 1).padStart(2, '0');
-            const defDay = '20';
-            this.scheduleDate = y + '-' + defMonth + '-' + defDay;
+            const dbDate = <?= json_encode((string) ($currentSchedule['scheduled_date'] ?? '')) ?>;
+            const dbTime = <?= json_encode(substr((string) ($currentSchedule['scheduled_time'] ?? ''), 0, 5)) ?>;
+            if (dbDate) {
+                this.scheduleDate = dbDate;
+                this.scheduleTime = dbTime;
+            } else {
+                // Default to the next available 20th, never a past date.
+                const defaultDate = new Date(y, today.getMonth() + (today.getDate() > 20 ? 1 : 0), 20);
+                const defYear = defaultDate.getFullYear();
+                const defMonth = String(defaultDate.getMonth() + 1).padStart(2, '0');
+                this.scheduleDate = defYear + '-' + defMonth + '-20';
+            }
         },
         apply() {
             const p = new URLSearchParams();
@@ -282,10 +300,10 @@ function memberManager() {
             if (this.search) p.set('search', this.search);
             if (this.locationId > 0) p.set('location_id', this.locationId);
             if (this.wardId > 0) p.set('ward_id', this.wardId);
-            window.location.href = '/admin/payments/members?' + p.toString();
+            window.location.href = BASE_URL + '/admin/payments/members?' + p.toString();
         },
         reset() {
-            window.location.href = '/admin/payments/members';
+            window.location.href = BASE_URL + '/admin/payments/members';
         },
         scheduleMessage() {
             this.scheduleDrawer = true;
@@ -312,6 +330,7 @@ function memberManager() {
             .then(r => {
                 if (r.success) {
                     showToast(r.message);
+                    this.existingSchedule = true;
                     this.scheduleDrawer = false;
                 } else {
                     showToast(r.error || 'Failed.', 'error');

@@ -7,6 +7,7 @@
  * @var float $thisYear       Amount collected this year
  * @var float $totalCollected Total collection overall
  * @var int   $unpaidCount    Members with payment due
+ * @var int   $paidCount      Members paid through the current date
  */
 $pageTitle = 'Dashboard';
 ?>
@@ -150,9 +151,15 @@ $pageTitle = 'Dashboard';
                 <div class="h-2 w-2 rounded-full bg-primary-500"></div>
                 <h3 class="text-sm font-bold text-slate-800">Unpaid Members</h3>
             </div>
-            <div class="flex items-baseline gap-2 mb-4">
-                <span class="text-3xl font-bold text-primary-700"><?= (int) $unpaidCount ?></span>
-                <span class="text-xs text-slate-500">members with dues</span>
+            <div class="grid grid-cols-2 gap-3 mb-4">
+                <div>
+                    <span class="block text-3xl font-bold text-primary-700"><?= (int) $unpaidCount ?></span>
+                    <span class="text-xs text-slate-500">with dues</span>
+                </div>
+                <div class="border-l border-slate-200 pl-3">
+                    <span class="block text-3xl font-bold text-emerald-600"><?= (int) ($paidCount ?? 0) ?></span>
+                    <span class="text-xs text-slate-500">paid up</span>
+                </div>
             </div>
             <a href="<?= BASE_URL ?>/admin/payments/members?status=unpaid"
                 class="inline-flex items-center justify-center gap-2 w-full rounded-xl bg-gradient-to-r from-primary-600 to-primary-700 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-primary-600/20 hover:shadow-lg hover:shadow-primary-600/30 transition-all mb-4">

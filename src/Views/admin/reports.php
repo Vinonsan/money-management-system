@@ -83,7 +83,7 @@ $monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July
                         $id = (int) ($w['id'] ?? 0);
                         $sel = $id === $wardId ? ' selected' : '';
                     ?>
-                        <option value="<?= $id ?>">Ward #<?= (int) ($w['ward_number'] ?? 0) ?></option>
+                        <option value="<?= $id ?>"<?= $sel ?>>Ward #<?= (int) ($w['ward_number'] ?? 0) ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>

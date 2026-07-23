@@ -90,6 +90,7 @@ CREATE TABLE IF NOT EXISTS wards (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     ward_number INT UNSIGNED NOT NULL,
     is_active TINYINT(1) NOT NULL DEFAULT 1,
+    created_by INT UNSIGNED DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -147,6 +148,7 @@ CREATE TABLE IF NOT EXISTS refill_requests (
 CREATE TABLE IF NOT EXISTS scheduled_messages (
     id INT AUTO_INCREMENT PRIMARY KEY,
     member_id INT UNSIGNED NOT NULL,
+    user_id INT UNSIGNED NOT NULL,
     scheduled_date DATE NOT NULL,
     scheduled_time TIME DEFAULT NULL COMMENT 'Optional time of day to send',
     message TEXT NOT NULL,
@@ -156,7 +158,9 @@ CREATE TABLE IF NOT EXISTS scheduled_messages (
     sent_at TIMESTAMP NULL DEFAULT NULL,
     INDEX idx_scheduled_date (scheduled_date),
     INDEX idx_status (status),
-    FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE
+    INDEX idx_scheduled_user (user_id),
+    FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ─── Seed data ──────────────────────────────────────────────────────────
@@ -171,11 +175,11 @@ ON DUPLICATE KEY UPDATE
     is_active = 1;
 
 -- ─── Default SMS settings ────────────────────────────────────────────
-INSERT INTO settings (key_name, value) VALUES ('smslenz_user_id', '2127')
+INSERT INTO settings (key_name, value) VALUES ('smslenz_user_id', '')
 ON DUPLICATE KEY UPDATE value = VALUES(value);
-INSERT INTO settings (key_name, value) VALUES ('smslenz_api_key', 'bf7a3a89-0a35-4054-b69f-1c5d6faf94bd')
+INSERT INTO settings (key_name, value) VALUES ('smslenz_api_key', '')
 ON DUPLICATE KEY UPDATE value = VALUES(value);
-INSERT INTO settings (key_name, value) VALUES ('smslenz_sender_id', 'ExGenX9920')
+INSERT INTO settings (key_name, value) VALUES ('smslenz_sender_id', '')
 ON DUPLICATE KEY UPDATE value = VALUES(value);
 INSERT INTO settings (key_name, value) VALUES ('sms_balance', '5.00')
 ON DUPLICATE KEY UPDATE value = VALUES(value);
@@ -258,6 +262,11 @@ PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 -- Scheduled messages: add member_id if missing
 SET @col = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'scheduled_messages' AND COLUMN_NAME = 'member_id');
 SET @sql = IF(@col = 0, 'ALTER TABLE scheduled_messages ADD COLUMN member_id INT UNSIGNED DEFAULT NULL AFTER id, ADD INDEX idx_sched_member (member_id)', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Scheduled messages: retain the admin who owns the schedule/SMS balance
+SET @col = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'scheduled_messages' AND COLUMN_NAME = 'user_id');
+SET @sql = IF(@col = 0, 'ALTER TABLE scheduled_messages ADD COLUMN user_id INT UNSIGNED NULL AFTER member_id, ADD INDEX idx_scheduled_user (user_id)', 'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- Re-create foreign keys if missing

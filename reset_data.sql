@@ -3,7 +3,7 @@
 -- Run this in phpMyAdmin after deployment to start fresh.
 -- ======================================================================
 
-USE riversid_masjidpay;
+USE masjidpay;
 
 -- ─── Disable foreign key checks ─────────────────────────────────────────
 SET FOREIGN_KEY_CHECKS = 0;
@@ -48,7 +48,7 @@ VALUES ('vinonsan', 'MasjidPay Owner', '0758311995', 'vinonsan.99@gmail.com', 's
 -- ─── Default SMS settings ───────────────────────────────────────────────
 INSERT INTO settings (key_name, value) VALUES ('collection_start_date', '2026-01-01');
 INSERT INTO settings (key_name, value) VALUES ('smslenz_user_id', '2127');
-INSERT INTO settings (key_name, value) VALUES ('smslenz_api_key', 'bf7a3a89-0a35-4054-b69f-1c5d6faf94bd');
+INSERT INTO settings (key_name, value) VALUES ('smslenz_api_key', '');
 INSERT INTO settings (key_name, value) VALUES ('smslenz_sender_id', 'ExGenX9920');
 INSERT INTO settings (key_name, value) VALUES ('sms_balance', '5.00');
 INSERT INTO settings (key_name, value) VALUES ('sms_cost_per_message', '0.60');

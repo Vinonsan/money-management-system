@@ -36,12 +36,17 @@ class Setting
     {
         // Check per-user setting first
         if ($userId !== null && $userId > 0) {
-            $user = Database::connect()->fetch(
-                'SELECT collection_start_date FROM users WHERE id = ?',
-                [$userId]
-            );
-            if (!empty($user['collection_start_date'])) {
-                return $user['collection_start_date'];
+            try {
+                $user = Database::connect()->fetch(
+                    'SELECT collection_start_date FROM users WHERE id = ?',
+                    [$userId]
+                );
+                if (!empty($user['collection_start_date'])) {
+                    return $user['collection_start_date'];
+                }
+            } catch (\PDOException $e) {
+                // Older imported databases may not have this optional column yet.
+                // Continue with the global setting so payment screens still render.
             }
         }
         // Fallback to global setting
