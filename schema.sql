@@ -88,7 +88,7 @@ CREATE TABLE IF NOT EXISTS locations (
 -- ─── Wards ──────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS wards (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    ward_number INT UNSIGNED NOT NULL,
+    ward_number VARCHAR(100) NOT NULL,
     is_active TINYINT(1) NOT NULL DEFAULT 1,
     created_by INT UNSIGNED DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -230,6 +230,10 @@ SET @sql = IF(@col = 0, 'ALTER TABLE users ADD COLUMN collection_start_date DATE
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- Wards: drop global unique constraint (ward numbers are per-admin now)
+SET @ward_type = (SELECT DATA_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'wards' AND COLUMN_NAME = 'ward_number');
+SET @sql = IF(@ward_type IS NOT NULL AND @ward_type <> 'varchar', 'ALTER TABLE wards MODIFY COLUMN ward_number VARCHAR(100) NOT NULL', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 SET @uq = (SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = @db AND TABLE_NAME = 'wards' AND INDEX_NAME = 'uq_ward_number');
 SET @sql = IF(@uq > 0, 'ALTER TABLE wards DROP INDEX uq_ward_number', 'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;

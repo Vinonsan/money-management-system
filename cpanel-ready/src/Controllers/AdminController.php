@@ -334,8 +334,9 @@ $role = $_SESSION['user_role'] ?? '';
         $this->requireJson();
         $data = $this->jsonBody();
 
-        if (!isset($data['ward_number']) || filter_var($data['ward_number'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) === false) {
-            $this->jsonError('Ward number must be a positive number.');
+        $wardNumber = Ward::normalizeNumber($data['ward_number'] ?? '');
+        if ($wardNumber === '' || mb_strlen($wardNumber) > 100) {
+            $this->jsonError('Ward name/number is required and must not exceed 100 characters.');
             return;
         }
         $locationIds = $this->locationIds($data['location_ids'] ?? []);
@@ -348,7 +349,7 @@ $role = $_SESSION['user_role'] ?? '';
 
         $connection = null;
         try {
-            if (Ward::numberExists((int) $data['ward_number'], null, $createdByCheck)) {
+            if (Ward::numberExists($wardNumber, null, $createdByCheck)) {
                 $this->jsonError('This ward number already exists.');
                 return;
             }
@@ -356,7 +357,7 @@ $role = $_SESSION['user_role'] ?? '';
             $connection = Database::connect()->getConn();
             $connection->beginTransaction();
             $wardId = Ward::create([
-                'ward_number' => (int) $data['ward_number'],
+                'ward_number' => $wardNumber,
                 'is_active'   => !empty($data['is_active']) ? 1 : 0,
                 'created_by'  => $createdByCheck,
             ]);
@@ -382,8 +383,9 @@ $role = $_SESSION['user_role'] ?? '';
             $this->jsonError('Invalid ward ID.');
             return;
         }
-        if (!isset($data['ward_number']) || filter_var($data['ward_number'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) === false) {
-            $this->jsonError('Ward number must be a positive number.');
+        $wardNumber = Ward::normalizeNumber($data['ward_number'] ?? '');
+        if ($wardNumber === '' || mb_strlen($wardNumber) > 100) {
+            $this->jsonError('Ward name/number is required and must not exceed 100 characters.');
             return;
         }
         $locationIds = $this->locationIds($data['location_ids'] ?? []);
@@ -400,7 +402,7 @@ $role = $_SESSION['user_role'] ?? '';
         }
         $connection = null;
         try {
-            if (Ward::numberExists((int) $data['ward_number'], $id, $createdByCheck)) {
+            if (Ward::numberExists($wardNumber, $id, $createdByCheck)) {
                 $this->jsonError('This ward number already exists.');
                 return;
             }
@@ -408,7 +410,7 @@ $role = $_SESSION['user_role'] ?? '';
             $connection = Database::connect()->getConn();
             $connection->beginTransaction();
             Ward::update($id, [
-                'ward_number' => (int) $data['ward_number'],
+                'ward_number' => $wardNumber,
                 'is_active'   => !empty($data['is_active']) ? 1 : 0,
                 'created_by'  => $createdByCheck,
             ]);
@@ -531,6 +533,31 @@ $role = $_SESSION['user_role'] ?? '';
 
         try {
             $locationId = !empty($data['location_id']) ? (int) $data['location_id'] : null;
+            $role = $_SESSION['user_role'] ?? '';
+            $createdBy = $role !== 'super_admin' ? (int) ($_SESSION['user_id'] ?? 0) : null;
+
+            if ($locationId !== null && $createdBy !== null) {
+                $allowedLocation = \Models\Database::connect()->fetch(
+                    'SELECT id FROM locations
+                     WHERE id = ? AND (created_by = ? OR created_by IS NULL) AND is_active = 1',
+                    [$locationId, $createdBy]
+                );
+                if (!$allowedLocation) {
+                    $this->jsonError('Selected location is not available for this admin.');
+                    return;
+                }
+            }
+
+            if ($locationId === null) {
+                $defaultLocations = Location::allActive(null, $createdBy);
+                if (!empty($defaultLocations)) {
+                    $locationId = (int) ($defaultLocations[0]['id'] ?? 0);
+                }
+            }
+            if ($locationId === null || $locationId <= 0) {
+                $this->jsonError('Add an active location before creating a member.');
+                return;
+            }
 
             Member::create([
                 'name' => $name,
@@ -590,6 +617,11 @@ $role = $_SESSION['user_role'] ?? '';
         try {
             // Enforce location isolation: verify member belongs to admin's locations
             $role = $_SESSION['user_role'] ?? '';
+            $existing = Member::findById($id);
+            if (!$existing) {
+                $this->jsonError('Member not found.');
+                return;
+            }
             if ($role !== 'super_admin') {
                 $userId = (int) ($_SESSION['user_id'] ?? 0);
                 $locRows = \Models\Database::connect()->fetchAll(
@@ -599,7 +631,7 @@ $role = $_SESSION['user_role'] ?? '';
                 $locIds = !empty($locRows) ? array_column($locRows, 'id') : [-1];
                 $placeholders = implode(',', array_fill(0, count($locIds), '?'));
                 $existing = \Models\Database::connect()->fetch(
-                    "SELECT id FROM members WHERE id = ? AND location_id IN ({$placeholders})",
+                    "SELECT id, location_id FROM members WHERE id = ? AND location_id IN ({$placeholders})",
                     array_merge([$id], $locIds)
                 );
                 if (!$existing) {
@@ -612,7 +644,9 @@ $role = $_SESSION['user_role'] ?? '';
                 'name' => $name,
                 'phone' => $phone,
                 'card_number' => !empty($data['card_number']) ? (int) $data['card_number'] : null,
-                'location_id' => !empty($data['location_id']) ? (int) $data['location_id'] : null,
+                'location_id' => !empty($data['location_id'])
+                    ? (int) $data['location_id']
+                    : (int) ($existing['location_id'] ?? 0),
                 'ward_id' => !empty($data['ward_id']) ? (int) $data['ward_id'] : null,
                 'monthly_amount' => !empty($data['monthly_amount']) ? (float) $data['monthly_amount'] : 0,
             ]);
@@ -2111,19 +2145,14 @@ $role = $_SESSION['user_role'] ?? '';
 
     private function importWardRow(array $row, string $role, int $userId): array
     {
-        $wardNumber = trim((string) ($row['ward_number'] ?? ''));
+        $wardNumber = Ward::normalizeNumber($row['ward_number'] ?? '');
         // Handle Excel-exported numbers like "1.0" or "1,0" (European locale)
-        if ($wardNumber === '' || !is_numeric(str_replace(',', '.', $wardNumber))) {
-            return ['success' => false, 'error' => 'Valid ward_number is required (positive integer).'];
+        if ($wardNumber === '' || mb_strlen($wardNumber) > 100) {
+            return ['success' => false, 'error' => 'Ward name/number is required (maximum 100 characters).'];
         }
         // Cast through float to handle decimals (e.g. "1.0" → (int)1.0 → 1)
-        $wardNumber = (int) (float) str_replace(',', '.', $wardNumber);
 
         $createdBy = $role !== 'super_admin' ? $userId : null;
-
-        if (Ward::numberExists($wardNumber, null, $createdBy)) {
-            return ['success' => false, 'error' => "Ward number {$wardNumber} already exists."];
-        }
 
         // Default to active (1) if is_active is not provided or empty
         $isActive = 1;
@@ -2131,11 +2160,14 @@ $role = $_SESSION['user_role'] ?? '';
             $isActive = $row['is_active'] === '0' ? 0 : 1;
         }
 
-        $wardId = Ward::create([
-            'ward_number' => $wardNumber,
-            'is_active'   => $isActive,
-            'created_by'  => $createdBy,
-        ]);
+        $existingWard = Ward::findByNumber($wardNumber, $createdBy);
+        $wardId = $existingWard
+            ? (int) $existingWard['id']
+            : (int) Ward::create([
+                'ward_number' => $wardNumber,
+                'is_active'   => $isActive,
+                'created_by'  => $createdBy,
+            ]);
 
         // Parse location_names (comma-separated). If empty, assign to admin's active locations.
         $locationIds = [];
@@ -2149,8 +2181,10 @@ $role = $_SESSION['user_role'] ?? '';
 
                 // Check if location exists (scoped to admin's locations)
                 $loc = \Models\Database::connect()->fetch(
-                    'SELECT id FROM locations WHERE name = ? LIMIT 1',
-                    [$locName]
+                    'SELECT id FROM locations
+                     WHERE name = ? AND (created_by = ? OR created_by IS NULL)
+                     LIMIT 1',
+                    [$locName, $userId]
                 );
 
                 if ($loc) {
@@ -2170,12 +2204,12 @@ $role = $_SESSION['user_role'] ?? '';
         }
 
         if (!empty($locationIds)) {
-            Ward::syncLocations((int) $wardId, $locationIds, $createdBy);
+            Ward::addLocations((int) $wardId, $locationIds, $createdBy);
         } else {
             // No locations specified - assign to admin's own active locations only
             $locations = Location::allActive(null, $createdBy);
             if (!empty($locations)) {
-                Ward::syncLocations((int) $wardId, array_column($locations, 'id'), $createdBy);
+                Ward::addLocations((int) $wardId, array_column($locations, 'id'), $createdBy);
             }
         }
 
@@ -2185,8 +2219,8 @@ $role = $_SESSION['user_role'] ?? '';
     private function importMemberRow(array $row, string $role, int $userId): array
     {
         $name = trim((string) ($row['name'] ?? ''));
-        $phone = trim((string) ($row['phone'] ?? ''));
-        $cardNumber = trim((string) (
+        $phone = $this->normalizeImportedPhone((string) ($row['phone'] ?? ''));
+        $cardNumber = $this->normalizeImportedInteger((string) (
             $row['card_number'] ?? $row['card_no'] ?? $row['card'] ?? ''
         ));
         $locationName = trim((string) (
@@ -2196,25 +2230,15 @@ $role = $_SESSION['user_role'] ?? '';
         if ($name === '') {
             return ['success' => false, 'error' => 'Member name is required.'];
         }
-        if ($phone === '' || !preg_match('/^[+0-9][+0-9()\- ]{6,19}$/', $phone)) {
-            return ['success' => false, 'error' => "Valid phone number is required for '{$name}'."];
+        // Phone is optional in bulk files. Validate it only when supplied.
+        if ($phone !== '' && !preg_match('/^[+0-9][+0-9()\- ]{6,19}$/', $phone)) {
+            return ['success' => false, 'error' => "Phone number is invalid for '{$name}'."];
         }
         if ($cardNumber !== '' && !ctype_digit($cardNumber)) {
             return ['success' => false, 'error' => "Card number must contain digits only for '{$name}'."];
         }
 
         // ── Check phone uniqueness within admin's scope ──
-        $existingMember = \Models\Database::connect()->fetch(
-            'SELECT m.id FROM members m
-             LEFT JOIN locations l ON l.id = m.location_id
-             WHERE m.phone = ? AND (l.created_by = ? OR l.created_by IS NULL OR m.location_id IS NULL)
-             LIMIT 1',
-            [$phone, $userId]
-        );
-        if ($existingMember) {
-            return ['success' => false, 'error' => "Phone {$phone} already used."];
-        }
-
         // ── Resolve location_name ──────────────────────────────────
         $locationId = null;
         $createdBy = $role !== 'super_admin' ? $userId : null;
@@ -2240,24 +2264,50 @@ $role = $_SESSION['user_role'] ?? '';
             }
         }
 
+        // Imported members must always be linked to one of the admin's
+        // locations; otherwise location-scoped member lists cannot show them.
+        if ($locationId === null) {
+            $defaultLocations = Location::allActive(null, $createdBy);
+            if (!empty($defaultLocations)) {
+                $locationId = (int) ($defaultLocations[0]['id'] ?? 0);
+            }
+        }
+        if ($locationId === null || $locationId <= 0) {
+            return [
+                'success' => false,
+                'error' => "No active location is available for '{$name}'. Add a location first.",
+            ];
+        }
+
+        // Family members may share a phone, and legacy files often contain
+        // the same placeholder number. Use card number as the import
+        // duplicate key when it is available.
+        if ($cardNumber !== '') {
+            $existingCard = \Models\Database::connect()->fetch(
+                'SELECT m.id FROM members m
+                 LEFT JOIN locations l ON l.id = m.location_id
+                 WHERE m.card_number = ?
+                   AND (l.created_by = ? OR l.created_by IS NULL)
+                 LIMIT 1',
+                [(int) $cardNumber, $userId]
+            );
+            if ($existingCard) {
+                return ['success' => false, 'error' => "Card number {$cardNumber} already used."];
+            }
+        }
+
         // ── Resolve ward_number ────────────────────────────────────
         $wardId = null;
-        $wardNumber = trim((string) ($row['ward_number'] ?? ''));
+        $wardNumber = Ward::normalizeNumber($row['ward_number'] ?? '');
         if ($wardNumber !== '') {
-            $cleanWard = preg_replace('/[^0-9]/', '', $wardNumber);
-            if ($cleanWard !== '') {
-                $cleanWard = (int) $cleanWard;
-                $wd = \Models\Database::connect()->fetch(
-                    'SELECT id FROM wards WHERE ward_number = ? LIMIT 1',
-                    [$cleanWard]
-                );
+            if (mb_strlen($wardNumber) <= 100) {
+                // Reuse the same admin-scoped ward for every linked location.
+                // "Ward 1", "ward-1", and "1" all resolve to ward number 1.
+                $wd = Ward::findByNumber($wardNumber, $createdBy, $locationId);
                 if ($wd) {
                     $wardId = (int) $wd['id'];
                     if ($locationId !== null) {
-                        \Models\Database::connect()->execute(
-                            'INSERT IGNORE INTO ward_locations (ward_id, location_id) VALUES (?, ?)',
-                            [$wardId, $locationId]
-                        );
+                        Ward::addLocations($wardId, [$locationId], $createdBy);
                     }
                     // Auto-assign location from ward's links if member has no location yet
                     if ($locationId === null) {
@@ -2275,7 +2325,7 @@ $role = $_SESSION['user_role'] ?? '';
                 } else {
                     // Auto-create ward
                     $newWardId = Ward::create([
-                        'ward_number' => $cleanWard,
+                        'ward_number' => $wardNumber,
                         'is_active'   => 1,
                         'created_by'  => $createdBy,
                     ]);
@@ -2283,10 +2333,17 @@ $role = $_SESSION['user_role'] ?? '';
 
                     // Link ward to member's location
                     if ($locationId !== null) {
-                        Ward::syncLocations($wardId, [$locationId], $createdBy);
+                        Ward::addLocations($wardId, [$locationId], $createdBy);
                     }
                 }
             }
+        }
+
+        if ($wardNumber !== '' && ($wardId === null || $wardId <= 0)) {
+            return [
+                'success' => false,
+                'error' => "Ward '{$wardNumber}' could not be created or assigned for '{$name}'.",
+            ];
         }
 
         Member::create([
@@ -2299,6 +2356,42 @@ $role = $_SESSION['user_role'] ?? '';
         ]);
 
         return ['success' => true];
+    }
+
+    private function normalizeImportedPhone(string $value): string
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return '';
+        }
+
+        // Excel may export long numbers as 7.71234567E+8 or with a .0 suffix.
+        if (is_numeric($value) && (stripos($value, 'e') !== false || str_contains($value, '.'))) {
+            $value = sprintf('%.0f', (float) $value);
+        }
+
+        $hasPlus = str_starts_with($value, '+');
+        $digits = preg_replace('/\D+/', '', $value) ?? '';
+        if (strlen($digits) === 9) {
+            return '0' . $digits;
+        }
+        if (strlen($digits) === 11 && str_starts_with($digits, '94')) {
+            return '0' . substr($digits, 2);
+        }
+
+        return $hasPlus ? '+' . $digits : $digits;
+    }
+
+    private function normalizeImportedInteger(string $value): string
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return '';
+        }
+        if (is_numeric($value) && (stripos($value, 'e') !== false || str_contains($value, '.'))) {
+            $value = sprintf('%.0f', (float) $value);
+        }
+        return preg_replace('/\D+/', '', $value) ?? '';
     }
 
     private function transferComplete(): void

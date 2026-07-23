@@ -83,7 +83,7 @@ $monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July
                         $id = (int) ($w['id'] ?? 0);
                         $sel = $id === $wardId ? ' selected' : '';
                     ?>
-                        <option value="<?= $id ?>"<?= $sel ?>>Ward #<?= (int) ($w['ward_number'] ?? 0) ?></option>
+                        <option value="<?= $id ?>"<?= $sel ?>>Ward #<?= htmlspecialchars((string) ($w['ward_number'] ?? ''), ENT_QUOTES) ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
@@ -228,7 +228,7 @@ $monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July
                         </td>
                         <td class="px-4 py-2.5 text-slate-600 whitespace-nowrap"><?= e($d['location_name'] ?? '') ?: '<span class="text-slate-300">&mdash;</span>' ?></td>
                         <td class="px-4 py-2.5 text-slate-600 whitespace-nowrap">
-                            <?= !empty($d['ward_number']) ? 'Ward #' . (int) $d['ward_number'] : '<span class="text-slate-300">&mdash;</span>' ?>
+                            <?= !empty($d['ward_number']) ? 'Ward #' . htmlspecialchars((string) $d['ward_number'], ENT_QUOTES) : '<span class="text-slate-300">&mdash;</span>' ?>
                         </td>
                         <td class="px-4 py-2.5 text-right font-semibold text-slate-800 whitespace-nowrap">Rs. <?= number_format((float) ($d['amount'] ?? 0), 2) ?></td>
                         <td class="px-4 py-2.5 text-center text-slate-600 whitespace-nowrap"><?= (int) ($d['months_covered'] ?? 0) ?></td>

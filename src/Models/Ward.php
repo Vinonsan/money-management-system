@@ -100,14 +100,50 @@ class Ward
         );
     }
 
-    public static function numberExists(int $wardNumber, ?int $excludeId = null, ?int $createdBy = null): bool
+    public static function findByNumber(
+        string|int $wardNumber,
+        ?int $createdBy = null,
+        ?int $locationId = null
+    ): ?array {
+        $db = Database::connect();
+        $wardNumber = self::normalizeNumber($wardNumber);
+
+        if ($createdBy !== null && $db->columnExists('wards', 'created_by')) {
+            return $db->fetch(
+                'SELECT * FROM wards
+                 WHERE ward_number = ? AND (created_by = ? OR created_by IS NULL)
+                 ORDER BY created_by IS NULL ASC
+                 LIMIT 1',
+                [$wardNumber, $createdBy]
+            );
+        }
+
+        if ($locationId !== null && $locationId > 0) {
+            return $db->fetch(
+                'SELECT w.* FROM wards w
+                 LEFT JOIN ward_locations wl ON wl.ward_id = w.id
+                 WHERE w.ward_number = ? AND (wl.location_id = ? OR wl.location_id IS NULL)
+                 ORDER BY wl.location_id IS NULL ASC
+                 LIMIT 1',
+                [$wardNumber, $locationId]
+            );
+        }
+
+        return $db->fetch(
+            'SELECT * FROM wards WHERE ward_number = ? LIMIT 1',
+            [$wardNumber]
+        );
+    }
+
+    public static function numberExists(string|int $wardNumber, ?int $excludeId = null, ?int $createdBy = null): bool
     {
         $db = Database::connect();
+        $wardNumber = self::normalizeNumber($wardNumber);
         $sql = 'SELECT w.id FROM wards w';
         $params = [];
 
         if ($createdBy !== null && $db->columnExists('wards', 'created_by')) {
-            $sql .= ' WHERE w.created_by = ?';
+            $sql .= ' WHERE (w.created_by = ? OR w.created_by IS NULL)';
             $params[] = $createdBy;
             $sql .= ' AND w.ward_number = ?';
         } else {
@@ -127,7 +163,7 @@ class Ward
     {
         $db = Database::connect();
         $params = [
-            (int) $data['ward_number'],
+            self::normalizeNumber($data['ward_number'] ?? ''),
             !empty($data['is_active']) ? 1 : 0,
         ];
 
@@ -149,7 +185,7 @@ class Ward
     {
         $sql = 'UPDATE wards SET ward_number = ?, is_active = ? WHERE id = ?';
         $params = [
-            (int) $data['ward_number'],
+            self::normalizeNumber($data['ward_number'] ?? ''),
             !empty($data['is_active']) ? 1 : 0,
             $id,
         ];
@@ -214,5 +250,36 @@ class Ward
                 [$wardId, $locationId]
             );
         }
+    }
+
+    public static function addLocations(int $wardId, array $locationIds, ?int $createdBy = null): void
+    {
+        $db = Database::connect();
+        foreach (array_unique(array_map('intval', $locationIds)) as $locationId) {
+            if ($locationId <= 0) {
+                continue;
+            }
+            if ($createdBy !== null && $db->columnExists('locations', 'created_by')) {
+                $location = $db->fetch(
+                    'SELECT id FROM locations
+                     WHERE id = ? AND (created_by = ? OR created_by IS NULL)',
+                    [$locationId, $createdBy]
+                );
+                if (!$location) {
+                    continue;
+                }
+            }
+            $db->execute(
+                'INSERT IGNORE INTO ward_locations (ward_id, location_id) VALUES (?, ?)',
+                [$wardId, $locationId]
+            );
+        }
+    }
+
+    public static function normalizeNumber(string|int $wardNumber): string
+    {
+        $value = preg_replace('/\s+/u', ' ', trim((string) $wardNumber)) ?? '';
+        $withoutPrefix = preg_replace('/^ward[\s#:_-]+/iu', '', $value) ?? $value;
+        return trim($withoutPrefix) !== '' ? trim($withoutPrefix) : $value;
     }
 }

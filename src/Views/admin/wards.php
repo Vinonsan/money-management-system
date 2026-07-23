@@ -61,7 +61,7 @@ $iconTrash = '<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 
             <div class="group relative rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:border-primary-200/80 hover:-translate-y-0.5">
                 <div class="flex items-start justify-between gap-3">
                     <div class="min-w-0 flex-1">
-                        <h3 class="text-base font-semibold text-slate-900 truncate">Ward - <?= (int) ($ward['ward_number'] ?? 0) ?></h3>
+                        <h3 class="text-base font-semibold text-slate-900 truncate">Ward - <?= htmlspecialchars((string) ($ward['ward_number'] ?? ''), ENT_QUOTES) ?></h3>
                         <?php if ($locationNames !== ''): ?>
                             <p class="mt-0.5 text-xs text-slate-400 truncate"><?= $locationNames ?></p>
                         <?php endif; ?>
@@ -80,7 +80,7 @@ $iconTrash = '<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 
                         <?= $iconEdit ?>
                         <span>Edit</span>
                     </button>
-                    <button type="button" onclick="event.stopPropagation(); openDeleteModal(<?= $id ?>, 'Ward #<?= (int) ($ward['ward_number'] ?? 0) ?>')"
+                    <button type="button" onclick="event.stopPropagation(); openDeleteModal(<?= $id ?>, <?= htmlspecialchars(json_encode('Ward ' . ($ward['ward_number'] ?? '')), ENT_QUOTES) ?>)"
                         class="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500 transition hover:bg-rose-50 hover:text-rose-600" title="Delete">
                         <?= $iconTrash ?>
                         <span>Delete</span>
@@ -142,9 +142,8 @@ $drawerBody = <<<HTML
         <!-- 1. Ward Number -->
         <div x-show="drawerMode !== 'view'">
             <label class="block mb-1.5 text-sm font-semibold text-primary-800">Ward Number <span class="text-rose-500">*</span></label>
-            <input type="number" name="ward_number" x-model="drawerData.ward_number" required
-                placeholder="e.g. 1" min="1" step="1"
-                onkeypress="return (event.charCode >= 48 && event.charCode <= 57)"
+            <input type="text" name="ward_number" x-model="drawerData.ward_number" required maxlength="100"
+                placeholder="e.g. 1, A, North"
                 :class="'w-full rounded-lg border bg-primary-50/30 px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 transition focus:outline-none focus:ring-2 focus:bg-white ' + (wardError ? 'border-red-300 focus:border-red-500 focus:ring-red-500/30' : 'border-primary-200 focus:border-primary-600 focus:ring-primary-600/30')">
             <p x-show="wardError" x-text="wardError" class="mt-1 text-xs font-medium text-red-600"></p>
         </div>
@@ -281,9 +280,9 @@ function submitWard() {
     if (data.wardSaving) return;
     data.wardError = '';
 
-    const wardNum = Number(data.drawerData.ward_number);
-    if (!Number.isInteger(wardNum) || wardNum < 1) {
-        data.wardError = 'Ward number must be a positive number.';
+    const wardNum = String(data.drawerData.ward_number || '').trim();
+    if (!wardNum || wardNum.length > 100) {
+        data.wardError = 'Ward name/number is required (maximum 100 characters).';
         return;
     }
 

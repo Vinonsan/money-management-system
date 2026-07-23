@@ -28,7 +28,7 @@ foreach ($locations as $loc) {
 $wardOpts = '<option value="0">All Wards</option>';
 foreach ($wards as $w) {
     $wid = (int) ($w['id'] ?? 0);
-    $wn = (int) ($w['ward_number'] ?? 0);
+    $wn = trim((string) ($w['ward_number'] ?? ''));
     $sel = $wardId === $wid ? ' selected' : '';
     $wardOpts .= '<option value="' . $wid . '"' . $sel . '>Ward #' . $wn . '</option>';
 }

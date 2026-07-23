@@ -24,7 +24,7 @@ foreach ($locOptions as $id => $name) {
 $wardOpts = [];
 foreach ($wards as $w) {
     $wid = (int) ($w['id'] ?? 0);
-    $wn = (int) ($w['ward_number'] ?? 0);
+    $wn = trim((string) ($w['ward_number'] ?? ''));
     $locNames = htmlspecialchars($w['location_names'] ?? '', ENT_QUOTES);
     $wardOpts[$wid] = 'Ward #' . $wn . ($locNames ? ' (' . $locNames . ')' : '');
 }
@@ -49,7 +49,7 @@ $wardJsonData = [];
 foreach ($wards as $w) {
     $wardJsonData[] = [
         'id' => (int) ($w['id'] ?? 0),
-        'ward_number' => (int) ($w['ward_number'] ?? 0),
+        'ward_number' => (string) ($w['ward_number'] ?? ''),
         'location_names' => htmlspecialchars($w['location_names'] ?? '', ENT_QUOTES),
         'location_ids' => $w['location_ids'] ?? '',
     ];
