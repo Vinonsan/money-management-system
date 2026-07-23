@@ -345,13 +345,15 @@ $role = $_SESSION['user_role'] ?? '';
         }
         $role = $_SESSION['user_role'] ?? '';
         $createdByCheck = $role !== 'super_admin' ? (int) ($_SESSION['user_id'] ?? 0) : null;
-        if (Ward::numberExists((int) $data['ward_number'], null, $createdByCheck)) {
-            $this->jsonError('This ward number already exists.');
-            return;
-        }
 
-        $connection = Database::connect()->getConn();
+        $connection = null;
         try {
+            if (Ward::numberExists((int) $data['ward_number'], null, $createdByCheck)) {
+                $this->jsonError('This ward number already exists.');
+                return;
+            }
+
+            $connection = Database::connect()->getConn();
             $connection->beginTransaction();
             $wardId = Ward::create([
                 'ward_number' => (int) $data['ward_number'],
@@ -362,7 +364,7 @@ $role = $_SESSION['user_role'] ?? '';
             $connection->commit();
             $this->jsonSuccess('Ward created.');
         } catch (\Throwable $e) {
-            if ($connection->inTransaction()) {
+            if ($connection !== null && $connection->inTransaction()) {
                 $connection->rollBack();
             }
             error_log('Ward creation failed: ' . $e->getMessage());
@@ -396,13 +398,14 @@ $role = $_SESSION['user_role'] ?? '';
             $this->jsonError('Ward not found or access denied.');
             return;
         }
-        if (Ward::numberExists((int) $data['ward_number'], $id, $createdByCheck)) {
-            $this->jsonError('This ward number already exists.');
-            return;
-        }
-
-        $connection = Database::connect()->getConn();
+        $connection = null;
         try {
+            if (Ward::numberExists((int) $data['ward_number'], $id, $createdByCheck)) {
+                $this->jsonError('This ward number already exists.');
+                return;
+            }
+
+            $connection = Database::connect()->getConn();
             $connection->beginTransaction();
             Ward::update($id, [
                 'ward_number' => (int) $data['ward_number'],
@@ -413,7 +416,7 @@ $role = $_SESSION['user_role'] ?? '';
             $connection->commit();
             $this->jsonSuccess('Ward updated.');
         } catch (\Throwable $e) {
-            if ($connection->inTransaction()) {
+            if ($connection !== null && $connection->inTransaction()) {
                 $connection->rollBack();
             }
             error_log('Ward update failed: ' . $e->getMessage());

@@ -101,10 +101,11 @@ class Ward
 
     public static function numberExists(int $wardNumber, ?int $excludeId = null, ?int $createdBy = null): bool
     {
+        $db = Database::connect();
         $sql = 'SELECT w.id FROM wards w';
         $params = [];
 
-        if ($createdBy !== null) {
+        if ($createdBy !== null && $db->columnExists('locations', 'created_by')) {
             $sql .= ' INNER JOIN ward_locations wl ON wl.ward_id = w.id INNER JOIN locations l ON l.id = wl.location_id AND l.created_by = ?';
             $params[] = $createdBy;
         }
@@ -117,7 +118,7 @@ class Ward
             $params[] = $excludeId;
         }
 
-        return Database::connect()->fetch($sql, $params) !== null;
+        return $db->fetch($sql, $params) !== null;
     }
 
     public static function create(array $data): string
@@ -154,7 +155,7 @@ class Ward
         $sql = 'DELETE FROM wards WHERE id = ?';
         $params = [$id];
 
-        if ($createdBy !== null) {
+        if ($createdBy !== null && $db->columnExists('locations', 'created_by')) {
             $sql .= ' AND id IN (SELECT ward_id FROM ward_locations wl JOIN locations l ON l.id = wl.location_id WHERE l.created_by = ?)';
             $params[] = $createdBy;
         }

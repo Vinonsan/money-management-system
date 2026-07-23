@@ -102,10 +102,11 @@ class Ward
 
     public static function numberExists(int $wardNumber, ?int $excludeId = null, ?int $createdBy = null): bool
     {
+        $db = Database::connect();
         $sql = 'SELECT w.id FROM wards w';
         $params = [];
 
-        if ($createdBy !== null) {
+        if ($createdBy !== null && $db->columnExists('wards', 'created_by')) {
             $sql .= ' WHERE w.created_by = ?';
             $params[] = $createdBy;
             $sql .= ' AND w.ward_number = ?';
@@ -119,18 +120,28 @@ class Ward
             $params[] = $excludeId;
         }
 
-        return Database::connect()->fetch($sql, $params) !== null;
+        return $db->fetch($sql, $params) !== null;
     }
 
     public static function create(array $data): string
     {
-        return Database::connect()->insert(
-            'INSERT INTO wards (ward_number, is_active, created_by) VALUES (?, ?, ?)',
-            [
-                (int) $data['ward_number'],
-                !empty($data['is_active']) ? 1 : 0,
-                $data['created_by'] ?? null,
-            ]
+        $db = Database::connect();
+        $params = [
+            (int) $data['ward_number'],
+            !empty($data['is_active']) ? 1 : 0,
+        ];
+
+        if ($db->columnExists('wards', 'created_by')) {
+            $params[] = $data['created_by'] ?? null;
+            return $db->insert(
+                'INSERT INTO wards (ward_number, is_active, created_by) VALUES (?, ?, ?)',
+                $params
+            );
+        }
+
+        return $db->insert(
+            'INSERT INTO wards (ward_number, is_active) VALUES (?, ?)',
+            $params
         );
     }
 
@@ -144,25 +155,27 @@ class Ward
         ];
 
         // Scope by created_by if provided (via locations JOIN)
-        if (!empty($data['created_by'])) {
+        $db = Database::connect();
+        if (!empty($data['created_by']) && $db->columnExists('wards', 'created_by')) {
             $sql .= ' AND created_by = ?';
             $params[] = (int) $data['created_by'];
         }
 
-        return Database::connect()->execute($sql, $params);
+        return $db->execute($sql, $params);
     }
 
     public static function delete(int $id, ?int $createdBy = null): int
     {
+        $db = Database::connect();
         $sql = 'DELETE FROM wards WHERE id = ?';
         $params = [$id];
 
-        if ($createdBy !== null) {
+        if ($createdBy !== null && $db->columnExists('wards', 'created_by')) {
             $sql .= ' AND created_by = ?';
             $params[] = $createdBy;
         }
 
-        return Database::connect()->execute($sql, $params);
+        return $db->execute($sql, $params);
     }
 
     public static function syncLocations(int $wardId, array $locationIds, ?int $createdBy = null): void
@@ -170,11 +183,12 @@ class Ward
         $db = Database::connect();
 
         // Verify each location belongs to the admin
-        if ($createdBy !== null) {
+        if ($createdBy !== null && $db->columnExists('locations', 'created_by')) {
             $validIds = [];
             foreach (array_unique(array_map('intval', $locationIds)) as $locId) {
                 $loc = $db->fetch(
-                    'SELECT id FROM locations WHERE id = ? AND created_by = ?',
+                    'SELECT id FROM locations
+                     WHERE id = ? AND (created_by = ? OR created_by IS NULL)',
                     [$locId, $createdBy]
                 );
                 if ($loc) {
