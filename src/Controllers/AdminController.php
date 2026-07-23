@@ -34,7 +34,13 @@ class AdminController
         }
 
         $userId = (int) ($_SESSION['user_id'] ?? 0);
-        $rows = \Models\Database::connect()->fetchAll(
+        $db = \Models\Database::connect();
+        if (!$db->columnExists('locations', 'created_by')) {
+            $assignedId = (int) ($_SESSION['user_location_id'] ?? 0);
+            return $assignedId > 0 ? [$assignedId] : [-1];
+        }
+
+        $rows = $db->fetchAll(
             'SELECT id FROM locations WHERE created_by = ? OR created_by IS NULL',
             [$userId]
         );
@@ -667,20 +673,8 @@ $role = $_SESSION['user_role'] ?? '';
         $sortDir = (string) ($_GET['dir'] ?? 'asc');
         $role = $_SESSION['user_role'] ?? '';
 
-        // Data isolation: non-super-admin sees only members in their own + legacy locations
-        $createdLocationIds = null;
-        if ($role !== 'super_admin') {
-            $userId = (int) ($_SESSION['user_id'] ?? 0);
-            $locRows = \Models\Database::connect()->fetchAll(
-                'SELECT id FROM locations WHERE created_by = ? OR created_by IS NULL',
-                [$userId]
-            );
-            if (!empty($locRows)) {
-                $createdLocationIds = array_column($locRows, 'id');
-            } else {
-                $createdLocationIds = [-1];
-            }
-        }
+        // Data isolation with fallback for older databases without created_by.
+        $createdLocationIds = $this->getManagedLocationIds();
 
         $createdBy = $role !== 'super_admin' ? (int) ($_SESSION['user_id'] ?? 0) : null;
         $result = Payment::getMembers($search, $locationId, $wardId, $status, $page, $perPage, $createdLocationIds);

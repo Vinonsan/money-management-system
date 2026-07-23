@@ -153,6 +153,7 @@ class Location
 
     public static function allActive(?int $locationFilter = null, ?int $createdBy = null): array
     {
+        $db = Database::connect();
         $conditions = ['is_active = 1'];
         $params = [];
 
@@ -161,13 +162,13 @@ class Location
             $params[] = $locationFilter;
         }
 
-        if ($createdBy !== null) {
-            $conditions[] = 'created_by = ?';
+        if ($createdBy !== null && $db->columnExists('locations', 'created_by')) {
+            $conditions[] = '(created_by = ? OR created_by IS NULL)';
             $params[] = $createdBy;
         }
 
         $where = implode(' AND ', $conditions);
-        return Database::connect()->fetchAll(
+        return $db->fetchAll(
             "SELECT id, name FROM locations WHERE {$where} ORDER BY name ASC",
             $params
         );

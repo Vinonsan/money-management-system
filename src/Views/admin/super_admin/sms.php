@@ -145,12 +145,12 @@ $pageTitle = 'SMS Management';
                 <button type="submit" :disabled="configSaving"
                     class="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-6 py-2.5 text-sm font-semibold text-white shadow-md shadow-primary-600/20 transition-all hover:bg-primary-700 hover:shadow-lg hover:shadow-primary-600/30 active:scale-[0.97] disabled:opacity-60 disabled:cursor-not-allowed">
                     <template x-if="!configSaving">
-                        <>
+                        <span class="inline-flex items-center gap-2">
                             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
                             </svg>
                             Save Configuration
-                        </>
+                        </span>
                     </template>
                     <template x-if="configSaving">
                         <span>Saving...</span>

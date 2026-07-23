@@ -21,6 +21,30 @@ class Setting
         );
     }
 
+    /**
+     * Persist a group of settings atomically.
+     *
+     * @param array<string, string> $settings
+     */
+    public static function setMany(array $settings): void
+    {
+        $database = Database::connect();
+        $connection = $database->getConn();
+
+        $connection->beginTransaction();
+        try {
+            foreach ($settings as $key => $value) {
+                self::set((string) $key, (string) $value);
+            }
+            $connection->commit();
+        } catch (\Throwable $e) {
+            if ($connection->inTransaction()) {
+                $connection->rollBack();
+            }
+            throw $e;
+        }
+    }
+
     public static function getAll(): array
     {
         return Database::connect()->fetchAll(

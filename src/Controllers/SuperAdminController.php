@@ -180,21 +180,45 @@ if ($name === '' || $phone === '') {
         $this->requireJson();
         $data = $this->jsonBody();
 
-        $smsCost     = number_format((float) trim($data['sms_cost_per_message'] ?? '0.62'), 2, '.', '');
-        $smsSenderId = trim($data['smslenz_sender_id'] ?? 'ExGenX9920');
-        $smsUserId   = trim($data['smslenz_user_id'] ?? '');
-        $smsApiKey   = trim($data['smslenz_api_key'] ?? '');
+        $smsCost     = number_format((float) trim((string) ($data['sms_cost_per_message'] ?? '0.62')), 2, '.', '');
+        $smsSenderId = trim((string) ($data['smslenz_sender_id'] ?? ''));
+        $smsUserId   = trim((string) ($data['smslenz_user_id'] ?? ''));
+        $smsApiKey   = trim((string) ($data['smslenz_api_key'] ?? ''));
 
-        if ($smsCost === '' || (float) $smsCost <= 0) {
+        if ((float) $smsCost <= 0) {
             $this->jsonError('Valid cost is required.');
             return;
         }
 
-        Setting::set('sms_cost_per_message', $smsCost);
-        Setting::set('smslenz_sender_id', $smsSenderId);
-        Setting::set('smslenz_user_id', $smsUserId);
-        Setting::set('smslenz_api_key', $smsApiKey);
-        $this->jsonSuccess('SMS configuration saved.');
+        try {
+            Setting::setMany([
+                'sms_cost_per_message' => $smsCost,
+                'smslenz_sender_id'     => $smsSenderId,
+                'smslenz_user_id'       => $smsUserId,
+                'smslenz_api_key'       => $smsApiKey,
+            ]);
+
+            // Do not report success unless the persisted values can be read back.
+            $saved = [
+                'sms_cost_per_message' => Setting::get('sms_cost_per_message'),
+                'smslenz_sender_id'     => Setting::get('smslenz_sender_id'),
+                'smslenz_user_id'       => Setting::get('smslenz_user_id'),
+                'smslenz_api_key'       => Setting::get('smslenz_api_key'),
+            ];
+            if ($saved !== [
+                'sms_cost_per_message' => $smsCost,
+                'smslenz_sender_id'     => $smsSenderId,
+                'smslenz_user_id'       => $smsUserId,
+                'smslenz_api_key'       => $smsApiKey,
+            ]) {
+                throw new \RuntimeException('Saved values could not be verified.');
+            }
+
+            $this->jsonSuccess('SMS configuration saved.');
+        } catch (\Throwable $e) {
+            error_log('SMS configuration save failed: ' . $e->getMessage());
+            $this->jsonError('Failed to save SMS configuration to the database.');
+        }
     }
 
     public function refillSms(): void

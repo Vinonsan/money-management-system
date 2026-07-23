@@ -3,11 +3,11 @@
 -- Cash collection system for masjid donations / collections
 -- ======================================================================
 
-CREATE DATABASE IF NOT EXISTS masjidpay
-    DEFAULT CHARACTER SET utf8mb4
-    COLLATE utf8mb4_unicode_ci;
+-- CREATE DATABASE IF NOT EXISTS masjidpay
+--     DEFAULT CHARACTER SET utf8mb4
+--     COLLATE utf8mb4_unicode_ci;
 
-USE masjidpay;
+-- USE masjidpay;
 
 -- ─── Schema Migration Tracker ───────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS _schema_migrations (

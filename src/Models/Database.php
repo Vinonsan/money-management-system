@@ -4,6 +4,7 @@ namespace Models;
 class Database
 {
     private static $instance = null;
+    private static array $columnCache = [];
     private \PDO $conn;
 
     private function __construct()
@@ -36,6 +37,21 @@ class Database
     public function getConn(): \PDO
     {
         return $this->conn;
+    }
+
+    public function columnExists(string $table, string $column): bool
+    {
+        $key = $table . '.' . $column;
+        if (array_key_exists($key, self::$columnCache)) {
+            return self::$columnCache[$key];
+        }
+
+        $row = $this->fetch(
+            'SELECT COUNT(*) AS cnt FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?',
+            [$table, $column]
+        );
+        return self::$columnCache[$key] = (int) ($row['cnt'] ?? 0) > 0;
     }
 
     /**

@@ -13,8 +13,8 @@ class Ward
         if ($locationFilter !== null) {
             $where = 'WHERE wl.location_id = ?';
             $params[] = $locationFilter;
-        } elseif ($createdBy !== null) {
-            $where = 'WHERE w.created_by = ?';
+        } elseif ($createdBy !== null && $db->columnExists('wards', 'created_by')) {
+            $where = 'WHERE (w.created_by = ? OR w.created_by IS NULL)';
             $params[] = $createdBy;
         }
 
@@ -40,8 +40,8 @@ class Ward
         if ($locationFilter !== null) {
             $where = 'INNER JOIN ward_locations wl ON wl.ward_id = w.id AND wl.location_id = ?';
             $params[] = $locationFilter;
-        } elseif ($createdBy !== null) {
-            $where = 'WHERE w.created_by = ?';
+        } elseif ($createdBy !== null && Database::connect()->columnExists('wards', 'created_by')) {
+            $where = 'WHERE (w.created_by = ? OR w.created_by IS NULL)';
             $params[] = $createdBy;
         }
         $result = Database::connect()->fetch("SELECT COUNT(*) AS cnt FROM wards w {$where}", $params);
@@ -65,6 +65,7 @@ class Ward
 
     public static function allActive(?int $locationFilter = null, ?int $createdBy = null): array
     {
+        $db = Database::connect();
         $sql = 'SELECT w.*, 
                     GROUP_CONCAT(DISTINCT l.name ORDER BY l.name SEPARATOR ", ") AS location_names,
                     GROUP_CONCAT(DISTINCT wl.location_id ORDER BY wl.location_id) AS location_ids
@@ -79,14 +80,14 @@ class Ward
             $params[] = $locationFilter;
         }
 
-        if ($createdBy !== null) {
-            $sql .= ' AND w.created_by = ?';
+        if ($createdBy !== null && $db->columnExists('wards', 'created_by')) {
+            $sql .= ' AND (w.created_by = ? OR w.created_by IS NULL)';
             $params[] = $createdBy;
         }
 
         $sql .= ' GROUP BY w.id ORDER BY w.ward_number ASC';
 
-        return Database::connect()->fetchAll($sql, $params);
+        return $db->fetchAll($sql, $params);
     }
 
     public static function getByLocation(int $locationId): array
